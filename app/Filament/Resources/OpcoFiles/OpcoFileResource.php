@@ -18,6 +18,11 @@ class OpcoFileResource extends Resource
 {
     protected static ?string $model = OpcoFile::class;
 
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->can('access_opco') ?? false;
+    }
+
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBanknotes;
 
     protected static string|\UnitEnum|null $navigationGroup = 'Admission & Contrats';

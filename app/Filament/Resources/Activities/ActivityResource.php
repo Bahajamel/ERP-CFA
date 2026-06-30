@@ -14,6 +14,11 @@ class ActivityResource extends Resource
 {
     protected static ?string $model = Activity::class;
 
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->can('access_users') ?? false;
+    }
+
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedClipboardDocumentList;
 
     protected static string|\UnitEnum|null $navigationGroup = 'Administration';
@@ -22,7 +27,7 @@ class ActivityResource extends Resource
 
     protected static ?string $navigationLabel = 'Historique';
 
-    protected static ?string $modelLabel = 'entrée de journal';
+    protected static ?string $modelLabel = 'entrÃ©e de journal';
 
     protected static ?string $pluralModelLabel = 'historique des actions';
 

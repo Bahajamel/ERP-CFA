@@ -18,6 +18,11 @@ class MatchingResource extends Resource
 {
     protected static ?string $model = Matching::class;
 
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->can('access_matching') ?? false;
+    }
+
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedArrowsRightLeft;
 
     protected static string|\UnitEnum|null $navigationGroup = 'Commercial';

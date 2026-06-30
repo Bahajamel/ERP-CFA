@@ -18,17 +18,22 @@ class TaskResource extends Resource
 {
     protected static ?string $model = Task::class;
 
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->can('access_tasks') ?? false;
+    }
+
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBell;
 
     protected static string|\UnitEnum|null $navigationGroup = 'Pilotage';
 
     protected static ?int $navigationSort = 1;
 
-    protected static ?string $navigationLabel = 'Tâches & alertes';
+    protected static ?string $navigationLabel = 'TÃ¢ches & alertes';
 
-    protected static ?string $modelLabel = 'tâche';
+    protected static ?string $modelLabel = 'tÃ¢che';
 
-    protected static ?string $pluralModelLabel = 'tâches';
+    protected static ?string $pluralModelLabel = 'tÃ¢ches';
 
     public static function form(Schema $schema): Schema
     {

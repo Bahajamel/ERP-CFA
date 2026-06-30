@@ -19,6 +19,11 @@ class AdmissionResource extends Resource
 {
     protected static ?string $model = Admission::class;
 
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->can('access_admissions') ?? false;
+    }
+
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedClipboardDocumentCheck;
 
     protected static string|\UnitEnum|null $navigationGroup = 'Admission & Contrats';

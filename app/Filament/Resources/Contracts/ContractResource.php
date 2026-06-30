@@ -20,6 +20,11 @@ class ContractResource extends Resource
 {
     protected static ?string $model = Contract::class;
 
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->can('access_contracts') ?? false;
+    }
+
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedDocumentText;
 
     protected static string|\UnitEnum|null $navigationGroup = 'Admission & Contrats';

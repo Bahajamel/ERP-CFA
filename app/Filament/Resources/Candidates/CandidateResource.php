@@ -20,6 +20,11 @@ class CandidateResource extends Resource
 {
     protected static ?string $model = Candidate::class;
 
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->can('access_candidates') ?? false;
+    }
+
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedUserGroup;
 
     protected static string|\UnitEnum|null $navigationGroup = 'Commercial';

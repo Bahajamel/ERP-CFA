@@ -19,6 +19,11 @@ class NeedResource extends Resource
 {
     protected static ?string $model = Need::class;
 
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->can('access_needs') ?? false;
+    }
+
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBriefcase;
 
     protected static string|\UnitEnum|null $navigationGroup = 'Commercial';

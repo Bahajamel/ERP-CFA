@@ -63,3 +63,20 @@ it("crée bien les 10 rôles et 15 permissions", function () {
     expect(\Spatie\Permission\Models\Role::count())->toBe(10)
         ->and(\Spatie\Permission\Models\Permission::count())->toBe(15);
 });
+
+it('filtre les modules selon le rôle Commercial', function () {
+    $this->actingAs(makeUser(['Commercial']));
+
+    expect(\App\Filament\Resources\Candidates\CandidateResource::canAccess())->toBeTrue()
+        ->and(\App\Filament\Resources\Companies\CompanyResource::canAccess())->toBeTrue()
+        ->and(\App\Filament\Resources\OpcoFiles\OpcoFileResource::canAccess())->toBeFalse()
+        ->and(\App\Filament\Resources\Users\UserResource::canAccess())->toBeFalse();
+});
+
+it("donne à l'Administratif l'accès aux contrats et à l'OPCO, pas aux candidats", function () {
+    $this->actingAs(makeUser(['Administratif']));
+
+    expect(\App\Filament\Resources\Contracts\ContractResource::canAccess())->toBeTrue()
+        ->and(\App\Filament\Resources\OpcoFiles\OpcoFileResource::canAccess())->toBeTrue()
+        ->and(\App\Filament\Resources\Candidates\CandidateResource::canAccess())->toBeFalse();
+});

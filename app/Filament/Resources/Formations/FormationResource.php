@@ -18,9 +18,14 @@ class FormationResource extends Resource
 {
     protected static ?string $model = Formation::class;
 
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->can('access_users') ?? false;
+    }
+
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedAcademicCap;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Référentiels';
+    protected static string|\UnitEnum|null $navigationGroup = 'RÃ©fÃ©rentiels';
 
     protected static ?int $navigationSort = 1;
 
