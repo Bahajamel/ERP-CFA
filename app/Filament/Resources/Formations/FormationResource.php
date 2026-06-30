@@ -20,12 +20,12 @@ class FormationResource extends Resource
 
     public static function canAccess(): bool
     {
-        return auth()->user()?->can('access_users') ?? false;
+        return auth()->user()?->can('access_formations') ?? false;
     }
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedAcademicCap;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'RÃ©fÃ©rentiels';
+    protected static string|\UnitEnum|null $navigationGroup = 'Référentiels';
 
     protected static ?int $navigationSort = 1;
 

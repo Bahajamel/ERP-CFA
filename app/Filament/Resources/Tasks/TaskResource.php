@@ -29,11 +29,11 @@ class TaskResource extends Resource
 
     protected static ?int $navigationSort = 1;
 
-    protected static ?string $navigationLabel = 'TÃ¢ches & alertes';
+    protected static ?string $navigationLabel = 'Tâches & alertes';
 
-    protected static ?string $modelLabel = 'tÃ¢che';
+    protected static ?string $modelLabel = 'tâche';
 
-    protected static ?string $pluralModelLabel = 'tÃ¢ches';
+    protected static ?string $pluralModelLabel = 'tâches';
 
     public static function form(Schema $schema): Schema
     {

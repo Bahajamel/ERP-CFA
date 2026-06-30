@@ -24,6 +24,7 @@ class Modules
         'ruptures'    => 'Ruptures',
         'tasks'       => 'Tâches & alertes',
         'reports'     => 'Exports',
+        'formations'  => 'Formations (référentiel)',
         'users'       => 'Utilisateurs',
     ];
 

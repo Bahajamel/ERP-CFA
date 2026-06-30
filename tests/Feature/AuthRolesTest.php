@@ -59,9 +59,9 @@ it('applique la matrice des permissions par rôle', function () {
         ->and($finance->can('access_candidates'))->toBeFalse();
 });
 
-it("crée bien les 10 rôles et 15 permissions", function () {
+it("crée bien les 10 rôles et 16 permissions", function () {
     expect(\Spatie\Permission\Models\Role::count())->toBe(10)
-        ->and(\Spatie\Permission\Models\Permission::count())->toBe(15);
+        ->and(\Spatie\Permission\Models\Permission::count())->toBe(16);
 });
 
 it('filtre les modules selon le rôle Commercial', function () {
@@ -79,6 +79,24 @@ it("donne à l'Administratif l'accès aux contrats et à l'OPCO, pas aux candida
     expect(\App\Filament\Resources\Contracts\ContractResource::canAccess())->toBeTrue()
         ->and(\App\Filament\Resources\OpcoFiles\OpcoFileResource::canAccess())->toBeTrue()
         ->and(\App\Filament\Resources\Candidates\CandidateResource::canAccess())->toBeFalse();
+});
+
+it('rend les référentiels visibles aux bons départements', function () {
+    // Formations : catalogue consulté par le commercial, la pédagogie, l'admission, la scolarité
+    $this->actingAs(makeUser(['Commercial']));
+    expect(\App\Filament\Resources\Formations\FormationResource::canAccess())->toBeTrue()
+        ->and(\App\Filament\Resources\Opcos\OpcoResource::canAccess())->toBeFalse();
+
+    $this->actingAs(makeUser(['Pédagogie']));
+    expect(\App\Filament\Resources\Formations\FormationResource::canAccess())->toBeTrue();
+
+    // Référentiel OPCO : administratif & finance
+    $this->actingAs(makeUser(['Administratif']));
+    expect(\App\Filament\Resources\Opcos\OpcoResource::canAccess())->toBeTrue();
+
+    $this->actingAs(makeUser(['Finance']));
+    expect(\App\Filament\Resources\Opcos\OpcoResource::canAccess())->toBeTrue()
+        ->and(\App\Filament\Resources\Formations\FormationResource::canAccess())->toBeFalse();
 });
 
 it('crée des comptes de démo connectables (un par rôle, mot de passe « password »)', function () {

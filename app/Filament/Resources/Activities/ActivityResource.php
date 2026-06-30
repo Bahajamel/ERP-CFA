@@ -27,7 +27,7 @@ class ActivityResource extends Resource
 
     protected static ?string $navigationLabel = 'Historique';
 
-    protected static ?string $modelLabel = 'entrÃ©e de journal';
+    protected static ?string $modelLabel = 'entrée de journal';
 
     protected static ?string $pluralModelLabel = 'historique des actions';
 

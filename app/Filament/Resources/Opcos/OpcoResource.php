@@ -20,12 +20,12 @@ class OpcoResource extends Resource
 
     public static function canAccess(): bool
     {
-        return auth()->user()?->can('access_users') ?? false;
+        return auth()->user()?->can('access_opco') ?? false;
     }
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBuildingLibrary;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'RÃ©fÃ©rentiels';
+    protected static string|\UnitEnum|null $navigationGroup = 'Référentiels';
 
     protected static ?int $navigationSort = 2;
 

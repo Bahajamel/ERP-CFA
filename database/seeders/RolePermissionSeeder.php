@@ -30,14 +30,14 @@ class RolePermissionSeeder extends Seeder
         $matrix = [
             'Administrateur' => '*',
             'Direction'      => $allButUsers,
-            'Commercial'     => ['candidates', 'companies', 'needs', 'matching', 'tasks'],
-            'Admission'      => ['candidates', 'admissions', 'documents', 'tasks'],
+            'Commercial'     => ['candidates', 'companies', 'needs', 'matching', 'formations', 'tasks'],
+            'Admission'      => ['candidates', 'admissions', 'documents', 'formations', 'tasks'],
             'Administratif'  => ['contracts', 'opco', 'documents', 'finance', 'tasks'],
-            'Scolarité'      => ['attendance', 'tasks'],
-            'Pédagogie'      => ['candidates', 'admissions', 'attendance', 'quality', 'ruptures', 'tasks'],
+            'Scolarité'      => ['attendance', 'formations', 'tasks'],
+            'Pédagogie'      => ['candidates', 'admissions', 'attendance', 'quality', 'ruptures', 'formations', 'tasks'],
             'Finance'        => ['finance', 'contracts', 'opco', 'tasks'],
             'Qualité'        => ['quality', 'documents', 'tasks'],
-            'Formateur'      => ['attendance', 'tasks'],
+            'Formateur'      => ['attendance', 'formations', 'tasks'],
         ];
 
         // 3) Création des rôles + affectation des permissions
