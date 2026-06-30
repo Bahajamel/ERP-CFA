@@ -2,24 +2,24 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
 {
-    use WithoutModelEvents;
-
     /**
-     * Seed the application's database.
+     * Seed de base de l'ERP :
+     * - rôles & permissions + matrice d'accès (RolePermissionSeeder)
+     * - compte administrateur (AdminUserSeeder)
+     * - données de démonstration : utilisateurs par rôle + candidats, entreprises,
+     *   besoins, contrats, OPCO, etc. (DemoSeeder)
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+        $this->call([
+            RolePermissionSeeder::class,
+            AdminUserSeeder::class,
+            DemoSeeder::class,
+            DemoAccountsSeeder::class,
         ]);
     }
 }

@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+jobs:
+  tests:
+    name: Tests (Pest)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurer PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, pdo, pdo_sqlite, sqlite3, intl, zip, gd, bcmath, exif, fileinfo, curl, openssl
+          coverage: none
+
+      - name: Préparer le fichier d'environnement
+        run: cp .env.example .env
+
+      - name: Installer les dépendances Composer
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Générer la clé d'application
+        run: php artisan key:generate
+
+      - name: Lancer les tests
+        run: php artisan test
