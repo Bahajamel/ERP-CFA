@@ -80,3 +80,14 @@ it("donne à l'Administratif l'accès aux contrats et à l'OPCO, pas aux candida
         ->and(\App\Filament\Resources\OpcoFiles\OpcoFileResource::canAccess())->toBeTrue()
         ->and(\App\Filament\Resources\Candidates\CandidateResource::canAccess())->toBeFalse();
 });
+
+it('crée des comptes de démo connectables (un par rôle, mot de passe « password »)', function () {
+    $this->seed(\Database\Seeders\DemoAccountsSeeder::class);
+
+    $commercial = User::where('email', 'commercial@cfa-v2s.fr')->first();
+
+    expect($commercial)->not->toBeNull()
+        ->and($commercial->is_active)->toBeTrue()
+        ->and($commercial->hasRole('Commercial'))->toBeTrue()
+        ->and(\Illuminate\Support\Facades\Hash::check('password', $commercial->password))->toBeTrue();
+});
