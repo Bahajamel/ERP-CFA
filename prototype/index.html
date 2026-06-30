@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ERP CFA — Prototype (maquette de validation)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50:'#ecfdf5',100:'#d1fae5',200:'#a7f3d0',300:'#6ee7b7',
+              400:'#34d399',500:'#10b981',600:'#059669',700:'#047857',
+              800:'#065f46',900:'#064e3b'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="assets/styles.css" />
+</head>
+<body class="bg-slate-100 text-slate-800 antialiased">
+
+  <!-- Bandeau "maquette" -->
+  <div class="bg-amber-400 text-amber-950 text-center text-xs font-semibold py-1 px-4">
+    ⚠️ MAQUETTE STATIQUE — données fictives, à but de validation. Aucune fonctionnalité réelle.
+  </div>
+
+  <div class="flex min-h-screen">
+    <!-- Sidebar -->
+    <aside class="w-64 shrink-0 bg-slate-900 text-slate-300 flex flex-col">
+      <div class="px-5 py-4 border-b border-slate-700/60">
+        <div class="flex items-center gap-2">
+          <div class="h-9 w-9 rounded-lg bg-brand-500 grid place-items-center font-bold text-white">CFA</div>
+          <div>
+            <div class="text-white font-semibold leading-tight">ERP CFA</div>
+            <div class="text-[11px] text-slate-400">Plateforme unique</div>
+          </div>
+        </div>
+      </div>
+      <nav id="sidebar" class="flex-1 overflow-y-auto py-3 text-sm"></nav>
+      <div class="px-4 py-3 border-t border-slate-700/60 text-[11px] text-slate-500">
+        Prototype v1 · {{date}}
+      </div>
+    </aside>
+
+    <!-- Contenu -->
+    <div class="flex-1 flex flex-col min-w-0">
+      <!-- Topbar -->
+      <header class="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between sticky top-0 z-10">
+        <div>
+          <div class="text-[11px] uppercase tracking-wide text-slate-400">Espace</div>
+          <h1 id="page-title" class="text-lg font-semibold text-slate-900">—</h1>
+        </div>
+        <div class="flex items-center gap-3">
+          <label class="text-sm text-slate-500">Connecté en tant que&nbsp;:</label>
+          <select id="role-switch" class="rounded-lg border-slate-300 text-sm focus:ring-brand-500 focus:border-brand-500"></select>
+          <div class="h-9 w-9 rounded-full bg-brand-100 text-brand-700 grid place-items-center text-sm font-semibold">DP</div>
+        </div>
+      </header>
+
+      <!-- Vue -->
+      <main id="view" class="p-6 max-w-7xl w-full mx-auto"></main>
+    </div>
+  </div>
+
+  <!-- Tiroir de détail (fiche) -->
+  <div id="drawer-overlay" class="fixed inset-0 bg-black/40 z-40 hidden"></div>
+  <aside id="drawer" class="fixed top-0 right-0 h-full w-full max-w-2xl bg-slate-100 z-50 shadow-2xl translate-x-full transition-transform duration-300 flex flex-col">
+    <header class="bg-white border-b border-slate-200 px-5 py-3 flex items-center justify-between shrink-0">
+      <div>
+        <div class="text-[11px] uppercase tracking-wide text-slate-400">Fiche détaillée</div>
+        <h3 id="drawer-title" class="text-lg font-semibold text-slate-900">—</h3>
+      </div>
+      <button id="drawer-close" class="h-9 w-9 grid place-items-center rounded-lg hover:bg-slate-100 text-slate-500 text-xl">✕</button>
+    </header>
+    <div id="drawer-tabs" class="bg-white border-b border-slate-200 px-3 flex gap-1 shrink-0 overflow-x-auto"></div>
+    <div id="drawer-body" class="p-5 overflow-y-auto grow"></div>
+  </aside>
+
+  <script src="assets/data.js"></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>

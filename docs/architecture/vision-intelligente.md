@@ -8,6 +8,10 @@ en haussant l'ambition là où se trouve la vraie valeur métier.
 > l'intelligence possible, sans sur-coder l'IA tout de suite.** On livre d'abord
 > le parcours principal solide ; l'intelligence s'ajoute par couches.
 
+> 🎯 **Positionnement concurrentiel :** ces piliers sont aussi notre réponse aux
+> faiblesses des leaders du marché (Ypareo, Digiforma, Dendreo). Détail dans
+> [analyse-concurrentielle.md](../strategy/analyse-concurrentielle.md).
+
 ---
 
 ## 1. Les 4 piliers d'intelligence (axes retenus)
