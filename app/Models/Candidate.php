@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\CandidateStatut;
 use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -15,6 +16,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
 
 class Candidate extends Model
 {
+    use HasFactory;
     use SoftDeletes;
     use LogsActivity;
 
@@ -70,5 +72,10 @@ class Candidate extends Model
     public function documents(): MorphMany
     {
         return $this->morphMany(Document::class, 'documentable');
+    }
+
+    public function notes(): MorphMany
+    {
+        return $this->morphMany(Note::class, 'notable');
     }
 }

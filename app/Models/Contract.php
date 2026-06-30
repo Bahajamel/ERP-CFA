@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\ContractSignatureStatut;
 use App\Enums\ContractStatut;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -14,6 +15,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
 
 class Contract extends Model
 {
+    use HasFactory;
     use SoftDeletes;
     use LogsActivity;
 

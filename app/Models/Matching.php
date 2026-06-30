@@ -3,11 +3,14 @@
 namespace App\Models;
 
 use App\Enums\MatchingStatut;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Matching extends Model
 {
+    use HasFactory;
+
     protected $guarded = [];
 
     protected function casts(): array
