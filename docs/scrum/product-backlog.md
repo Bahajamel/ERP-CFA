@@ -191,8 +191,14 @@ Backlog produit complet. Source unique des epics et user stories.
 | P0-10-2 | En tant qu'utilisateur, je veux marquer une tâche terminée et voir mes tâches en retard. | 3 |
 | P0-10-3 | En tant qu'utilisateur, je veux recevoir une alerte in-app (et email si nécessaire) sur les événements clés. | 5 |
 | P0-10-4 | En tant que système, je veux générer des alertes automatiques (dossier incomplet, contrat à signer, OPCO sans retour, rejet OPCO…). | 5 |
+| P0-10-5 | En tant que système, quand une pièce obligatoire d'admission repasse à *manquante/non conforme* et que le candidat est « Dossier complet », je le **rétrograde en « Incomplet »** (via la machine à états, journalisé) et je crée une **tâche de relance**. | 3 |
 
 **Statuts** : À faire · En cours · En attente · Terminée · Annulée · En retard.
+
+> **Note** : P0-10-5 est l'**auto-synchronisation** volontairement reportée depuis la
+> story P0-02-6 (règles candidats). La garde de P0-02-6 empêche déjà d'*aller* vers
+> « Complet » avec des pièces manquantes ; P0-10-5 gère le sens inverse (rétrogradation
+> automatique) via le moteur de règles / `afterTransition` (cf. `vision-intelligente.md`).
 
 ## EPIC-11 — Historique & journalisation
 *Branche : `feature/history` · CDC §21 · activitylog*
