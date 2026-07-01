@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\CandidateStatut;
 use App\Enums\ChecklistItemStatut;
+use App\Matching\CompatibilityScorer;
 use App\StateMachine\ManagesState;
 use BackedEnum;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -14,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
@@ -21,9 +23,9 @@ use Spatie\Activitylog\Traits\LogsActivity;
 class Candidate extends Model
 {
     use HasFactory;
-    use SoftDeletes;
     use LogsActivity;
     use ManagesState;
+    use SoftDeletes;
 
     protected $guarded = [];
 
@@ -124,5 +126,64 @@ class Candidate extends Model
     public function notes(): MorphMany
     {
         return $this->morphMany(Note::class, 'notable');
+    }
+
+    /**
+     * Entreprises à cibler pour ce candidat (P1-03-7, Pilier E / F4). Deux signaux :
+     *  1. un besoin ouvert compatible (score de compatibilité > 0) ;
+     *  2. l'entreprise a déjà recruté dans la formation visée (partenaire chaud).
+     * Classées : compatibilité décroissante d'abord, partenaires ensuite. Chaque
+     * élément : ['company', 'score', 'besoin', 'raison'].
+     */
+    public function entreprisesACibler(int $limit = 15): Collection
+    {
+        $scorer = new CompatibilityScorer;
+
+        // 1. Besoins ouverts compatibles → meilleure opportunité par entreprise.
+        // Tableau natif indexé par company_id (modification imbriquée fiable).
+        $cibles = Need::query()
+            ->ouverts()
+            ->with(['company', 'formation'])
+            ->get()
+            ->map(fn (Need $need): array => [
+                'need' => $need,
+                'score' => $scorer->score($this, $need),
+            ])
+            ->filter(fn (array $row): bool => $row['score'] > 0 && $row['need']->company !== null)
+            ->groupBy(fn (array $row): int => $row['need']->company_id)
+            ->map(function (Collection $rows): array {
+                $meilleur = $rows->sortByDesc('score')->first();
+
+                return [
+                    'company' => $meilleur['need']->company,
+                    'score' => $meilleur['score'],
+                    'besoin' => $meilleur['need'],
+                    'raison' => "Besoin ouvert : {$meilleur['need']->intitule_poste}",
+                ];
+            })
+            ->all();
+
+        // 2. Partenaires ayant déjà recruté dans la formation visée.
+        if ($this->formation_visee_id !== null) {
+            foreach (Company::query()->whereHas('contracts', fn ($q) => $q->where('formation_id', $this->formation_visee_id))->get() as $company) {
+                if (isset($cibles[$company->id])) {
+                    $cibles[$company->id]['raison'] .= ' · a déjà recruté dans cette formation';
+
+                    continue;
+                }
+
+                $cibles[$company->id] = [
+                    'company' => $company,
+                    'score' => 0,
+                    'besoin' => null,
+                    'raison' => 'A déjà recruté dans cette formation',
+                ];
+            }
+        }
+
+        return collect($cibles)
+            ->sortByDesc('score')
+            ->take($limit)
+            ->values();
     }
 }

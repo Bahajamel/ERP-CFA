@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Candidates\Tables;
 
 use App\Enums\CandidateStatut;
+use App\Models\Candidate;
 use App\StateMachine\InvalidTransitionException;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
@@ -87,6 +88,16 @@ class CandidatesTable
                             Notification::make()->danger()->title('Transition refusée')->body($e->getMessage())->send();
                         }
                     }),
+                Action::make('entreprisesACibler')
+                    ->label('Entreprises à cibler')
+                    ->icon('heroicon-o-building-office-2')
+                    ->color('info')
+                    ->modalHeading(fn (Candidate $record): string => "Entreprises à cibler — {$record->nom_complet}")
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Fermer')
+                    ->modalContent(fn (Candidate $record) => view('filament.candidates.entreprises-a-cibler', [
+                        'cibles' => $record->entreprisesACibler(),
+                    ])),
                 ViewAction::make(),
                 EditAction::make(),
             ])
