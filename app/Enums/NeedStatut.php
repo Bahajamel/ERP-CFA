@@ -62,4 +62,18 @@ enum NeedStatut: string implements HasLabel, HasColor, HasStateTransitions
             self::Archive => [],
         };
     }
+
+    /** Colonnes de l'entonnoir de recrutement (Kanban). Exclut les états terminaux. */
+    public static function board(): array
+    {
+        return [
+            self::Cree,
+            self::EnQualification,
+            self::ProfilsRecherches,
+            self::ProfilsEnvoyes,
+            self::EntretienPrevu,
+            self::CandidatRetenu,
+            self::Pourvu,
+        ];
+    }
 }
