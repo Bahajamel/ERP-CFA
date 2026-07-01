@@ -80,4 +80,23 @@ class Company extends Model
     {
         return $this->satisfactions()->value('satisfaction');
     }
+
+    /** Interactions commerciales, la plus récente en tête (timeline). */
+    public function interactions(): MorphMany
+    {
+        return $this->morphMany(Interaction::class, 'interactable')
+            ->orderByDesc('date_interaction')
+            ->orderByDesc('id');
+    }
+
+    /**
+     * Prochaine relance planifiée : l'action datée définie par l'interaction la
+     * plus récente qui en porte une. Null si aucune relance n'est planifiée.
+     */
+    public function prochaineRelance(): ?Interaction
+    {
+        return $this->interactions()
+            ->whereNotNull('prochaine_action_le')
+            ->first();
+    }
 }

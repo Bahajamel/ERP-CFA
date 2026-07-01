@@ -11,9 +11,11 @@ use Filament\Actions\ForceDeleteBulkAction;
 use Filament\Actions\RestoreBulkAction;
 use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class CompaniesTable
 {
@@ -63,6 +65,16 @@ class CompaniesTable
                     ->badge()
                     ->color(fn (int $state): string => $state > 0 ? 'danger' : 'gray')
                     ->toggleable(),
+                TextColumn::make('prochaine_relance')
+                    ->label('Prochaine relance')
+                    ->state(fn (Company $record): ?string => $record->prochaineRelance()?->prochaine_action_le?->format('d/m/Y'))
+                    ->placeholder('—')
+                    ->badge()
+                    ->color(fn (Company $record): string => ($relance = $record->prochaineRelance())
+                        && $relance->prochaine_action_le->isPast()
+                        ? 'danger'
+                        : 'gray')
+                    ->toggleable(),
                 TextColumn::make('statut')
                     ->label('Statut')
                     ->badge(),
@@ -71,6 +83,12 @@ class CompaniesTable
                 SelectFilter::make('statut')
                     ->label('Statut')
                     ->options(CompanyStatut::class),
+                Filter::make('relance_a_faire')
+                    ->label('Relance à faire')
+                    ->query(fn (Builder $query): Builder => $query->whereHas(
+                        'interactions',
+                        fn (Builder $q): Builder => $q->relanceDue(),
+                    )),
                 TrashedFilter::make(),
             ])
             ->recordActions([
