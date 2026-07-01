@@ -3,12 +3,17 @@
 namespace App\Filament\Resources\Candidates\Tables;
 
 use App\Enums\CandidateStatut;
+use App\StateMachine\InvalidTransitionException;
+use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ForceDeleteBulkAction;
 use Filament\Actions\RestoreBulkAction;
 use Filament\Actions\ViewAction;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
+use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TrashedFilter;
@@ -60,6 +65,28 @@ class CandidatesTable
                 TrashedFilter::make(),
             ])
             ->recordActions([
+                Action::make('changerStatut')
+                    ->label('Changer le statut')
+                    ->icon('heroicon-o-arrows-right-left')
+                    ->visible(fn ($record): bool => filled($record->allowedTransitions()))
+                    ->schema(fn ($record): array => [
+                        Select::make('to')
+                            ->label('Nouveau statut')
+                            ->options(collect($record->allowedTransitions())
+                                ->mapWithKeys(fn (CandidateStatut $s) => [$s->value => $s->getLabel()])
+                                ->all())
+                            ->required(),
+                        Textarea::make('comment')
+                            ->label('Commentaire (optionnel)'),
+                    ])
+                    ->action(function ($record, array $data): void {
+                        try {
+                            $record->transitionTo(CandidateStatut::from($data['to']), $data['comment'] ?? null);
+                            Notification::make()->success()->title('Statut mis à jour')->send();
+                        } catch (InvalidTransitionException $e) {
+                            Notification::make()->danger()->title('Transition refusée')->body($e->getMessage())->send();
+                        }
+                    }),
                 ViewAction::make(),
                 EditAction::make(),
             ])
