@@ -80,8 +80,11 @@ Backlog produit complet. Source unique des epics et user stories.
 | P0-02-4 | En tant que commercial, je veux ajouter des notes internes et créer des tâches de relance. | 3 |
 | P0-02-5 | En tant qu'utilisateur, je veux suivre l'historique des échanges du candidat. | 2 |
 | P0-02-6 | En tant que système, je veux empêcher un candidat sans email **ni** téléphone, et bloquer "Dossier complet" si pièces obligatoires manquantes. | 3 |
+| P0-02-7 | En tant que commercial, je veux une **vue Kanban** des candidats par statut (drag = transition contrôlée) afin de piloter mon flux comme un CRM. *(Pilier E / F1)* | 3 |
+| P0-02-8 | En tant que commercial, je veux une **timeline d'interactions** (notes/appels/RDV) + une **prochaine action** datée qui crée une tâche. *(Pilier E / F3)* | 3 |
 
 **Statuts** : Dossier incomplet · Dossier complet · En recherche d'entreprise · Contrat signé · Rupture.
+**Enrichissement Pilier E** (CRM commercial) → [excellence-commerciale-crm-matching.md](../architecture/excellence-commerciale-crm-matching.md).
 
 ## EPIC-03 — Entreprises
 *Branche : `feature/companies` · CDC §6*
@@ -93,8 +96,11 @@ Backlog produit complet. Source unique des epics et user stories.
 | P0-03-3 | En tant que commercial, je veux ajouter un maître d'apprentissage / tuteur rattaché à l'entreprise. | 2 |
 | P0-03-4 | En tant qu'utilisateur, je veux consulter les contrats, candidats proposés et historique d'une entreprise. | 5 |
 | P0-03-5 | En tant que commercial, je veux ajouter notes / comptes rendus et suivre satisfaction / incidents. | 2 |
+| P0-03-6 | En tant que commercial, je veux une **timeline d'interactions** entreprise + une **prochaine action** datée (relance). *(Pilier E / F3)* | 2 |
+| P1-03-7 | En tant que commercial, je veux une liste **« entreprises à cibler »** pour un candidat (besoin ouvert compatible / a déjà recruté). *(Pilier E / F4)* | 3 |
 
 **Règles** : pas de contrat actif sans contact principal ; un tuteur est rattaché à une entreprise.
+**Enrichissement Pilier E** → [excellence-commerciale-crm-matching.md](../architecture/excellence-commerciale-crm-matching.md).
 
 ## EPIC-04 — Besoins entreprises
 *Branche : `feature/needs` · CDC §7*
@@ -105,8 +111,10 @@ Backlog produit complet. Source unique des epics et user stories.
 | P0-04-2 | En tant que commercial, je veux rattacher des candidats à un besoin et suivre ceux proposés. | 3 |
 | P0-04-3 | En tant que commercial, je veux faire évoluer le statut du besoin et le clôturer quand pourvu. | 3 |
 | P0-04-4 | En tant que commercial, je veux voir tous les besoins ouverts avec formation cible et nb de postes restants. | 3 |
+| P0-04-5 | En tant que commercial, je veux une **vue Kanban (entonnoir)** des besoins par statut afin de suivre le recrutement comme un pipeline. *(Pilier E / F1)* | 2 |
 
 **Statuts** : Besoin créé · En qualification · Profils recherchés · Profils envoyés · Entretien entreprise prévu · Candidat retenu · Besoin pourvu · Annulé · Archivé.
+**Enrichissement Pilier E** → [excellence-commerciale-crm-matching.md](../architecture/excellence-commerciale-crm-matching.md).
 
 ## EPIC-05 — Matching candidat / besoin
 *Branche : `feature/matching` · CDC §8*
@@ -118,8 +126,10 @@ Backlog produit complet. Source unique des epics et user stories.
 | P0-05-3 | En tant que commercial, je veux suivre CV envoyé, entretiens, retours et résultat (accepté/refusé). | 3 |
 | P0-05-4 | En tant qu'utilisateur, je veux conserver l'historique des propositions et voir, par besoin, tous les candidats et leur statut. | 3 |
 | P0-05-5 | En tant que système, j'empêche "Accepté" sur un besoin déjà clôturé. | 2 |
+| P0-05-6 | En tant que commercial, je veux un **matching assisté par score** : depuis un besoin, candidats classés par compatibilité (règles) + **proposition en 1 clic**. *(Pilier E / F2)* | 5 |
 
 **Statuts** : Proposé · CV envoyé · Entretien prévu · En attente de retour · Accepté · Refusé par l'entreprise · Refusé par le candidat · Abandonné.
+**Enrichissement Pilier E** → [excellence-commerciale-crm-matching.md](../architecture/excellence-commerciale-crm-matching.md).
 
 ## EPIC-06 — Documents (GED)
 *Branche : `feature/documents` · CDC §10 · medialibrary*
