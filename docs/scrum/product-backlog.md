@@ -165,8 +165,11 @@ Backlog produit complet. Source unique des epics et user stories.
 | P0-08-3 | En tant qu'administratif, je veux suivre le statut de signature et conserver les versions signées. | 3 |
 | P0-08-4 | En tant qu'administratif, je veux envoyer le dossier vers le suivi OPCO. | 2 |
 | P0-08-5 | En tant que système, j'empêche "Signé" sans document signé associé ou justification, et je trace toute modif post-signature. | 3 |
+| P1-08-6 | En tant qu'administratif, je veux envoyer le dossier en **signature électronique** multi-parties (employeur, apprenti, +représentant légal si mineur, CFA) via un prestataire eIDAS. *(gap concurrentiel #1 / G2)* | 5 |
+| P1-08-7 | En tant que système, à la signature de toutes les parties je veux passer le contrat à **« Signé » automatiquement** et archiver le PDF signé à valeur probante. *(gap concurrentiel #1 / G3)* | 3 |
 
 **Statuts** : Brouillon · Informations manquantes · Prêt à vérifier · Envoyé pour signature · Signé · Transmis OPCO · Actif · Rompu · Archivé.
+**Enrichissement (gap concurrentiel #1)** — génération CERFA (FA13) + signature électronique → [signature-electronique-cerfa.md](../architecture/signature-electronique-cerfa.md). P0-08-2 est enrichie de la **génération du CERFA pré-rempli** (brique G1).
 
 ## EPIC-09 — OPCO
 *Branche : `feature/opco` · CDC §12*
