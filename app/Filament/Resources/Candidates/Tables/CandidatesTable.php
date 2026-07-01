@@ -68,11 +68,11 @@ class CandidatesTable
                 Action::make('changerStatut')
                     ->label('Changer le statut')
                     ->icon('heroicon-o-arrows-right-left')
-                    ->visible(fn ($record): bool => filled($record->allowedTransitions()))
+                    ->visible(fn ($record): bool => filled($record->currentState()->transitions()))
                     ->schema(fn ($record): array => [
                         Select::make('to')
                             ->label('Nouveau statut')
-                            ->options(collect($record->allowedTransitions())
+                            ->options(collect($record->currentState()->transitions())
                                 ->mapWithKeys(fn (CandidateStatut $s) => [$s->value => $s->getLabel()])
                                 ->all())
                             ->required(),
