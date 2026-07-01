@@ -10,11 +10,16 @@ use Filament\Widgets\TableWidget as BaseWidget;
 
 class TachesPrioritairesTable extends BaseWidget
 {
-    protected static ?int $sort = 3;
+    protected static ?int $sort = 5;
 
     protected int|string|array $columnSpan = 'full';
 
     protected static ?string $heading = 'Tâches prioritaires';
+
+    public static function canView(): bool
+    {
+        return auth()->user()?->hasAnyRole(['Direction', 'Administrateur']) ?? false;
+    }
 
     public function table(Table $table): Table
     {

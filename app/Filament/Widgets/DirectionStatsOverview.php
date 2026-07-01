@@ -6,15 +6,28 @@ use App\Enums\CandidateStatut;
 use App\Enums\ContractStatut;
 use App\Enums\NeedStatut;
 use App\Enums\OpcoStatut;
+use App\Enums\PaymentStatut;
 use App\Enums\TaskStatut;
+use App\Filament\Resources\Candidates\CandidateResource;
+use App\Filament\Resources\Contracts\ContractResource;
+use App\Filament\Resources\Needs\NeedResource;
+use App\Filament\Resources\OpcoFiles\OpcoFileResource;
+use App\Filament\Resources\Tasks\TaskResource;
 use App\Models\Candidate;
 use App\Models\Contract;
 use App\Models\Need;
 use App\Models\OpcoFile;
+use App\Models\OpcoPayment;
 use App\Models\Task;
 use Filament\Widgets\StatsOverviewWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 
+/**
+ * Vue de pilotage de la direction : les 6 indicateurs clés du CFA.
+ * Chaque carte est cliquable et renvoie vers la liste filtrée correspondante
+ * (« KPI cliquables » — priorité de l'audit concurrentiel).
+ * Réservée à la Direction et à l'Administrateur.
+ */
 class DirectionStatsOverview extends StatsOverviewWidget
 {
     protected ?string $heading = 'Vue direction';
@@ -22,6 +35,11 @@ class DirectionStatsOverview extends StatsOverviewWidget
     protected static ?int $sort = 1;
 
     protected int|string|array $columnSpan = 'full';
+
+    public static function canView(): bool
+    {
+        return auth()->user()?->hasAnyRole(['Direction', 'Administrateur']) ?? false;
+    }
 
     protected function getStats(): array
     {
@@ -41,6 +59,7 @@ class DirectionStatsOverview extends StatsOverviewWidget
         ])->count();
         $opcoBloques = OpcoFile::whereIn('statut', OpcoStatut::bloques())->count();
         $montantAttendu = (float) OpcoFile::sum('montant_prevu');
+        $montantVerse = (float) OpcoPayment::where('statut', PaymentStatut::Verse->value)->sum('montant_prevu');
         $tachesOuvertes = Task::whereIn('statut', [
             TaskStatut::AFaire->value,
             TaskStatut::EnCours->value,
@@ -52,27 +71,33 @@ class DirectionStatsOverview extends StatsOverviewWidget
             Stat::make('Candidats actifs', $candidatsActifs)
                 ->description('Hors ruptures')
                 ->descriptionIcon('heroicon-m-user-group')
-                ->color('info'),
+                ->color('info')
+                ->url(CandidateResource::getUrl()),
             Stat::make('Besoins ouverts', $besoinsOuverts)
                 ->description('Postes à pourvoir')
                 ->descriptionIcon('heroicon-m-briefcase')
-                ->color('warning'),
+                ->color('warning')
+                ->url(NeedResource::getUrl()),
             Stat::make('Contrats signés', $contratsSignes)
                 ->description('Signés / transmis / actifs')
                 ->descriptionIcon('heroicon-m-check-badge')
-                ->color('success'),
+                ->color('success')
+                ->url(ContractResource::getUrl()),
             Stat::make('Dossiers OPCO bloqués', $opcoBloques)
                 ->description('Rejetés ou en correction')
                 ->descriptionIcon('heroicon-m-exclamation-triangle')
-                ->color($opcoBloques > 0 ? 'danger' : 'success'),
-            Stat::make('Montant attendu OPCO', number_format($montantAttendu, 0, ',', ' ').' €')
-                ->description('Financement prévisionnel')
+                ->color($opcoBloques > 0 ? 'danger' : 'success')
+                ->url(OpcoFileResource::getUrl()),
+            Stat::make('Financement OPCO encaissé', number_format($montantVerse, 0, ',', ' ').' €')
+                ->description(number_format($montantAttendu, 0, ',', ' ').' € attendus au total')
                 ->descriptionIcon('heroicon-m-banknotes')
-                ->color('primary'),
+                ->color('primary')
+                ->url(OpcoFileResource::getUrl()),
             Stat::make('Tâches ouvertes', $tachesOuvertes)
                 ->description('À traiter par les équipes')
                 ->descriptionIcon('heroicon-m-bell-alert')
-                ->color('gray'),
+                ->color('gray')
+                ->url(TaskResource::getUrl()),
         ];
     }
 }
