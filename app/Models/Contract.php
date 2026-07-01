@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\ContractSignatureStatut;
 use App\Enums\ContractStatut;
+use App\StateMachine\ManagesState;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -18,8 +19,15 @@ class Contract extends Model
     use HasFactory;
     use SoftDeletes;
     use LogsActivity;
+    use ManagesState;
 
     protected $guarded = [];
+
+    /** La machine à états porte sur le statut du contrat. */
+    public function stateColumn(): string
+    {
+        return 'statut_contrat';
+    }
 
     protected function casts(): array
     {

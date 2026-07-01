@@ -2,11 +2,15 @@
 
 namespace App\Enums;
 
+use App\StateMachine\DefinesTransitions;
+use App\StateMachine\HasStateTransitions;
 use Filament\Support\Contracts\HasColor;
 use Filament\Support\Contracts\HasLabel;
 
-enum AdmissionStatut: string implements HasLabel, HasColor
+enum AdmissionStatut: string implements HasLabel, HasColor, HasStateTransitions
 {
+    use DefinesTransitions;
+
     case AVerifier = 'a_verifier';
     case Incomplet = 'incomplet';
     case NonConforme = 'non_conforme';
@@ -32,6 +36,17 @@ enum AdmissionStatut: string implements HasLabel, HasColor
             self::NonConforme => 'warning',
             self::Valide => 'success',
             self::Refuse => 'danger',
+        };
+    }
+
+    public function transitions(): array
+    {
+        return match ($this) {
+            self::AVerifier => [self::Incomplet, self::NonConforme, self::Valide, self::Refuse],
+            self::Incomplet => [self::AVerifier, self::Refuse],
+            self::NonConforme => [self::AVerifier, self::Refuse],
+            self::Valide => [],
+            self::Refuse => [],
         };
     }
 }

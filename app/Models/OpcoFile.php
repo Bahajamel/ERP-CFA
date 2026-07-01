@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\OpcoStatut;
+use App\StateMachine\ManagesState;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -13,6 +14,7 @@ class OpcoFile extends Model
 {
     use HasFactory;
     use LogsActivity;
+    use ManagesState;
 
     protected $guarded = [];
 
