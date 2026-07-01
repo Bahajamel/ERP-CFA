@@ -2,10 +2,8 @@
 
 namespace App\Filament\Resources\Admissions\Schemas;
 
-use App\Enums\AdmissionStatut;
-use Filament\Forms\Components\DateTimePicker;
-use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\Select;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 
@@ -16,30 +14,21 @@ class AdmissionForm
         return $schema
             ->components([
                 Section::make("Dossier d'admission")
-                    ->columns(2)
+                    ->description('Le statut évolue via les actions de workflow (Valider, Faire évoluer), pas manuellement.')
+                    ->columns(1)
                     ->schema([
                         Select::make('candidate_id')
                             ->label('Candidat')
                             ->relationship('candidate', 'nom')
-                            ->searchable()
+                            ->getOptionLabelFromRecordUsing(fn ($record) => $record->nom_complet)
+                            ->searchable(['nom', 'prenom'])
                             ->preload()
-                            ->required(),
-                        Select::make('statut')
-                            ->label('Statut')
-                            ->options(AdmissionStatut::class)
-                            ->default(AdmissionStatut::AVerifier->value)
-                            ->required(),
-                        Select::make('validated_by')
-                            ->label('Validé par')
-                            ->relationship('validatedBy', 'name')
-                            ->searchable()
-                            ->preload(),
-                        DateTimePicker::make('validated_at')
-                            ->label('Validé le')
-                            ->displayFormat('d/m/Y H:i'),
+                            ->required()
+                            // Un dossier reste rattaché à son candidat.
+                            ->disabledOn('edit'),
                         Textarea::make('commentaire')
                             ->label('Commentaire')
-                            ->columnSpanFull(),
+                            ->rows(3),
                     ]),
             ]);
     }
