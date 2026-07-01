@@ -26,10 +26,14 @@ class CandidateForm
                             ->required(),
                         TextInput::make('email')
                             ->label('Adresse e-mail')
-                            ->email(),
+                            ->email()
+                            ->requiredWithout('telephone')
+                            ->validationMessages(['required_without' => 'Renseignez au moins un email ou un téléphone.']),
                         TextInput::make('telephone')
                             ->label('Téléphone')
-                            ->tel(),
+                            ->tel()
+                            ->requiredWithout('email')
+                            ->validationMessages(['required_without' => 'Renseignez au moins un email ou un téléphone.']),
                         DatePicker::make('date_naissance')
                             ->label('Date de naissance')
                             ->displayFormat('d/m/Y'),
@@ -62,7 +66,9 @@ class CandidateForm
                             ->label('Statut')
                             ->options(CandidateStatut::class)
                             ->default(CandidateStatut::Incomplet->value)
-                            ->required(),
+                            ->disabled()
+                            ->dehydrated(false)
+                            ->helperText('Le statut évolue via l\'action « Changer le statut » (transitions contrôlées).'),
                     ]),
             ]);
     }
