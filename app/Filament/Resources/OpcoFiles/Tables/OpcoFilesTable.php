@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\OpcoFiles\Tables;
 
 use App\Enums\OpcoStatut;
+use App\Filament\Resources\OpcoFiles\OpcoFileActions;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -57,6 +58,10 @@ class OpcoFilesTable
                     ->query(fn (Builder $query) => $query->whereIn('statut', OpcoStatut::bloques())),
             ])
             ->recordActions([
+                OpcoFileActions::preparerDepot(),
+                OpcoFileActions::accepter(),
+                OpcoFileActions::rejeter(),
+                OpcoFileActions::changerStatut(),
                 ViewAction::make(),
                 EditAction::make(),
             ])
