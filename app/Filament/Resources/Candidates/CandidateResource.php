@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Candidates;
 
+use App\Filament\Resources\Candidates\Pages\CandidatesKanban;
 use App\Filament\Resources\Candidates\Pages\CreateCandidate;
 use App\Filament\Resources\Candidates\Pages\EditCandidate;
 use App\Filament\Resources\Candidates\Pages\ListCandidates;
@@ -65,6 +66,7 @@ class CandidateResource extends Resource
     {
         return [
             'index' => ListCandidates::route('/'),
+            'kanban' => CandidatesKanban::route('/pipeline'),
             'create' => CreateCandidate::route('/create'),
             'edit' => EditCandidate::route('/{record}/edit'),
         ];
