@@ -10,11 +10,16 @@ use Filament\Widgets\TableWidget as BaseWidget;
 
 class OpcoBloquesTable extends BaseWidget
 {
-    protected static ?int $sort = 2;
+    protected static ?int $sort = 4;
 
     protected int|string|array $columnSpan = 'full';
 
     protected static ?string $heading = 'Dossiers OPCO bloqués';
+
+    public static function canView(): bool
+    {
+        return auth()->user()?->hasAnyRole(['Direction', 'Administrateur']) ?? false;
+    }
 
     public function table(Table $table): Table
     {
