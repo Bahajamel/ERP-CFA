@@ -22,7 +22,6 @@ class AdmissionForm
                             ->relationship('candidate', 'nom')
                             ->getOptionLabelFromRecordUsing(fn ($record) => $record->nom_complet)
                             ->searchable(['nom', 'prenom'])
-                            ->preload()
                             ->required()
                             // Un dossier reste rattaché à son candidat.
                             ->disabledOn('edit'),

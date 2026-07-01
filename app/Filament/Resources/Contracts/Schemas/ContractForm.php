@@ -22,14 +22,12 @@ class ContractForm
                         Select::make('candidate_id')
                             ->label('Apprenti (candidat)')
                             ->relationship('candidate', 'nom')
-                            ->searchable()
-                            ->preload()
+                            ->searchable(['nom', 'prenom'])
                             ->required(),
                         Select::make('company_id')
                             ->label('Entreprise')
                             ->relationship('company', 'raison_sociale')
                             ->searchable()
-                            ->preload()
                             ->required(),
                         Select::make('formation_id')
                             ->label('Formation')
@@ -39,8 +37,7 @@ class ContractForm
                         Select::make('tuteur_id')
                             ->label('Tuteur')
                             ->relationship('tuteur', 'nom')
-                            ->searchable()
-                            ->preload(),
+                            ->searchable(),
                     ]),
                 Section::make('Détails du contrat')
                     ->columns(2)

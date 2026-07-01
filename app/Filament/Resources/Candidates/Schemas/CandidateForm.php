@@ -49,6 +49,12 @@ class CandidateForm
                             ->relationship('formationVisee', 'libelle')
                             ->searchable()
                             ->preload(),
+                        Select::make('promotion_id')
+                            ->label('Classe / Promotion')
+                            ->relationship('promotion', 'libelle')
+                            ->getOptionLabelFromRecordUsing(fn ($record) => trim($record->libelle.' — '.($record->annee_scolaire ?? '')))
+                            ->searchable()
+                            ->preload(),
                         TextInput::make('niveau_actuel')
                             ->label('Niveau actuel'),
                         TextInput::make('mobilite')
