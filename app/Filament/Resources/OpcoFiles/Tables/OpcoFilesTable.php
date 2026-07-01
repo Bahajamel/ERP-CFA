@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\OpcoFiles\Tables;
 
 use App\Enums\OpcoStatut;
+use App\Filament\Resources\OpcoFiles\OpcoFileActions;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -39,6 +40,18 @@ class OpcoFilesTable
                     ->money('EUR')
                     ->placeholder('—')
                     ->sortable(),
+                TextColumn::make('montant_verse')
+                    ->label('Versé')
+                    ->state(fn ($record) => $record->montantVerse())
+                    ->money('EUR')
+                    ->color('success')
+                    ->toggleable(),
+                TextColumn::make('reste_a_verser')
+                    ->label('Reste à verser')
+                    ->state(fn ($record) => $record->resteAVerser())
+                    ->money('EUR')
+                    ->color(fn ($record) => $record->resteAVerser() > 0 ? 'warning' : 'gray')
+                    ->toggleable(),
                 TextColumn::make('date_depot')
                     ->label('Déposé le')
                     ->date('d/m/Y')
@@ -57,6 +70,10 @@ class OpcoFilesTable
                     ->query(fn (Builder $query) => $query->whereIn('statut', OpcoStatut::bloques())),
             ])
             ->recordActions([
+                OpcoFileActions::preparerDepot(),
+                OpcoFileActions::accepter(),
+                OpcoFileActions::rejeter(),
+                OpcoFileActions::changerStatut(),
                 ViewAction::make(),
                 EditAction::make(),
             ])

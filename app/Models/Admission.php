@@ -28,8 +28,9 @@ class Admission extends Model
      * La validation est bloquée tant que l'une d'elles n'est pas « présente ».
      */
     public const PIECES_OBLIGATOIRES = [
+        DocumentType::PieceIdentite,
         DocumentType::CvCandidat,
-        DocumentType::TestPositionnement,
+        DocumentType::DiplomeBulletins,
     ];
 
     protected function casts(): array

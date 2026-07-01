@@ -23,7 +23,6 @@ class NeedForm
                             ->label('Entreprise')
                             ->relationship('company', 'raison_sociale')
                             ->searchable()
-                            ->preload()
                             ->required(),
                         TextInput::make('intitule_poste')
                             ->label('Intitulé du poste')
@@ -60,13 +59,11 @@ class NeedForm
                         Select::make('contact_id')
                             ->label('Contact responsable')
                             ->relationship('contact', 'nom')
-                            ->searchable()
-                            ->preload(),
+                            ->searchable(),
                         Select::make('tuteur_id')
                             ->label('Tuteur prévu')
                             ->relationship('tuteur', 'nom')
-                            ->searchable()
-                            ->preload(),
+                            ->searchable(),
                     ]),
             ]);
     }

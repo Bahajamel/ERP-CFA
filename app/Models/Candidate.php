@@ -91,6 +91,11 @@ class Candidate extends Model
         return $this->belongsTo(Formation::class, 'formation_visee_id');
     }
 
+    public function promotion(): BelongsTo
+    {
+        return $this->belongsTo(Promotion::class);
+    }
+
     public function commercial(): BelongsTo
     {
         return $this->belongsTo(User::class, 'commercial_id');

@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\OpcoFiles\Schemas;
 
-use App\Enums\OpcoStatut;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -24,18 +23,12 @@ class OpcoFileForm
                             ->relationship('contract', 'id')
                             ->getOptionLabelFromRecordUsing(fn ($record) => 'Contrat #'.$record->id.' — '.($record->candidate?->nom_complet ?? ''))
                             ->searchable()
-                            ->preload()
                             ->required(),
                         Select::make('opco_id')
                             ->label('OPCO')
                             ->relationship('opco', 'nom')
                             ->searchable()
                             ->preload(),
-                        Select::make('statut')
-                            ->label('Statut')
-                            ->options(OpcoStatut::class)
-                            ->default(OpcoStatut::NonCree->value)
-                            ->required(),
                         DatePicker::make('date_depot')
                             ->label('Date de dépôt')
                             ->displayFormat('d/m/Y'),
