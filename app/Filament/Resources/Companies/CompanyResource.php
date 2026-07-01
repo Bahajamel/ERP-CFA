@@ -12,6 +12,7 @@ use App\Filament\Resources\Companies\RelationManagers\ContactsRelationManager;
 use App\Filament\Resources\Companies\Schemas\CompanyForm;
 use App\Filament\Resources\Companies\Tables\CompaniesTable;
 use App\Models\Company;
+use App\Models\User;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
@@ -19,6 +20,7 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Support\Facades\Auth;
 
 class CompanyResource extends Resource
 {
@@ -26,7 +28,9 @@ class CompanyResource extends Resource
 
     public static function canAccess(): bool
     {
-        return auth()->user()?->can('access_companies') ?? false;
+        $user = Auth::user();
+
+        return $user instanceof User && $user->can('access_companies');
     }
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBuildingOffice2;
