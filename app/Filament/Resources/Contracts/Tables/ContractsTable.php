@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Contracts\Tables;
 
 use App\Enums\ContractStatut;
+use App\Filament\Resources\Contracts\ContractActions;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -54,6 +55,8 @@ class ContractsTable
                 TrashedFilter::make(),
             ])
             ->recordActions([
+                ContractActions::signer(),
+                ContractActions::changerStatut(),
                 ViewAction::make(),
                 EditAction::make(),
             ])

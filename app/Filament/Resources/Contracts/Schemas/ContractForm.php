@@ -3,9 +3,9 @@
 namespace App\Filament\Resources\Contracts\Schemas;
 
 use App\Enums\ContractSignatureStatut;
-use App\Enums\ContractStatut;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
@@ -59,7 +59,8 @@ class ContractForm
                             ->label('Lieu de formation')
                             ->columnSpanFull(),
                     ]),
-                Section::make('Statuts')
+                Section::make('Signature & suivi')
+                    ->description('Le statut du contrat évolue via les actions de workflow (Marquer signé, Faire évoluer), pas manuellement.')
                     ->columns(2)
                     ->schema([
                         Select::make('statut_signature')
@@ -67,11 +68,10 @@ class ContractForm
                             ->options(ContractSignatureStatut::class)
                             ->default(ContractSignatureStatut::NonSigne->value)
                             ->required(),
-                        Select::make('statut_contrat')
-                            ->label('Statut du contrat')
-                            ->options(ContractStatut::class)
-                            ->default(ContractStatut::Brouillon->value)
-                            ->required(),
+                        Textarea::make('commentaire')
+                            ->label('Commentaire')
+                            ->rows(3)
+                            ->columnSpanFull(),
                     ]),
             ]);
     }
