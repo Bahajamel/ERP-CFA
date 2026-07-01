@@ -11,6 +11,7 @@ use App\Filament\Resources\Candidates\RelationManagers\DocumentsRelationManager;
 use App\Filament\Resources\Candidates\Schemas\CandidateForm;
 use App\Filament\Resources\Candidates\Tables\CandidatesTable;
 use App\Models\Candidate;
+use App\Models\User;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
@@ -18,6 +19,7 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Support\Facades\Auth;
 
 class CandidateResource extends Resource
 {
@@ -25,7 +27,9 @@ class CandidateResource extends Resource
 
     public static function canAccess(): bool
     {
-        return auth()->user()?->can('access_candidates') ?? false;
+        $user = Auth::user();
+
+        return $user instanceof User && $user->can('access_candidates');
     }
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedUserGroup;

@@ -10,11 +10,13 @@ use App\Filament\Resources\Needs\RelationManagers\MatchingsRelationManager;
 use App\Filament\Resources\Needs\Schemas\NeedForm;
 use App\Filament\Resources\Needs\Tables\NeedsTable;
 use App\Models\Need;
+use App\Models\User;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Support\Facades\Auth;
 
 class NeedResource extends Resource
 {
@@ -22,7 +24,9 @@ class NeedResource extends Resource
 
     public static function canAccess(): bool
     {
-        return auth()->user()?->can('access_needs') ?? false;
+        $user = Auth::user();
+
+        return $user instanceof User && $user->can('access_needs');
     }
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBriefcase;
