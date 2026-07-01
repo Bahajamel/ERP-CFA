@@ -13,6 +13,7 @@ use App\Models\Admission;
 use App\Models\Contract;
 use App\Models\OpcoFile;
 use App\Models\OpcoPayment;
+use App\Models\QualiopiIndicator;
 use App\Models\Task;
 use App\Models\User;
 use Filament\Notifications\Notification;
@@ -32,7 +33,8 @@ class AlerteService
             + $this->contratsASigner()
             + $this->opcoSansRetour()
             + $this->echeancesAVenir()
-            + $this->risquesRupture();
+            + $this->risquesRupture()
+            + $this->nonConformitesQualiopi();
 
         $this->flaggerTachesEnRetard();
 
@@ -168,6 +170,31 @@ class AlerteService
                     assigneeId: $contract->candidate?->commercial_id,
                     taskable: $contract,
                     priorite: $priorite,
+                );
+            });
+
+        return $n;
+    }
+
+    /**
+     * Alerte sur les indicateurs Qualiopi non conformes : une tâche par indicateur,
+     * assignée à son responsable, pour préparer l'audit en continu.
+     */
+    private function nonConformitesQualiopi(): int
+    {
+        $n = 0;
+
+        QualiopiIndicator::query()
+            ->where('statut', \App\Enums\QualiopiStatut::NonConforme->value)
+            ->get()
+            ->each(function (QualiopiIndicator $indicateur) use (&$n) {
+                $n += (int) $this->creerAlerte(
+                    cle: "qualiopi:nonconforme:{$indicateur->id}",
+                    titre: 'Qualiopi non conforme — indicateur '.$indicateur->numero,
+                    description: $indicateur->libelle,
+                    assigneeId: $indicateur->responsable_id,
+                    taskable: $indicateur,
+                    priorite: TaskPriorite::Haute,
                 );
             });
 
