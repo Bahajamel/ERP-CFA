@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Needs;
 use App\Filament\Resources\Needs\Pages\CreateNeed;
 use App\Filament\Resources\Needs\Pages\EditNeed;
 use App\Filament\Resources\Needs\Pages\ListNeeds;
+use App\Filament\Resources\Needs\Pages\NeedsKanban;
 use App\Filament\Resources\Needs\RelationManagers\MatchingsRelationManager;
 use App\Filament\Resources\Needs\Schemas\NeedForm;
 use App\Filament\Resources\Needs\Tables\NeedsTable;
@@ -59,6 +60,7 @@ class NeedResource extends Resource
     {
         return [
             'index' => ListNeeds::route('/'),
+            'kanban' => NeedsKanban::route('/pipeline'),
             'create' => CreateNeed::route('/create'),
             'edit' => EditNeed::route('/{record}/edit'),
         ];
