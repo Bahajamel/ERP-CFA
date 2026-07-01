@@ -19,7 +19,7 @@ class AdmissionChecklistItemFactory extends Factory
     {
         return [
             'admission_id' => Admission::factory(),
-            'document_type' => fake()->randomElement(DocumentType::cases()),
+            'document_type' => fake()->randomElement(DocumentType::pourAdmission()),
             'est_obligatoire' => fake()->boolean(70),
             'statut' => fake()->randomElement(ChecklistItemStatut::cases()),
             'document_id' => null,

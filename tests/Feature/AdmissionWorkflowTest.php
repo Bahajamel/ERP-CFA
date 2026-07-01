@@ -34,6 +34,23 @@ it('génère les pièces obligatoires standard, de façon idempotente', function
     expect($admission->items()->count())->toBe(count(Admission::PIECES_OBLIGATOIRES));
 });
 
+it('ne propose que des pièces pertinentes à l\'admission (pas le CV maître d\'apprentissage)', function () {
+    $types = App\Enums\DocumentType::pourAdmission();
+
+    expect($types)
+        ->not->toContain(App\Enums\DocumentType::CvMaitreApprentissage)
+        ->not->toContain(App\Enums\DocumentType::Contrat)
+        ->not->toContain(App\Enums\DocumentType::Cerfa)
+        ->not->toContain(App\Enums\DocumentType::Convention)
+        ->toContain(App\Enums\DocumentType::PieceIdentite)
+        ->toContain(App\Enums\DocumentType::CvCandidat)
+        ->toContain(App\Enums\DocumentType::DiplomeBulletins);
+
+    // Le libellé exact « CV maître d'apprentissage » ne doit pas figurer dans les options.
+    expect(App\Enums\DocumentType::optionsPour($types))
+        ->not->toHaveKey(App\Enums\DocumentType::CvMaitreApprentissage->value);
+});
+
 it('interdit la validation tant qu\'une pièce obligatoire manque', function () {
     $admission = admissionAVerifier();
 

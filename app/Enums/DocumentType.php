@@ -21,6 +21,31 @@ enum DocumentType: string implements HasLabel
     case DocumentQualite = 'document_qualite';
     case Autre = 'autre';
 
+    /**
+     * Pièces pertinentes lors de la phase d'admission.
+     * Exclut volontairement les documents des phases suivantes :
+     * le CV du maître d'apprentissage, le contrat, le CERFA et la convention
+     * relèvent de la contractualisation, pas de l'admission du candidat.
+     */
+    public static function pourAdmission(): array
+    {
+        return [
+            self::PieceIdentite,
+            self::CvCandidat,
+            self::DiplomeBulletins,
+            self::TestPositionnement,
+            self::Autre,
+        ];
+    }
+
+    /** Construit un tableau value => libellé pour les listes déroulantes Filament. */
+    public static function optionsPour(array $cases): array
+    {
+        return collect($cases)
+            ->mapWithKeys(fn (self $case) => [$case->value => $case->getLabel()])
+            ->all();
+    }
+
     public function getLabel(): string
     {
         return match ($this) {

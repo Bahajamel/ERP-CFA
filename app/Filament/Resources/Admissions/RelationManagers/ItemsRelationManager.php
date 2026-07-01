@@ -29,7 +29,7 @@ class ItemsRelationManager extends RelationManager
             ->components([
                 Select::make('document_type')
                     ->label('Type de pièce')
-                    ->options(DocumentType::class)
+                    ->options(DocumentType::optionsPour(DocumentType::pourAdmission()))
                     ->required(),
                 Select::make('statut')
                     ->label('Statut')
