@@ -16,8 +16,10 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class NeedsTable
 {
@@ -45,6 +47,13 @@ class NeedsTable
                     ->numeric()
                     ->alignCenter()
                     ->sortable(),
+                TextColumn::make('postes_restants')
+                    ->label('Restants')
+                    ->state(fn (Need $record): int => $record->postesRestants())
+                    ->badge()
+                    ->color(fn (int $state): string => $state === 0 ? 'success' : 'warning')
+                    ->alignCenter()
+                    ->tooltip('Postes encore à pourvoir (demandés − candidats acceptés)'),
                 TextColumn::make('matchings_count')
                     ->label('Candidats proposés')
                     ->counts('matchings')
@@ -67,6 +76,9 @@ class NeedsTable
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
+                Filter::make('ouverts')
+                    ->label('Besoins ouverts uniquement')
+                    ->query(fn (Builder $query): Builder => $query->ouverts()),
                 SelectFilter::make('statut')
                     ->label('Statut')
                     ->options(NeedStatut::class),

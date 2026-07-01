@@ -8,6 +8,7 @@ use App\Enums\NeedStatut;
 use App\Matching\CompatibilityScorer;
 use App\StateMachine\ManagesState;
 use BackedEnum;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -38,6 +39,32 @@ class Need extends Model
         NeedStatut::Annule,
         NeedStatut::Archive,
     ];
+
+    /** Le besoin est-il clôturé (statut terminal) ? */
+    public function estCloture(): bool
+    {
+        return in_array($this->statut, self::STATUTS_CLOS, true);
+    }
+
+    /**
+     * Nombre de postes encore à pourvoir (P0-04-4) = postes demandés moins les
+     * candidats acceptés. Jamais négatif.
+     */
+    public function postesRestants(): int
+    {
+        $pourvus = $this->matchings()->where('statut', MatchingStatut::Accepte->value)->count();
+
+        return max(0, (int) $this->nb_postes - $pourvus);
+    }
+
+    /** Besoins ouverts : hors statuts terminaux (P0-04-4). */
+    public function scopeOuverts(Builder $query): Builder
+    {
+        return $query->whereNotIn(
+            'statut',
+            array_map(fn (NeedStatut $s): string => $s->value, self::STATUTS_CLOS),
+        );
+    }
 
     /**
      * Règle métier (P0-04-3) : un besoin ne peut être « Pourvu » que si un

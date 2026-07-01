@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Enums\MatchingStatut;
+use App\Enums\NeedStatut;
 use App\Models\Candidate;
 use App\Models\Matching;
 use App\Models\Need;
@@ -21,7 +22,9 @@ class MatchingFactory extends Factory
         $statut = fake()->randomElement(MatchingStatut::cases());
 
         return [
-            'need_id' => Need::factory(),
+            // Besoin ouvert par défaut : un matching « Accepté » sur un besoin
+            // clôturé est interdit (P0-05-5). Surchargeable via ->for($besoin).
+            'need_id' => Need::factory()->state(['statut' => NeedStatut::ProfilsEnvoyes]),
             'candidate_id' => Candidate::factory(),
             'statut' => $statut,
             'cv_envoye' => fake()->boolean(70),

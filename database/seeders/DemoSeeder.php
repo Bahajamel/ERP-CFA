@@ -91,7 +91,9 @@ class DemoSeeder extends Seeder
             [3, 'Conseiller de vente alternant', $commerce, NeedStatut::EntretienPrevu, 1],
             [0, 'Chargé de marketing digital', $marketing, NeedStatut::ProfilsRecherches, 1],
             [4, 'Assistant comptable alternant', $compta, NeedStatut::Cree, 1],
-            [1, 'Vendeur en boulangerie', $commerce, NeedStatut::Pourvu, 1],
+            // Créé « Candidat retenu » : on le clôturera à « Pourvu » via la machine
+            // à états après avoir enregistré le candidat accepté (P0-04-3 / P0-05-5).
+            [1, 'Vendeur en boulangerie', $commerce, NeedStatut::CandidatRetenu, 1],
         ];
         $needs = [];
         foreach ($needsData as [$ci, $poste, $formation, $statut, $nb]) {
@@ -150,6 +152,10 @@ class DemoSeeder extends Seeder
         Matching::create(['need_id' => $needs[3]->id, 'candidate_id' => $candidates[3]->id, 'statut' => MatchingStatut::Propose, 'cv_envoye' => false, 'assigned_by' => $sophie->id]);
         Matching::create(['need_id' => $needs[5]->id, 'candidate_id' => $candidates[7]->id, 'statut' => MatchingStatut::Accepte, 'cv_envoye' => true, 'date_entretien' => now()->subDays(30), 'retour_entreprise' => 'Embauché.', 'assigned_by' => $thomas->id]);
         Matching::create(['need_id' => $needs[1]->id, 'candidate_id' => $candidates[3]->id, 'statut' => MatchingStatut::RefuseEntreprise, 'cv_envoye' => true, 'retour_entreprise' => 'Profil non retenu.', 'assigned_by' => $thomas->id]);
+
+        // Le besoin « Vendeur en boulangerie » a un candidat accepté : on le clôture
+        // proprement en « Pourvu » (date de clôture + cascade des pistes ouvertes).
+        $needs[5]->transitionTo(NeedStatut::Pourvu);
 
         // -------- Admissions + checklist --------
         // Candidat 0 : dossier validé (parcours complet)
