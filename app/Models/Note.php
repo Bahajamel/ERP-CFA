@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\NoteType;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -12,6 +13,14 @@ class Note extends Model
     use HasFactory;
 
     protected $guarded = [];
+
+    protected function casts(): array
+    {
+        return [
+            'type' => NoteType::class,
+            'satisfaction' => 'integer',
+        ];
+    }
 
     public function notable(): MorphTo
     {

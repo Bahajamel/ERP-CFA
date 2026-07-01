@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\CompanyStatut;
+use App\Enums\NoteType;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -57,5 +58,26 @@ class Company extends Model
     public function notes(): MorphMany
     {
         return $this->morphMany(Note::class, 'notable');
+    }
+
+    /** Notes de type « incident » — pour l'indicateur de suivi (P0-03-5). */
+    public function incidents(): MorphMany
+    {
+        return $this->morphMany(Note::class, 'notable')->where('type', NoteType::Incident->value);
+    }
+
+    /** Notes de satisfaction, la plus récente en tête. */
+    public function satisfactions(): MorphMany
+    {
+        return $this->morphMany(Note::class, 'notable')
+            ->where('type', NoteType::Satisfaction->value)
+            ->orderByDesc('created_at')
+            ->orderByDesc('id');
+    }
+
+    /** Dernier niveau de satisfaction mesuré (1 à 5), ou null si aucun. */
+    public function derniereSatisfaction(): ?int
+    {
+        return $this->satisfactions()->value('satisfaction');
     }
 }

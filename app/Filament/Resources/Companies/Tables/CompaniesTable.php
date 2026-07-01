@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Companies\Tables;
 
 use App\Enums\CompanyStatut;
+use App\Models\Company;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -44,6 +45,24 @@ class CompaniesTable
                     ->counts('contacts')
                     ->badge()
                     ->color('info'),
+                TextColumn::make('satisfaction')
+                    ->label('Satisfaction')
+                    ->state(fn (Company $record): ?int => $record->derniereSatisfaction())
+                    ->formatStateUsing(fn (?int $state): string => $state ? "{$state}/5" : '—')
+                    ->badge()
+                    ->color(fn (?int $state): string => match (true) {
+                        $state === null => 'gray',
+                        $state >= 4 => 'success',
+                        $state === 3 => 'warning',
+                        default => 'danger',
+                    })
+                    ->toggleable(),
+                TextColumn::make('incidents_count')
+                    ->label('Incidents')
+                    ->counts('incidents')
+                    ->badge()
+                    ->color(fn (int $state): string => $state > 0 ? 'danger' : 'gray')
+                    ->toggleable(),
                 TextColumn::make('statut')
                     ->label('Statut')
                     ->badge(),
