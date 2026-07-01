@@ -17,7 +17,8 @@ return new class extends Migration
                 $table->uuid('id')->primary();
                 $table->string('type');
                 $table->morphs('notifiable');
-                $table->text('data');
+                // json (et non text) : Filament interroge data->>'format' — requis par PostgreSQL.
+                $table->json('data');
                 $table->timestamp('read_at')->nullable();
                 $table->timestamps();
             });
