@@ -23,7 +23,6 @@ class OpcoFileForm
                             ->relationship('contract', 'id')
                             ->getOptionLabelFromRecordUsing(fn ($record) => 'Contrat #'.$record->id.' — '.($record->candidate?->nom_complet ?? ''))
                             ->searchable()
-                            ->preload()
                             ->required(),
                         Select::make('opco_id')
                             ->label('OPCO')

@@ -5,6 +5,8 @@ namespace App\Filament\Resources\Candidates;
 use App\Filament\Resources\Candidates\Pages\CreateCandidate;
 use App\Filament\Resources\Candidates\Pages\EditCandidate;
 use App\Filament\Resources\Candidates\Pages\ListCandidates;
+use App\Filament\Resources\Candidates\Pages\ViewCandidate;
+use App\Filament\Resources\Candidates\RelationManagers\DocumentsRelationManager;
 use App\Filament\Resources\Candidates\Schemas\CandidateForm;
 use App\Filament\Resources\Candidates\Tables\CandidatesTable;
 use App\Models\Candidate;
@@ -57,7 +59,7 @@ class CandidateResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            DocumentsRelationManager::class,
         ];
     }
 
@@ -66,6 +68,7 @@ class CandidateResource extends Resource
         return [
             'index' => ListCandidates::route('/'),
             'create' => CreateCandidate::route('/create'),
+            'view' => ViewCandidate::route('/{record}'),
             'edit' => EditCandidate::route('/{record}/edit'),
         ];
     }

@@ -22,14 +22,12 @@ class MatchingForm
                         Select::make('candidate_id')
                             ->label('Candidat')
                             ->relationship('candidate', 'nom')
-                            ->searchable()
-                            ->preload()
+                            ->searchable(['nom', 'prenom'])
                             ->required(),
                         Select::make('need_id')
                             ->label('Besoin')
                             ->relationship('need', 'intitule_poste')
                             ->searchable()
-                            ->preload()
                             ->required(),
                         Select::make('statut')
                             ->label('Statut')
