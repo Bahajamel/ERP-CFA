@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\NeedStatut;
+use App\StateMachine\ManagesState;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -12,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 class Need extends Model
 {
     use HasFactory;
+    use ManagesState;
 
     protected $guarded = [];
 

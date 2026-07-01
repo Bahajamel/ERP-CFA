@@ -2,12 +2,16 @@
 
 namespace App\Enums;
 
+use App\StateMachine\DefinesTransitions;
+use App\StateMachine\HasStateTransitions;
 use Filament\Support\Contracts\HasColor;
 use Filament\Support\Contracts\HasIcon;
 use Filament\Support\Contracts\HasLabel;
 
-enum CandidateStatut: string implements HasLabel, HasColor, HasIcon
+enum CandidateStatut: string implements HasLabel, HasColor, HasIcon, HasStateTransitions
 {
+    use DefinesTransitions;
+
     case Incomplet = 'incomplet';
     case Complet = 'complet';
     case EnRechercheEntreprise = 'en_recherche_entreprise';
@@ -44,6 +48,17 @@ enum CandidateStatut: string implements HasLabel, HasColor, HasIcon
             self::EnRechercheEntreprise => 'heroicon-o-magnifying-glass',
             self::ContratSigne => 'heroicon-o-check-badge',
             self::Rupture => 'heroicon-o-x-circle',
+        };
+    }
+
+    public function transitions(): array
+    {
+        return match ($this) {
+            self::Incomplet => [self::Complet, self::EnRechercheEntreprise],
+            self::Complet => [self::EnRechercheEntreprise, self::Incomplet],
+            self::EnRechercheEntreprise => [self::ContratSigne, self::Rupture],
+            self::ContratSigne => [self::Rupture],
+            self::Rupture => [],
         };
     }
 }

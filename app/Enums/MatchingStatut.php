@@ -2,11 +2,15 @@
 
 namespace App\Enums;
 
+use App\StateMachine\DefinesTransitions;
+use App\StateMachine\HasStateTransitions;
 use Filament\Support\Contracts\HasColor;
 use Filament\Support\Contracts\HasLabel;
 
-enum MatchingStatut: string implements HasLabel, HasColor
+enum MatchingStatut: string implements HasLabel, HasColor, HasStateTransitions
 {
+    use DefinesTransitions;
+
     case Propose = 'propose';
     case CvEnvoye = 'cv_envoye';
     case EntretienPrevu = 'entretien_prevu';
@@ -38,6 +42,18 @@ enum MatchingStatut: string implements HasLabel, HasColor
             self::Accepte => 'success',
             self::RefuseEntreprise, self::RefuseCandidat => 'danger',
             self::Abandonne => 'gray',
+        };
+    }
+
+    public function transitions(): array
+    {
+        return match ($this) {
+            self::Propose => [self::CvEnvoye, self::RefuseCandidat, self::Abandonne],
+            self::CvEnvoye => [self::EntretienPrevu, self::AttenteRetour, self::RefuseEntreprise, self::RefuseCandidat, self::Abandonne],
+            self::EntretienPrevu => [self::AttenteRetour, self::Accepte, self::RefuseEntreprise, self::RefuseCandidat, self::Abandonne],
+            self::AttenteRetour => [self::Accepte, self::RefuseEntreprise, self::RefuseCandidat, self::Abandonne],
+            self::Accepte => [self::Abandonne],
+            self::RefuseEntreprise, self::RefuseCandidat, self::Abandonne => [],
         };
     }
 }

@@ -2,11 +2,15 @@
 
 namespace App\Enums;
 
+use App\StateMachine\DefinesTransitions;
+use App\StateMachine\HasStateTransitions;
 use Filament\Support\Contracts\HasColor;
 use Filament\Support\Contracts\HasLabel;
 
-enum NeedStatut: string implements HasLabel, HasColor
+enum NeedStatut: string implements HasLabel, HasColor, HasStateTransitions
 {
+    use DefinesTransitions;
+
     case Cree = 'cree';
     case EnQualification = 'en_qualification';
     case ProfilsRecherches = 'profils_recherches';
@@ -41,6 +45,21 @@ enum NeedStatut: string implements HasLabel, HasColor
             self::Pourvu => 'success',
             self::Annule => 'danger',
             self::Archive => 'gray',
+        };
+    }
+
+    public function transitions(): array
+    {
+        return match ($this) {
+            self::Cree => [self::EnQualification, self::Annule],
+            self::EnQualification => [self::ProfilsRecherches, self::Annule],
+            self::ProfilsRecherches => [self::ProfilsEnvoyes, self::Annule],
+            self::ProfilsEnvoyes => [self::EntretienPrevu, self::CandidatRetenu, self::Annule],
+            self::EntretienPrevu => [self::CandidatRetenu, self::ProfilsEnvoyes, self::Annule],
+            self::CandidatRetenu => [self::Pourvu, self::Annule],
+            self::Pourvu => [self::Archive],
+            self::Annule => [self::Archive],
+            self::Archive => [],
         };
     }
 }

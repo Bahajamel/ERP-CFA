@@ -2,11 +2,15 @@
 
 namespace App\Enums;
 
+use App\StateMachine\DefinesTransitions;
+use App\StateMachine\HasStateTransitions;
 use Filament\Support\Contracts\HasColor;
 use Filament\Support\Contracts\HasLabel;
 
-enum OpcoStatut: string implements HasLabel, HasColor
+enum OpcoStatut: string implements HasLabel, HasColor, HasStateTransitions
 {
+    use DefinesTransitions;
+
     case NonCree = 'non_cree';
     case APreparer = 'a_preparer';
     case PretDepot = 'pret_depot';
@@ -47,6 +51,22 @@ enum OpcoStatut: string implements HasLabel, HasColor
             self::EnCorrection => 'warning',
             self::Corrige => 'info',
             self::Cloture => 'success',
+        };
+    }
+
+    public function transitions(): array
+    {
+        return match ($this) {
+            self::NonCree => [self::APreparer],
+            self::APreparer => [self::PretDepot],
+            self::PretDepot => [self::Depose],
+            self::Depose => [self::AttenteRetour],
+            self::AttenteRetour => [self::Accepte, self::Rejete],
+            self::Rejete => [self::EnCorrection],
+            self::EnCorrection => [self::Corrige],
+            self::Corrige => [self::Depose],
+            self::Accepte => [self::Cloture],
+            self::Cloture => [],
         };
     }
 

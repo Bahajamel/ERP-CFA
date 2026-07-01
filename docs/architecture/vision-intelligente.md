@@ -14,7 +14,7 @@ en haussant l'ambition là où se trouve la vraie valeur métier.
 
 ---
 
-## 1. Les 4 piliers d'intelligence (axes retenus)
+## 1. Les piliers d'intelligence (axes retenus)
 
 ### Pilier A — Protection du financement (OPCO & service fait)
 **Douleur réelle :** un CFA perd du financement quand un dossier OPCO est rejeté
@@ -65,6 +65,23 @@ voit venir.
 - En P2 : **assistant IA** (résumé de dossier, suggestion d'action, rédaction
   d'emails de relance, Q&A sur les données — via les modèles Claude).
 
+### Pilier E — Excellence commerciale & placement (CRM + matching)
+**Douleur réelle :** la phase amont (sourcing candidats, démarchage entreprises,
+mise en relation) se fait dans Excel + emails ; les leaders facturent cher un vrai
+CRM (Dendreo/Digiforma) ou un matching assisté (Ypareo, La Bonne Alternance).
+
+**Ce que l'ERP fait :**
+- **Pipeline visuel** (Kanban) des candidats et des besoins — le flux, pas une liste.
+- **Matching assisté par score** de compatibilité (règles explicites), proposition
+  d'un candidat à un besoin **en 1 clic**.
+- **Suivi commercial** : timeline d'interactions + **prochaine action** datée qui
+  génère une tâche.
+- **Ciblage d'entreprises à potentiel** (besoin ouvert compatible / historique de
+  recrutement).
+
+> Spécification détaillée :
+> [excellence-commerciale-crm-matching.md](excellence-commerciale-crm-matching.md).
+
 ---
 
 ## 2. Les 4 fondations techniques (à poser dès la V1)
@@ -112,6 +129,9 @@ des epics existants et **précisent** des epics P2 :
 - **EPIC-17 (Qualité, P1)** → preuves au fil de l'eau (auto-génération).
 - **EPIC-26 (Prédictif, P2)** → scoring de risque de rupture (commence en règles dès P1).
 - **EPIC-25 (IA, P2)** → assistant IA (Claude) : résumé, suggestion, rédaction, Q&A.
+- **EPIC-02/03/04/05 (Candidats/Entreprises/Besoins/Matching, P0)** → Pilier E :
+  pipeline Kanban, matching scoré, timeline commerciale + prochaine action
+  (détail : [excellence-commerciale-crm-matching.md](excellence-commerciale-crm-matching.md)).
 
 ---
 
