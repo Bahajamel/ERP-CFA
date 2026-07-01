@@ -45,6 +45,31 @@ class TaskResource extends Resource
         return TasksTable::configure($table);
     }
 
+    /** Badge de navigation : mes tâches ouvertes (à faire / en cours / en retard). */
+    public static function getNavigationBadge(): ?string
+    {
+        $count = Task::query()
+            ->where('assignee_id', auth()->id())
+            ->whereIn('statut', [
+                \App\Enums\TaskStatut::AFaire->value,
+                \App\Enums\TaskStatut::EnCours->value,
+                \App\Enums\TaskStatut::EnRetard->value,
+            ])
+            ->count();
+
+        return $count > 0 ? (string) $count : null;
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        $enRetard = Task::query()
+            ->where('assignee_id', auth()->id())
+            ->where('statut', \App\Enums\TaskStatut::EnRetard->value)
+            ->exists();
+
+        return $enRetard ? 'danger' : 'warning';
+    }
+
     public static function getRelations(): array
     {
         return [
