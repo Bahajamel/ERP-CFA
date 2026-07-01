@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\CandidateStatut;
+use App\StateMachine\ManagesState;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -19,6 +20,7 @@ class Candidate extends Model
     use HasFactory;
     use SoftDeletes;
     use LogsActivity;
+    use ManagesState;
 
     protected $guarded = [];
 

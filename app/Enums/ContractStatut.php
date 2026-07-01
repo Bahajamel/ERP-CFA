@@ -2,11 +2,15 @@
 
 namespace App\Enums;
 
+use App\StateMachine\DefinesTransitions;
+use App\StateMachine\HasStateTransitions;
 use Filament\Support\Contracts\HasColor;
 use Filament\Support\Contracts\HasLabel;
 
-enum ContractStatut: string implements HasLabel, HasColor
+enum ContractStatut: string implements HasLabel, HasColor, HasStateTransitions
 {
+    use DefinesTransitions;
+
     case Brouillon = 'brouillon';
     case InfosManquantes = 'infos_manquantes';
     case PretAVerifier = 'pret_a_verifier';
@@ -44,6 +48,21 @@ enum ContractStatut: string implements HasLabel, HasColor
             self::Actif => 'success',
             self::Rompu => 'danger',
             self::Archive => 'gray',
+        };
+    }
+
+    public function transitions(): array
+    {
+        return match ($this) {
+            self::Brouillon => [self::InfosManquantes, self::PretAVerifier],
+            self::InfosManquantes => [self::PretAVerifier, self::Brouillon],
+            self::PretAVerifier => [self::EnvoyeSignature, self::InfosManquantes],
+            self::EnvoyeSignature => [self::Signe, self::InfosManquantes],
+            self::Signe => [self::TransmisOpco, self::Rompu],
+            self::TransmisOpco => [self::Actif, self::Rompu],
+            self::Actif => [self::Rompu, self::Archive],
+            self::Rompu => [self::Archive],
+            self::Archive => [],
         };
     }
 }
