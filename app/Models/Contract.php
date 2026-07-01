@@ -39,6 +39,9 @@ class Contract extends Model
             'date_fin' => 'date',
             'statut_signature' => ContractSignatureStatut::class,
             'statut_contrat' => ContractStatut::class,
+            'risk_level' => \App\Enums\RiskLevel::class,
+            'risk_factors' => 'array',
+            'risk_evaluated_at' => 'datetime',
         ];
     }
 
