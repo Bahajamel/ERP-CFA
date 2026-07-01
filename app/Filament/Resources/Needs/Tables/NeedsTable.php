@@ -5,12 +5,15 @@ namespace App\Filament\Resources\Needs\Tables;
 use App\Enums\MatchingStatut;
 use App\Enums\NeedStatut;
 use App\Models\Need;
+use App\StateMachine\InvalidTransitionException;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
 use Filament\Forms\Components\CheckboxList;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -56,6 +59,12 @@ class NeedsTable
                 TextColumn::make('statut')
                     ->label('Statut')
                     ->badge(),
+                TextColumn::make('date_cloture')
+                    ->label('Clôturé le')
+                    ->date('d/m/Y')
+                    ->placeholder('—')
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 SelectFilter::make('statut')
@@ -68,6 +77,28 @@ class NeedsTable
                     ->preload(),
             ])
             ->recordActions([
+                Action::make('changerStatut')
+                    ->label('Changer le statut')
+                    ->icon('heroicon-o-arrows-right-left')
+                    ->visible(fn (Need $record): bool => filled($record->currentState()->transitions()))
+                    ->schema(fn (Need $record): array => [
+                        Select::make('to')
+                            ->label('Nouveau statut')
+                            ->options(collect($record->currentState()->transitions())
+                                ->mapWithKeys(fn (NeedStatut $s): array => [$s->value => $s->getLabel()])
+                                ->all())
+                            ->required(),
+                        Textarea::make('comment')
+                            ->label('Commentaire (optionnel)'),
+                    ])
+                    ->action(function (Need $record, array $data): void {
+                        try {
+                            $record->transitionTo(NeedStatut::from($data['to']), $data['comment'] ?? null);
+                            Notification::make()->success()->title('Statut mis à jour')->send();
+                        } catch (InvalidTransitionException $e) {
+                            Notification::make()->danger()->title('Transition refusée')->body($e->getMessage())->send();
+                        }
+                    }),
                 Action::make('trouverCandidats')
                     ->label('Trouver des candidats')
                     ->icon('heroicon-o-sparkles')

@@ -3,9 +3,11 @@
 namespace App\Models;
 
 use App\Enums\CandidateStatut;
+use App\Enums\MatchingStatut;
 use App\Enums\NeedStatut;
 use App\Matching\CompatibilityScorer;
 use App\StateMachine\ManagesState;
+use BackedEnum;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -24,9 +26,68 @@ class Need extends Model
     {
         return [
             'date_demarrage' => 'date',
+            'date_cloture' => 'date',
             'nb_postes' => 'integer',
             'statut' => NeedStatut::class,
         ];
+    }
+
+    /** Statuts terminaux : le besoin est clos (plus de recrutement en cours). */
+    public const STATUTS_CLOS = [
+        NeedStatut::Pourvu,
+        NeedStatut::Annule,
+        NeedStatut::Archive,
+    ];
+
+    /**
+     * Règle métier (P0-04-3) : un besoin ne peut être « Pourvu » que si un
+     * candidat a été accepté (matching au statut « Accepté »).
+     */
+    public function guardTransition(BackedEnum $from, BackedEnum $to): ?string
+    {
+        if ($to === NeedStatut::Pourvu && ! $this->matchings()->where('statut', MatchingStatut::Accepte->value)->exists()) {
+            return 'Besoin non pourvu : aucun candidat accepté. Faites d\'abord accepter un candidat proposé.';
+        }
+
+        return null;
+    }
+
+    /**
+     * Auto-clôture (P0-04-3). À l'entrée dans un statut terminal on date la
+     * clôture ; en passant à « Pourvu » on clôt aussi les matchings encore
+     * ouverts (refusés côté entreprise), en préservant le candidat accepté.
+     */
+    protected function afterTransition(BackedEnum $from, BackedEnum $to, ?string $comment): void
+    {
+        if (in_array($to, self::STATUTS_CLOS, true) && $this->date_cloture === null) {
+            $this->forceFill(['date_cloture' => now()])->save();
+        }
+
+        if ($to === NeedStatut::Pourvu) {
+            $this->clotureMatchingsOuverts();
+        }
+    }
+
+    /**
+     * Clôt les propositions encore en cours (Proposé, CV envoyé, entretien,
+     * attente retour) en « Abandonné » : le besoin étant pourvu, les autres
+     * pistes sont abandonnées. Préserve les statuts terminaux et l'accepté.
+     */
+    protected function clotureMatchingsOuverts(): void
+    {
+        $ouverts = [
+            MatchingStatut::Propose->value,
+            MatchingStatut::CvEnvoye->value,
+            MatchingStatut::EntretienPrevu->value,
+            MatchingStatut::AttenteRetour->value,
+        ];
+
+        $this->matchings()
+            ->whereIn('statut', $ouverts)
+            ->get()
+            ->each(function (Matching $matching): void {
+                $matching->transitionTo(MatchingStatut::Abandonne, 'Clôture automatique : besoin pourvu.');
+            });
     }
 
     public function company(): BelongsTo
@@ -67,7 +128,7 @@ class Need extends Model
     public function candidatsCompatibles(int $limit = 15): Collection
     {
         $dejaProposes = $this->matchings()->pluck('candidate_id')->all();
-        $scorer = new CompatibilityScorer();
+        $scorer = new CompatibilityScorer;
 
         return Candidate::query()
             ->whereNotIn('id', $dejaProposes)
@@ -84,4 +145,3 @@ class Need extends Model
             ->values();
     }
 }
-
