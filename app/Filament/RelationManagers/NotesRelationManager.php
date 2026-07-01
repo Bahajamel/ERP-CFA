@@ -31,6 +31,12 @@ class NotesRelationManager extends RelationManager
 
     protected static string|\BackedEnum|null $icon = 'heroicon-o-chat-bubble-left-right';
 
+    /** Le type sélectionné est-il « Satisfaction » ? (tolère enum ou string). */
+    protected static function isSatisfaction(mixed $type): bool
+    {
+        return in_array($type, [NoteType::Satisfaction, NoteType::Satisfaction->value], true);
+    }
+
     public function form(Schema $schema): Schema
     {
         return $schema
@@ -50,8 +56,8 @@ class NotesRelationManager extends RelationManager
                         4 => '4 — Satisfait',
                         5 => '5 — Très satisfait',
                     ])
-                    ->visible(fn (Get $get): bool => $get('type') === NoteType::Satisfaction->value)
-                    ->required(fn (Get $get): bool => $get('type') === NoteType::Satisfaction->value),
+                    ->visible(fn (Get $get): bool => self::isSatisfaction($get('type')))
+                    ->required(fn (Get $get): bool => self::isSatisfaction($get('type'))),
                 Textarea::make('contenu')
                     ->label('Contenu')
                     ->rows(4)

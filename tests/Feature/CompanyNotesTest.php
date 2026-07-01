@@ -64,3 +64,26 @@ it('crée une note via le gestionnaire et renseigne automatiquement l\'auteur', 
         ->and($note->contenu)->toContain('CERFA')
         ->and($note->author_id)->toBe($user->id);
 });
+
+it('enregistre le niveau de satisfaction saisi', function () {
+    $this->seed(RolePermissionSeeder::class);
+    Filament::setCurrentPanel(Filament::getPanel('admin'));
+
+    $user = User::factory()->create(['is_active' => true]);
+    $user->syncRoles('Commercial');
+    $this->actingAs($user);
+
+    $company = Company::factory()->create();
+
+    Livewire::test(NotesRelationManager::class, [
+        'ownerRecord' => $company,
+        'pageClass' => EditCompany::class,
+    ])
+        ->callTableAction('create', data: [
+            'type' => NoteType::Satisfaction->value,
+            'satisfaction' => 5,
+            'contenu' => 'Entreprise très satisfaite du suivi.',
+        ]);
+
+    expect($company->derniereSatisfaction())->toBe(5);
+});
