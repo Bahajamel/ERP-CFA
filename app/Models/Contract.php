@@ -4,7 +4,10 @@ namespace App\Models;
 
 use App\Enums\ContractSignatureStatut;
 use App\Enums\ContractStatut;
+use App\Enums\DocumentType;
+use App\Enums\OpcoStatut;
 use App\StateMachine\ManagesState;
+use BackedEnum;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -76,5 +79,55 @@ class Contract extends Model
     public function documents(): MorphMany
     {
         return $this->morphMany(Document::class, 'documentable');
+    }
+
+    /** Types de documents faisant foi d'un contrat signé. */
+    public const TYPES_CONTRACTUELS = [
+        DocumentType::Contrat,
+        DocumentType::Cerfa,
+        DocumentType::Convention,
+    ];
+
+    /** Un document contractuel (contrat / CERFA / convention) est-il associé ? */
+    public function aDocumentContractuel(): bool
+    {
+        return $this->documents()
+            ->whereIn('type', array_map(fn (DocumentType $t) => $t->value, self::TYPES_CONTRACTUELS))
+            ->exists();
+    }
+
+    /**
+     * Règle métier (CDC P0-08-5) : pas de passage à « Signé » sans preuve —
+     * soit un document contractuel associé, soit la signature marquée comme
+     * signée (justification manuelle / signature électronique).
+     */
+    public function guardTransition(BackedEnum $from, BackedEnum $to): ?string
+    {
+        if ($to === ContractStatut::Signe
+            && $this->statut_signature !== ContractSignatureStatut::Signe
+            && ! $this->aDocumentContractuel()) {
+            return 'Passage à « Signé » impossible : associez un document contractuel signé '
+                .'(contrat / CERFA / convention) ou marquez la signature comme signée.';
+        }
+
+        return null;
+    }
+
+    /** Effets de bord des transitions : signature, dossier OPCO, commentaire. */
+    protected function afterTransition(BackedEnum $from, BackedEnum $to, ?string $comment): void
+    {
+        // Cohérence : atteindre « Signé » fixe le statut de signature.
+        if ($to === ContractStatut::Signe && $this->statut_signature !== ContractSignatureStatut::Signe) {
+            $this->forceFill(['statut_signature' => ContractSignatureStatut::Signe])->saveQuietly();
+        }
+
+        // Transmission OPCO : ouvre le dossier OPCO s'il n'existe pas (P0-08-4).
+        if ($to === ContractStatut::TransmisOpco) {
+            $this->opcoFile()->firstOrCreate([], ['statut' => OpcoStatut::APreparer->value]);
+        }
+
+        if (filled($comment)) {
+            $this->forceFill(['commentaire' => $comment])->saveQuietly();
+        }
     }
 }
