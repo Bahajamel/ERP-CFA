@@ -17,6 +17,7 @@ class EditOpcoFile extends EditRecord
             OpcoFileActions::preparerDepot(),
             OpcoFileActions::accepter(),
             OpcoFileActions::rejeter(),
+            OpcoFileActions::genererEcheancier(),
             OpcoFileActions::changerStatut(),
             DeleteAction::make(),
         ];

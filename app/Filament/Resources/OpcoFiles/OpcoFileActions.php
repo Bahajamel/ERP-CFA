@@ -78,6 +78,26 @@ class OpcoFileActions
             });
     }
 
+    /** Génère l'échéancier de versement (décret 2025-585) depuis le montant accepté. */
+    public static function genererEcheancier(): Action
+    {
+        return Action::make('genererEcheancier')
+            ->label('Générer l\'échéancier')
+            ->icon(Heroicon::OutlinedCalendarDays)
+            ->color('info')
+            ->requiresConfirmation()
+            ->modalDescription('Génère les versements (40/30/20/10 pour ≥ 12 mois) à partir du montant accepté.')
+            ->visible(fn (OpcoFile $record) => (float) $record->montant_accepte > 0 && $record->payments()->doesntExist())
+            ->action(function (OpcoFile $record) {
+                $record->genererEcheancier();
+
+                Notification::make()
+                    ->title('Échéancier de versement généré')
+                    ->success()
+                    ->send();
+            });
+    }
+
     /** Transition générique vers un état réellement atteignable. */
     public static function changerStatut(): Action
     {
