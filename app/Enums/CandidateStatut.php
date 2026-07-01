@@ -61,4 +61,10 @@ enum CandidateStatut: string implements HasLabel, HasColor, HasIcon, HasStateTra
             self::Rupture => [],
         };
     }
+
+    /** Colonnes du pipeline (Kanban), dans l'ordre du parcours. */
+    public static function board(): array
+    {
+        return self::cases();
+    }
 }
