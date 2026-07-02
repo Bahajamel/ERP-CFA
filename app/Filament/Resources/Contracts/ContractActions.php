@@ -142,6 +142,10 @@ class ContractActions
                 .'cet apprenti à partir de ses données, puis les importer dans la GED avec les missions '
                 .'CFA suggérées. Le service ne conserve aucune donnée.')
             ->action(function (Contract $record) {
+                // La génération (rendu de plusieurs PDF) dépasse la limite web
+                // par défaut (30 s) ; on l'aligne sur le timeout du service.
+                @set_time_limit((int) config('services.livretrs.timeout', 180) + 30);
+
                 try {
                     $payload = app(LivrablePayloadBuilder::class)->pour($record);
                     $zip = app(LivretRsClient::class)->genererLivrables($payload);
