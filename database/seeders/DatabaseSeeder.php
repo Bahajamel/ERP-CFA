@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder
             RolePermissionSeeder::class,
             AdminUserSeeder::class,
             QualiopiIndicatorSeeder::class,
+            CfaMissionSeeder::class,
             DemoSeeder::class,
             DemoAccountsSeeder::class,
         ]);

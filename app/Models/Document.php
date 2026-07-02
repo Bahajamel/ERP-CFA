@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use App\Enums\DocumentSource;
 use App\Enums\DocumentStatut;
 use App\Enums\DocumentType;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -40,6 +42,7 @@ class Document extends Model implements HasMedia
     {
         return [
             'type' => DocumentType::class,
+            'source' => DocumentSource::class,
             'statut' => DocumentStatut::class,
             'version' => 'integer',
         ];
@@ -75,6 +78,13 @@ class Document extends Model implements HasMedia
     public function documentable(): MorphTo
     {
         return $this->morphTo();
+    }
+
+    /** Missions CFA (L6231-2) prouvées par ce document. */
+    public function missions(): BelongsToMany
+    {
+        return $this->belongsToMany(CfaMission::class, 'cfa_mission_document')
+            ->withTimestamps();
     }
 
     public function uploadedBy(): BelongsTo

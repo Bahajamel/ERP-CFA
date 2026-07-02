@@ -30,7 +30,7 @@ class DocumentsTable
     public static function configure(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(fn (Builder $query) => $query->with(['documentable', 'uploadedBy']))
+            ->modifyQueryUsing(fn (Builder $query) => $query->with(['documentable', 'uploadedBy', 'missions']))
             ->columns([
                 TextColumn::make('nom_fichier')
                     ->label('Libellé')
@@ -40,6 +40,17 @@ class DocumentsTable
                 TextColumn::make('type')
                     ->label('Type')
                     ->badge(),
+                TextColumn::make('source')
+                    ->label('Origine')
+                    ->badge()
+                    ->toggleable(),
+                TextColumn::make('missions.numero')
+                    ->label('Missions CFA')
+                    ->badge()
+                    ->color('info')
+                    ->formatStateUsing(fn ($state) => $state.'°')
+                    ->placeholder('—')
+                    ->toggleable(),
                 TextColumn::make('cible')
                     ->label('Dossier')
                     ->state(fn (Document $record) => self::cibleLabel($record)),
@@ -71,6 +82,11 @@ class DocumentsTable
                 SelectFilter::make('documentable_type')
                     ->label('Type de dossier')
                     ->options(DocumentableTypes::options()),
+                SelectFilter::make('missions')
+                    ->label('Mission CFA')
+                    ->relationship('missions', 'titre')
+                    ->multiple()
+                    ->preload(),
                 TernaryFilter::make('versions_courantes')
                     ->label('Versions')
                     ->placeholder('Versions courantes')
