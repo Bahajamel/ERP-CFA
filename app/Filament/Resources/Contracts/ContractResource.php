@@ -27,9 +27,9 @@ class ContractResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedDocumentText;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Admission & Contrats';
+    protected static string|\UnitEnum|null $navigationGroup = 'Contrats & OPCO';
 
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 1;
 
     protected static ?string $navigationLabel = 'Contrats';
 
