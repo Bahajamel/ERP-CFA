@@ -57,14 +57,18 @@ it('refuse d\'émettre une facture sans destinataire', function () {
         ->toThrow(InvalidTransitionException::class);
 });
 
-it('émet une facture valide : numéro et date d\'émission générés', function () {
-    $invoice = Invoice::factory()->create(['montant' => 3000, 'destinataire' => 'ACME SARL']);
+it('émet une facture valide et horodate l\'émission (n° saisi côté compta)', function () {
+    $invoice = Invoice::factory()->create([
+        'montant' => 3000,
+        'destinataire' => 'ACME SARL',
+        'numero' => '2026-042', // numéro fourni par la comptabilité
+    ]);
 
     $invoice->transitionTo(InvoiceStatut::Emise);
     $invoice->refresh();
 
     expect($invoice->statut)->toBe(InvoiceStatut::Emise)
-        ->and($invoice->numero)->toStartWith('FACT-')
+        ->and($invoice->numero)->toBe('2026-042')
         ->and($invoice->date_emission)->not->toBeNull();
 });
 

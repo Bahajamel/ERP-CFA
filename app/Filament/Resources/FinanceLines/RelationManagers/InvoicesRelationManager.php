@@ -111,8 +111,13 @@ class InvoicesRelationManager extends RelationManager
                 Action::make('importer')
                     ->label('Importer une facture')
                     ->icon('heroicon-o-arrow-up-tray')
-                    ->color('gray')
+                    ->color('primary')
+                    ->modalDescription('Rattache la facture émise par la comptabilité (source de vérité).')
                     ->schema([
+                        TextInput::make('numero')
+                            ->label('N° de facture (comptabilité)')
+                            ->required()
+                            ->maxLength(255),
                         TextInput::make('destinataire')
                             ->label('Destinataire')
                             ->required(),
@@ -121,6 +126,11 @@ class InvoicesRelationManager extends RelationManager
                             ->numeric()
                             ->minValue(0)
                             ->prefix('€')
+                            ->required(),
+                        DatePicker::make('date_emission')
+                            ->label('Date d\'émission')
+                            ->default(now())
+                            ->displayFormat('d/m/Y')
                             ->required(),
                         DatePicker::make('date_echeance')
                             ->label('Échéance')
@@ -136,24 +146,41 @@ class InvoicesRelationManager extends RelationManager
             ])
             ->recordActions([
                 Action::make('emettre')
-                    ->label('Émettre')
+                    ->label('Marquer émise')
                     ->icon('heroicon-o-paper-airplane')
                     ->color('warning')
-                    ->requiresConfirmation()
-                    ->modalDescription('Émettre la facture ? Elle sera numérotée et comptabilisée.')
+                    ->modalHeading('Facture émise en comptabilité')
+                    ->modalDescription('Renseigne le numéro de la facture émise par la comptabilité.')
                     ->visible(fn (Invoice $record): bool => $record->statut === InvoiceStatut::Brouillon)
-                    ->action(fn (Invoice $record) => $this->appliquerTransition($record, InvoiceStatut::Emise, 'Facture émise')),
-                Action::make('genererPdf')
-                    ->label('Générer le PDF')
+                    ->schema([
+                        TextInput::make('numero')
+                            ->label('N° de facture (comptabilité)')
+                            ->required()
+                            ->maxLength(255),
+                        DatePicker::make('date_emission')
+                            ->label('Date d\'émission')
+                            ->default(now())
+                            ->displayFormat('d/m/Y')
+                            ->required(),
+                    ])
+                    ->action(function (Invoice $record, array $data): void {
+                        $record->numero = $data['numero'];
+                        $record->date_emission = $data['date_emission'];
+                        $this->appliquerTransition($record, InvoiceStatut::Emise, 'Facture marquée émise');
+                    }),
+                Action::make('genererProforma')
+                    ->label('Proforma (PDF)')
                     ->icon('heroicon-o-document-text')
-                    ->color('primary')
+                    ->color('gray')
+                    ->tooltip('Document interne sans valeur comptable')
+                    ->visible(fn (Invoice $record): bool => $record->statut === InvoiceStatut::Brouillon)
                     ->action(function (Invoice $record): void {
                         $document = app(InvoiceGenerator::class)->generer($record, Auth::id());
 
                         Notification::make()
                             ->success()
-                            ->title('PDF généré')
-                            ->body("Document v{$document->version} ajouté à la facture.")
+                            ->title('Proforma généré')
+                            ->body("Document interne v{$document->version} (sans valeur comptable).")
                             ->send();
                     }),
                 Action::make('annuler')
@@ -181,16 +208,21 @@ class InvoicesRelationManager extends RelationManager
         }
     }
 
-    /** Crée une facture brouillon marquée « importée » avec son PDF en GED. */
+    /**
+     * Rattache une facture émise par la comptabilité : créée directement en
+     * « Émise » (la pièce fiscale existe déjà) avec son PDF archivé en GED.
+     */
     protected function importerFacture(array $data): void
     {
         /** @var \App\Models\FinanceLine $line */
         $line = $this->getOwnerRecord();
 
         $invoice = $line->invoices()->create([
-            'statut' => InvoiceStatut::Brouillon->value,
+            'statut' => InvoiceStatut::Emise->value,
+            'numero' => $data['numero'],
             'destinataire' => $data['destinataire'],
             'montant' => $data['montant'],
+            'date_emission' => $data['date_emission'],
             'date_echeance' => $data['date_echeance'] ?? null,
             'importee' => true,
             'created_by' => Auth::id(),
@@ -199,7 +231,7 @@ class InvoicesRelationManager extends RelationManager
         $document = $invoice->documents()->create([
             'type' => DocumentType::Facture,
             'statut' => DocumentStatut::Recu,
-            'nom_fichier' => 'Facture importée #'.$invoice->id,
+            'nom_fichier' => 'Facture '.$data['numero'],
             'version' => 1,
             'uploaded_by' => Auth::id(),
         ]);
@@ -210,7 +242,7 @@ class InvoicesRelationManager extends RelationManager
         Notification::make()
             ->success()
             ->title('Facture importée')
-            ->body('Le PDF a été archivé dans la GED.')
+            ->body('Facture '.$data['numero'].' rattachée et archivée dans la GED.')
             ->send();
     }
 }

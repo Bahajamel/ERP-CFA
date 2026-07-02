@@ -26,12 +26,12 @@ class InvoiceFactory extends Factory
         ];
     }
 
-    /** Facture émise (numérotée, datée). */
+    /** Facture émise (n° de compta, datée). */
     public function emise(): static
     {
         return $this->state(fn () => [
             'statut' => InvoiceStatut::Emise,
-            'numero' => 'FACT-'.now()->format('Y').'-'.fake()->unique()->numberBetween(1000, 9999),
+            'numero' => now()->format('Y').'-'.fake()->unique()->numberBetween(1000, 9999),
             'date_emission' => now()->toDateString(),
         ]);
     }

@@ -16,8 +16,12 @@ use Spatie\Activitylog\Traits\LogsActivity;
 
 /**
  * Facture rattachée à une ligne financière (P1-16-3). Cycle de vie :
- * Brouillon → Émise (numérotée) → Payée / Annulée. Une facture ne peut être
- * émise sans montant ni destinataire (P1-16-4).
+ * Brouillon (proforma interne) → Émise → Payée / Annulée.
+ *
+ * L'ERP n'est PAS le système de facturation : la pièce fiscale est produite par
+ * la comptabilité (numéro légal saisi ou PDF importé). Le PDF généré ici est un
+ * proforma sans valeur comptable. Une facture ne peut être émise sans montant
+ * ni destinataire (P1-16-4).
  */
 class Invoice extends Model
 {
@@ -105,26 +109,15 @@ class Invoice extends Model
         return null;
     }
 
-    /** Effets de bord : numérotation et date d'émission au passage à « Émise ». */
+    /**
+     * Effet de bord : au passage à « Émise », on horodate l'émission si elle
+     * n'est pas fournie. Le numéro n'est PAS généré par l'ERP : la facture fait
+     * foi côté comptabilité (le numéro légal est saisi ou importé de la compta).
+     */
     protected function afterTransition(BackedEnum $from, BackedEnum $to, ?string $comment): void
     {
-        if ($to === InvoiceStatut::Emise) {
-            $this->forceFill([
-                'numero' => $this->numero ?: $this->genererNumero(),
-                'date_emission' => $this->date_emission ?? now()->toDateString(),
-            ])->saveQuietly();
+        if ($to === InvoiceStatut::Emise && $this->date_emission === null) {
+            $this->forceFill(['date_emission' => now()->toDateString()])->saveQuietly();
         }
-    }
-
-    /** Numéro séquentiel « FACT-AAAA-000N » (par année d'émission). */
-    protected function genererNumero(): string
-    {
-        $annee = now()->format('Y');
-        $rang = static::withTrashed()
-            ->whereYear('date_emission', $annee)
-            ->whereNotNull('numero')
-            ->count() + 1;
-
-        return sprintf('FACT-%s-%04d', $annee, $rang);
     }
 }
