@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\CandidateStatut;
 use App\Enums\ChecklistItemStatut;
+use App\Enums\PresenceStatut;
 use App\Matching\CompatibilityScorer;
 use App\StateMachine\ManagesState;
 use BackedEnum;
@@ -126,6 +127,43 @@ class Candidate extends Model
     public function notes(): MorphMany
     {
         return $this->morphMany(Note::class, 'notable');
+    }
+
+    public function presences(): HasMany
+    {
+        return $this->hasMany(Presence::class);
+    }
+
+    /**
+     * Assiduité de l'apprenti sur une période (EPIC-14, P1-14-4).
+     * Retourne : séances renseignées, présents, absences injustifiées, taux (%).
+     *
+     * @return array{renseignees: int, presents: int, absences_injustifiees: int, taux: int|null}
+     */
+    public function assiduite(?string $du = null, ?string $au = null): array
+    {
+        $base = fn () => $this->presences()->whereHas('seance', function ($s) use ($du, $au): void {
+            if ($du) {
+                $s->whereDate('date', '>=', $du);
+            }
+            if ($au) {
+                $s->whereDate('date', '<=', $au);
+            }
+        });
+
+        $renseignees = $base()->where('statut', '!=', PresenceStatut::NonRenseigne->value)->count();
+        $presents = $base()->whereIn('statut', array_map(
+            fn (PresenceStatut $s) => $s->value,
+            PresenceStatut::presents(),
+        ))->count();
+        $absInjustifiees = $base()->where('statut', PresenceStatut::AbsentInjustifie->value)->count();
+
+        return [
+            'renseignees' => $renseignees,
+            'presents' => $presents,
+            'absences_injustifiees' => $absInjustifiees,
+            'taux' => $renseignees > 0 ? (int) round($presents / $renseignees * 100) : null,
+        ];
     }
 
     /** Interactions commerciales, la plus récente en tête (timeline, P0-02-8). */
