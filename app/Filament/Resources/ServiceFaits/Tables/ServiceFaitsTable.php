@@ -2,10 +2,16 @@
 
 namespace App\Filament\Resources\ServiceFaits\Tables;
 
+use App\Enums\DocumentType;
+use App\Models\Document;
 use App\Models\ServiceFait;
+use App\Scolarite\ServiceFaitPreuve;
+use Filament\Actions\Action;
+use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Support\Facades\Auth;
 
 class ServiceFaitsTable
 {
@@ -56,6 +62,39 @@ class ServiceFaitsTable
                     ->searchable()
                     ->preload(),
             ])
+            ->recordActions([
+                Action::make('genererPreuve')
+                    ->label('Générer la preuve')
+                    ->icon('heroicon-o-document-text')
+                    ->color('primary')
+                    ->requiresConfirmation()
+                    ->modalDescription('Générer l\'attestation PDF de service fait pour cette période ?')
+                    ->action(function (ServiceFait $record): void {
+                        $document = app(ServiceFaitPreuve::class)->generer($record, Auth::id());
+
+                        Notification::make()
+                            ->success()
+                            ->title('Preuve générée')
+                            ->body("Attestation v{$document->version} ajoutée aux documents.")
+                            ->send();
+                    }),
+                Action::make('telechargerPreuve')
+                    ->label('Télécharger la preuve')
+                    ->icon('heroicon-o-arrow-down-tray')
+                    ->color('gray')
+                    ->visible(fn (ServiceFait $record): bool => self::dernierePreuve($record) !== null)
+                    ->url(fn (ServiceFait $record): ?string => self::dernierePreuve($record)?->getFirstMediaUrl('fichier'))
+                    ->openUrlInNewTab(),
+            ])
             ->defaultSort('validated_at', 'desc');
+    }
+
+    /** Dernière preuve de service fait archivée pour cette période. */
+    private static function dernierePreuve(ServiceFait $serviceFait): ?Document
+    {
+        return $serviceFait->documents()
+            ->where('type', DocumentType::PreuveServiceFait->value)
+            ->orderByDesc('version')
+            ->first();
     }
 }

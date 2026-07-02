@@ -1,12 +1,15 @@
 <?php
 
+use App\Enums\DocumentType;
 use App\Enums\PresenceStatut;
 use App\Enums\SeanceStatut;
 use App\Models\Candidate;
 use App\Models\Promotion;
 use App\Models\Seance;
+use App\Scolarite\ServiceFaitPreuve;
 use App\Scolarite\ServiceFaitValidator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 
 uses(RefreshDatabase::class);
 
@@ -65,4 +68,19 @@ it('empêche de valider deux fois le même mois', function () {
 
     expect(fn () => app(ServiceFaitValidator::class)->valider($promo, 2026, 9))
         ->toThrow(RuntimeException::class);
+});
+
+it('génère une preuve PDF de service fait archivée dans la GED', function () {
+    Storage::fake('public');
+
+    $promo = Promotion::factory()->create();
+    Candidate::factory()->create(['promotion_id' => $promo->id]);
+    seanceValidee($promo, '2026-09-03');
+    $sf = app(ServiceFaitValidator::class)->valider($promo, 2026, 9);
+
+    $document = app(ServiceFaitPreuve::class)->generer($sf);
+
+    expect($document->type)->toBe(DocumentType::PreuveServiceFait)
+        ->and($document->getFirstMedia('fichier'))->not->toBeNull()
+        ->and($sf->documents()->count())->toBe(1);
 });
