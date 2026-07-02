@@ -6,10 +6,16 @@ use App\Enums\AdmissionStatut;
 use App\Enums\CandidateStatut;
 use App\Enums\ContractStatut;
 use App\Enums\OpcoStatut;
+use App\Filament\Resources\Admissions\AdmissionResource;
+use App\Filament\Resources\Candidates\CandidateResource;
+use App\Filament\Resources\Contracts\ContractResource;
+use App\Filament\Resources\OpcoFiles\OpcoFileResource;
+use App\Filament\Widgets\Concerns\HasClickableChart;
 use App\Models\Admission;
 use App\Models\Candidate;
 use App\Models\Contract;
 use App\Models\OpcoFile;
+use Filament\Support\RawJs;
 use Filament\Widgets\ChartWidget;
 
 /**
@@ -20,9 +26,11 @@ use Filament\Widgets\ChartWidget;
  */
 class ConversionFunnelChart extends ChartWidget
 {
+    use HasClickableChart;
+
     protected ?string $heading = 'Entonnoir de conversion';
 
-    protected ?string $description = 'De la candidature au financement OPCO';
+    protected ?string $description = 'De la candidature au financement OPCO — clic → liste filtrée';
 
     protected static ?int $sort = 2;
 
@@ -80,9 +88,26 @@ class ConversionFunnelChart extends ChartWidget
         ];
     }
 
-    protected function getOptions(): array
+    protected function getSegmentUrls(): array
     {
         return [
+            // Candidats actifs : pas de statut unique → liste complète.
+            CandidateResource::getUrl('index'),
+            AdmissionResource::getUrl('index', [
+                'tableFilters' => ['statut' => ['value' => AdmissionStatut::Valide->value]],
+            ]),
+            ContractResource::getUrl('index', [
+                'tableFilters' => ['statut_contrat' => ['value' => ContractStatut::Signe->value]],
+            ]),
+            OpcoFileResource::getUrl('index', [
+                'tableFilters' => ['statut' => ['value' => OpcoStatut::Accepte->value]],
+            ]),
+        ];
+    }
+
+    protected function getOptions(): RawJs
+    {
+        return $this->clickableOptions([
             'plugins' => [
                 'legend' => ['display' => false],
             ],
@@ -92,6 +117,6 @@ class ConversionFunnelChart extends ChartWidget
                     'ticks' => ['precision' => 0],
                 ],
             ],
-        ];
+        ]);
     }
 }
