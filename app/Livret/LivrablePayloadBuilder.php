@@ -2,18 +2,19 @@
 
 namespace App\Livret;
 
+use App\Models\CfaProfile;
 use App\Models\Contract;
 use App\Support\LivrableMissionMap;
 use RuntimeException;
 
 /**
- * Construit le payload JSON envoyé au service LivretRS à partir d'un contrat.
- * Le format reflète les modèles Pydantic de core/ (CFA, DossierApprenant :
- * apprenant / employeur / maître d'apprentissage / contrat / formation).
+ * Construit le payload JSON envoyé au service LivretRS à partir d'un contrat et
+ * du profil du CFA. Le format reflète les modèles Pydantic de core/ (CFA,
+ * DossierApprenant) et ajoute les pièces graphiques (logo/signature/cachet en
+ * base64) et les options de génération (thème, format).
  *
- * Principe RGPD : on n'envoie QUE les données nécessaires aux livrables
- * (identité de l'apprenti, entreprise, formation). Aucun CERFA ni NIR n'est
- * transmis — le service ne conserve rien.
+ * Principe RGPD : on n'envoie QUE les données nécessaires aux livrables. Aucun
+ * CERFA ni NIR n'est transmis.
  */
 class LivrablePayloadBuilder
 {
@@ -28,6 +29,7 @@ class LivrablePayloadBuilder
         $company = $contract->company;
         $formation = $contract->formation;
         $tuteur = $contract->tuteur;
+        $profile = CfaProfile::current();
 
         $dossier = self::sansVides([
             'apprenant' => self::sansVides([
@@ -60,49 +62,64 @@ class LivrablePayloadBuilder
         ]);
 
         return [
-            'cfa' => $this->cfa(),
+            'cfa' => $this->cfa($profile),
+            'assets' => $this->assets($profile),
             'dossier' => $dossier,
             'livrables' => LivrableMissionMap::codes(),
+            'theme_code' => $profile->theme_defaut ?: 'institutionnel',
+            'format' => $profile->format_defaut ?: 'pdf',
+            'verifier_rncp' => (bool) $profile->verifier_rncp,
         ];
     }
 
-    /** Identité du CFA depuis la configuration (config/cfa.php). */
-    private function cfa(): array
+    /** Identité du CFA depuis le profil (singleton). */
+    private function cfa(CfaProfile $p): array
     {
-        $c = config('cfa');
-
         return self::sansVides([
-            'nom' => $c['nom'] ?? 'CFA',
-            'raison_sociale' => $c['raison_sociale'] ?? null,
-            'siret' => $c['siret'] ?? null,
-            'siren' => $c['siren'] ?? null,
-            'naf' => $c['naf'] ?? null,
-            'nda' => $c['nda'] ?? null,
-            'numero_uai' => $c['numero_uai'] ?? null,
-            'adresse' => $c['adresse'] ?? null,
-            'code_postal' => $c['code_postal'] ?? null,
-            'ville' => $c['ville'] ?? null,
-            'telephone' => $c['telephone'] ?? null,
-            'email' => $c['email'] ?? null,
-            'website' => $c['website'] ?? null,
-            'representant_legal' => self::personne($c['representant_legal'] ?? null),
-            'referent_pedagogique' => self::personne($c['referent_pedagogique'] ?? null),
-            'referent_handicap' => self::personne($c['referent_handicap'] ?? null),
+            'nom' => $p->nom ?: 'CFA',
+            'raison_sociale' => $p->raison_sociale,
+            'siren' => $p->siren,
+            'siret' => $p->siret,
+            'naf' => $p->naf,
+            'nda' => $p->nda,
+            'numero_uai' => $p->numero_uai,
+            'adresse' => $p->adresse,
+            'code_postal' => $p->code_postal,
+            'ville' => $p->ville,
+            'telephone' => $p->telephone,
+            'email' => $p->email,
+            'website' => $p->website,
+            'representant_legal' => self::personne($p->representant_nom, $p->representant_prenom, $p->representant_fonction),
+            'referent_pedagogique' => self::personne($p->referent_pedagogique_nom, $p->referent_pedagogique_prenom),
+            'referent_handicap' => self::personne($p->referent_handicap_nom, $p->referent_handicap_prenom),
+            'referent_mobilite' => self::personne($p->referent_mobilite_nom, $p->referent_mobilite_prenom),
+            'dpo' => self::personne($p->dpo_nom, $p->dpo_prenom),
         ]);
     }
 
-    /** Convertit un référent de config en objet Personne, ou null si sans nom. */
-    private static function personne(?array $data): ?array
+    /** Pièces graphiques encodées en base64 (logo, signature, cachet). */
+    private function assets(CfaProfile $p): array
     {
-        if ($data === null || blank($data['nom'] ?? null)) {
+        $assets = [];
+
+        foreach (['logo', 'signature', 'cachet'] as $collection) {
+            $media = $p->getFirstMedia($collection);
+            if ($media !== null && is_file($media->getPath())) {
+                $assets[$collection] = base64_encode((string) file_get_contents($media->getPath()));
+            }
+        }
+
+        return $assets;
+    }
+
+    /** Objet Personne ({nom, prenom?, fonction?}) ou null si pas de nom. */
+    private static function personne(?string $nom, ?string $prenom = null, ?string $fonction = null): ?array
+    {
+        if (blank($nom)) {
             return null;
         }
 
-        return self::sansVides([
-            'nom' => $data['nom'],
-            'prenom' => $data['prenom'] ?? null,
-            'fonction' => $data['fonction'] ?? null,
-        ]);
+        return self::sansVides(['nom' => $nom, 'prenom' => $prenom, 'fonction' => $fonction]);
     }
 
     /** Retire les valeurs nulles ou vides (chaîne « » ou tableau vide). */
