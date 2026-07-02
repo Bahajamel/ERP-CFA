@@ -65,6 +65,17 @@ it('crée une tâche d\'alerte pour chaque indicateur non conforme', function ()
     expect(Task::where('cle', "qualiopi:nonconforme:{$indicateur->id}")->exists())->toBeTrue();
 });
 
+it('la page du registre explique la section et affiche le taux de conformité', function () {
+    $this->seed(RolePermissionSeeder::class);
+    $this->seed(QualiopiIndicatorSeeder::class);
+
+    $this->actingAs(userQualite('Qualité'));
+
+    $this->get(QualiopiIndicatorResource::getUrl('index'))
+        ->assertSuccessful()
+        ->assertSee('certification qualité obligatoire');
+});
+
 it('réserve le registre Qualiopi aux rôles habilités', function () {
     $this->seed(RolePermissionSeeder::class);
 
