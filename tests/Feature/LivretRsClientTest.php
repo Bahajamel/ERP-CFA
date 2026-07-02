@@ -4,6 +4,21 @@ use App\Livret\LivretRsClient;
 use App\Livret\LivretRsException;
 use Illuminate\Support\Facades\Http;
 
+it('recherche un CFA et renvoie la liste des candidats', function () {
+    config(['services.livretrs.url' => 'http://livretrs.test']);
+    Http::fake(['*' => Http::response([
+        'results' => [
+            ['nom' => 'CFA V2S', 'siren' => '123456789', 'ville' => 'Paris', 'nda' => '11751234575'],
+        ],
+    ], 200)]);
+
+    $resultats = (new LivretRsClient)->rechercherCfa('v2s');
+
+    expect($resultats)->toHaveCount(1)
+        ->and($resultats[0]['nom'])->toBe('CFA V2S')
+        ->and($resultats[0]['nda'])->toBe('11751234575');
+});
+
 it('écrit le ZIP renvoyé par le service dans un fichier temporaire', function () {
     config(['services.livretrs.url' => 'http://livretrs.test']);
     Http::fake(['*' => Http::response('PK-contenu-zip', 200)]);

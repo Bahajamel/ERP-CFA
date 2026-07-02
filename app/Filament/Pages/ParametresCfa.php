@@ -2,8 +2,11 @@
 
 namespace App\Filament\Pages;
 
+use App\Livret\LivretRsClient;
+use App\Livret\LivretRsException;
 use App\Models\CfaProfile;
 use App\Models\User;
+use Filament\Actions\Action;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
@@ -57,6 +60,67 @@ class ParametresCfa extends Page implements HasSchemas
         // On ne préremplit pas les uploads (logo/signature/cachet) : ils servent
         // à REMPLACER l'existant ; l'état actuel est affiché en dessous.
         $this->form->fill(CfaProfile::current()->attributesToArray());
+    }
+
+    /** Recherche intelligente (étape 1 LivretRS) : pré-remplit depuis les sources officielles. */
+    protected function getHeaderActions(): array
+    {
+        return [
+            Action::make('enrichir')
+                ->label('Rechercher & enrichir')
+                ->icon(Heroicon::OutlinedMagnifyingGlass)
+                ->visible(fn (): bool => app(LivretRsClient::class)->estConfigure())
+                ->modalHeading('Rechercher le CFA')
+                ->modalDescription('Sources officielles gratuites (annuaire des entreprises + liste publique DGEFP). Sélectionnez le bon établissement pour pré-remplir la fiche.')
+                ->modalSubmitActionLabel('Pré-remplir')
+                ->schema([
+                    Select::make('candidat')
+                        ->label('Nom du CFA')
+                        ->searchable()
+                        ->getSearchResultsUsing(function (string $search): array {
+                            try {
+                                return collect(app(LivretRsClient::class)->rechercherCfa($search))
+                                    ->mapWithKeys(fn (array $c) => [
+                                        json_encode($c) => trim(($c['nom'] ?? 'CFA').' — '.($c['ville'] ?? '').' (SIREN '.($c['siren'] ?? '—').')'),
+                                    ])
+                                    ->all();
+                            } catch (LivretRsException) {
+                                return [];
+                            }
+                        })
+                        ->getOptionLabelUsing(function ($value): string {
+                            $c = json_decode((string) $value, true) ?: [];
+
+                            return trim(($c['nom'] ?? 'CFA').' — '.($c['ville'] ?? ''));
+                        })
+                        ->helperText('Tapez le nom, puis choisissez dans la liste.')
+                        ->required(),
+                ])
+                ->action(function (array $data): void {
+                    $c = json_decode((string) $data['candidat'], true) ?: [];
+
+                    $maj = array_filter([
+                        'nom' => $c['nom'] ?? null,
+                        'siren' => $c['siren'] ?? null,
+                        'siret' => $c['siret'] ?? null,
+                        'naf' => $c['naf'] ?? null,
+                        'nda' => $c['nda'] ?? null,
+                        'adresse' => $c['adresse'] ?? null,
+                        'code_postal' => $c['code_postal'] ?? null,
+                        'ville' => $c['ville'] ?? null,
+                        'telephone' => $c['telephone'] ?? null,
+                        'email' => $c['email'] ?? null,
+                    ], fn ($v) => filled($v));
+
+                    $this->data = array_merge($this->data ?? [], $maj);
+                    $this->form->fill($this->data);
+
+                    Notification::make()
+                        ->title('Champs pré-remplis — vérifiez puis enregistrez.')
+                        ->success()
+                        ->send();
+                }),
+        ];
     }
 
     public function form(Schema $schema): Schema
