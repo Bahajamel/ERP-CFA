@@ -15,7 +15,7 @@ use BackedEnum;
  */
 trait ManagesState
 {
-    /** Nom de la colonne portant l'état. */
+    /** Nom de la colonne portant l'état (surchargeable par modèle). */
     public function stateColumn(): string
     {
         return 'statut';

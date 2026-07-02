@@ -2,16 +2,17 @@
 
 namespace App\StateMachine;
 
+use BackedEnum;
 use Filament\Support\Contracts\HasLabel;
 
 /**
  * Contrat des enums de statut participant à une machine à états.
  * Implémenté par CandidateStatut, NeedStatut, MatchingStatut, etc.
  *
- * Étend HasLabel : tout état sait fournir son libellé ({@see getLabel()}),
- * utilisé par la machine à états pour les messages de transition.
+ * Étend BackedEnum (seuls des enums « backed » l'implémentent) et HasLabel
+ * (tout état fournit son libellé, utilisé dans les messages de transition).
  */
-interface HasStateTransitions extends HasLabel
+interface HasStateTransitions extends BackedEnum, HasLabel
 {
     /**
      * États cibles autorisés depuis l'état courant (transitions structurelles).
