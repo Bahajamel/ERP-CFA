@@ -11,11 +11,11 @@ use BackedEnum;
  * {@see HasStateTransitions}. Par défaut la colonne est « statut » ; un modèle
  * peut la surcharger via stateColumn() (ex. Contract → « statut_contrat »).
  *
- * @property-read \Illuminate\Database\Eloquent\Model $this
+ * @mixin \Illuminate\Database\Eloquent\Model
  */
 trait ManagesState
 {
-    /** Nom de la colonne portant l'état. */
+    /** Nom de la colonne portant l'état (surchargeable par modèle). */
     public function stateColumn(): string
     {
         return 'statut';
