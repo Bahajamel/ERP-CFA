@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Candidates\Tables;
 
 use App\Enums\CandidateStatut;
+use App\Livret\LivrablesArchive;
 use App\Models\Candidate;
 use App\StateMachine\InvalidTransitionException;
 use Filament\Actions\Action;
@@ -109,6 +110,25 @@ class CandidatesTable
                     ->modalContent(fn (Candidate $record) => view('filament.candidates.couverture-missions', [
                         'record' => $record,
                     ])),
+                Action::make('livrablesZip')
+                    ->label('Livrables (ZIP)')
+                    ->icon('heroicon-o-archive-box-arrow-down')
+                    ->color('gray')
+                    ->visible(fn (Candidate $record): bool => (auth()->user()?->can('access_documents') ?? false)
+                        && $record->documents()->where('source', 'livretrs')->exists())
+                    ->action(function (Candidate $record) {
+                        $zip = app(LivrablesArchive::class)->pour($record);
+
+                        if ($zip === null) {
+                            Notification::make()->title('Aucun livrable à télécharger')->warning()->send();
+
+                            return null;
+                        }
+
+                        $nom = 'livrables_'.str($record->nom_complet)->slug().'.zip';
+
+                        return response()->download($zip, $nom)->deleteFileAfterSend();
+                    }),
                 ViewAction::make(),
                 EditAction::make(),
             ])
