@@ -3,10 +3,9 @@
 namespace App\Filament\Resources\Contracts;
 
 use App\Enums\ContractStatut;
+use App\Jobs\GenererLivrablesJob;
 use App\Livret\LivrablePackImporter;
-use App\Livret\LivrablePayloadBuilder;
 use App\Livret\LivretRsClient;
-use App\Livret\LivretRsException;
 use App\Models\CfaProfile;
 use App\Models\Contract;
 use App\StateMachine\InvalidTransitionException;
@@ -165,40 +164,17 @@ class ContractActions
                     ->default(fn () => (bool) CfaProfile::current()->verifier_rncp),
             ])
             ->action(function (Contract $record, array $data) {
-                // La génération (rendu de plusieurs PDF) dépasse la limite web
-                // par défaut (30 s) ; on l'aligne sur le timeout du service.
-                @set_time_limit((int) config('services.livretrs.timeout', 180) + 30);
-
-                try {
-                    $payload = app(LivrablePayloadBuilder::class)->pour($record, $data);
-                    $zip = app(LivretRsClient::class)->genererLivrables($payload);
-                } catch (LivretRsException|RuntimeException $e) {
-                    Notification::make()
-                        ->title('Génération impossible')
-                        ->body($e->getMessage())
-                        ->danger()
-                        ->send();
-
-                    return;
-                }
-
-                try {
-                    $result = app(LivrablePackImporter::class)->import($record, $zip, auth()->id());
-                } finally {
-                    @unlink($zip);
-                }
-
-                $details = $result->reconnus.' livrable(s) reconnu(s), '
-                    .$result->missionsRattachees.' rattachement(s) de mission.';
-
-                if ($result->nonReconnus() > 0) {
-                    $details .= ' '.$result->nonReconnus().' pièce(s) à taguer manuellement.';
-                }
+                // Génération en tâche de fond (~30 s) : on ne bloque pas la page.
+                GenererLivrablesJob::dispatch($record->id, auth()->id(), [
+                    'theme_code' => $data['theme_code'] ?? null,
+                    'format' => $data['format'] ?? null,
+                    'verifier_rncp' => (bool) ($data['verifier_rncp'] ?? false),
+                ]);
 
                 Notification::make()
-                    ->title($result->importes.' livrable(s) générés et importés')
-                    ->body($details)
-                    ->success()
+                    ->title('Génération lancée')
+                    ->body('Les livrables sont en cours de génération. Vous serez notifié dès qu\'ils sont dans la GED.')
+                    ->info()
                     ->send();
             });
     }
