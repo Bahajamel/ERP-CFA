@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Tasks;
 
+use App\Enums\TaskStatut;
 use App\Filament\Resources\Tasks\Pages\CreateTask;
 use App\Filament\Resources\Tasks\Pages\EditTask;
 use App\Filament\Resources\Tasks\Pages\ListTasks;
@@ -35,6 +36,21 @@ class TaskResource extends Resource
 
     protected static ?string $pluralModelLabel = 'tâches';
 
+    protected static ?string $recordTitleAttribute = 'titre';
+
+    public static function getGloballySearchableAttributes(): array
+    {
+        return ['titre', 'description'];
+    }
+
+    public static function getGlobalSearchResultDetails($record): array
+    {
+        return [
+            'Assignée à' => $record->assignee?->name ?? '—',
+            'Statut' => $record->statut->getLabel(),
+        ];
+    }
+
     public static function form(Schema $schema): Schema
     {
         return TaskForm::configure($schema);
@@ -51,9 +67,9 @@ class TaskResource extends Resource
         $count = Task::query()
             ->where('assignee_id', auth()->id())
             ->whereIn('statut', [
-                \App\Enums\TaskStatut::AFaire->value,
-                \App\Enums\TaskStatut::EnCours->value,
-                \App\Enums\TaskStatut::EnRetard->value,
+                TaskStatut::AFaire->value,
+                TaskStatut::EnCours->value,
+                TaskStatut::EnRetard->value,
             ])
             ->count();
 
@@ -64,7 +80,7 @@ class TaskResource extends Resource
     {
         $enRetard = Task::query()
             ->where('assignee_id', auth()->id())
-            ->where('statut', \App\Enums\TaskStatut::EnRetard->value)
+            ->where('statut', TaskStatut::EnRetard->value)
             ->exists();
 
         return $enRetard ? 'danger' : 'warning';

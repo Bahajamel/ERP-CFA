@@ -43,6 +43,19 @@ class NeedResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'intitule_poste';
 
+    public static function getGloballySearchableAttributes(): array
+    {
+        return ['intitule_poste', 'company.raison_sociale'];
+    }
+
+    public static function getGlobalSearchResultDetails($record): array
+    {
+        return [
+            'Entreprise' => $record->company?->raison_sociale ?? '—',
+            'Statut' => $record->statut->getLabel(),
+        ];
+    }
+
     public static function form(Schema $schema): Schema
     {
         return NeedForm::configure($schema);

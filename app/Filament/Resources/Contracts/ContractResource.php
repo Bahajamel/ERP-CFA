@@ -37,6 +37,21 @@ class ContractResource extends Resource
 
     protected static ?string $pluralModelLabel = 'contrats';
 
+    public static function getGloballySearchableAttributes(): array
+    {
+        return ['candidate.nom', 'candidate.prenom', 'company.raison_sociale', 'code_rncp'];
+    }
+
+    public static function getGlobalSearchResultTitle($record): string
+    {
+        return trim(($record->candidate?->nom_complet ?? 'Contrat').' — '.($record->company?->raison_sociale ?? ''), ' —');
+    }
+
+    public static function getGlobalSearchResultDetails($record): array
+    {
+        return ['Statut' => $record->statut_contrat->getLabel()];
+    }
+
     public static function form(Schema $schema): Schema
     {
         return ContractForm::configure($schema);

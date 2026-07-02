@@ -37,6 +37,16 @@ class DocumentResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'nom_fichier';
 
+    public static function getGloballySearchableAttributes(): array
+    {
+        return ['nom_fichier'];
+    }
+
+    public static function getGlobalSearchResultDetails($record): array
+    {
+        return ['Type' => $record->type->getLabel()];
+    }
+
     public static function form(Schema $schema): Schema
     {
         return DocumentForm::configure($schema);

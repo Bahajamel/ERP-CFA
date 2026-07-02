@@ -35,6 +35,24 @@ class OpcoFileResource extends Resource
 
     protected static ?string $pluralModelLabel = 'dossiers OPCO';
 
+    public static function getGloballySearchableAttributes(): array
+    {
+        return ['contract.candidate.nom', 'contract.candidate.prenom', 'opco.nom'];
+    }
+
+    public static function getGlobalSearchResultTitle($record): string
+    {
+        return 'Dossier OPCO — '.($record->contract?->candidate?->nom_complet ?? '#'.$record->id);
+    }
+
+    public static function getGlobalSearchResultDetails($record): array
+    {
+        return [
+            'OPCO' => $record->opco?->nom ?? '—',
+            'Statut' => $record->statut->getLabel(),
+        ];
+    }
+
     public static function form(Schema $schema): Schema
     {
         return OpcoFileForm::configure($schema);
