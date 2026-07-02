@@ -3,13 +3,17 @@
 namespace App\Filament\Resources\Contracts;
 
 use App\Enums\ContractStatut;
+use App\Livret\LivrablePackImporter;
 use App\Models\Contract;
 use App\StateMachine\InvalidTransitionException;
 use Filament\Actions\Action;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Support\Icons\Heroicon;
+use Illuminate\Support\Facades\Storage;
+use RuntimeException;
 
 /**
  * Actions de workflow du contrat, pilotées par la machine à états
@@ -56,6 +60,63 @@ class ContractActions
                 ContractStatut::from($data['statut']),
                 $data['commentaire'] ?? null,
             ));
+    }
+
+    /**
+     * Importer un pack de livrables généré par LivretRS (ZIP) : chaque PDF est
+     * classé dans la GED de l'apprenti, marqué « généré par LivretRS », avec
+     * les missions CFA suggérées. L'archive n'est pas conservée après import.
+     */
+    public static function importerLivrables(): Action
+    {
+        return Action::make('importerLivrables')
+            ->label('Importer les livrables')
+            ->icon(Heroicon::OutlinedArrowUpTray)
+            ->color('info')
+            ->visible(fn (Contract $record) => $record->candidate !== null
+                && (auth()->user()?->can('access_documents') ?? false))
+            ->modalHeading('Importer un pack de livrables LivretRS')
+            ->modalDescription('Déposez l\'archive ZIP produite par LivretRS. Chaque PDF sera classé '
+                .'dans la GED de l\'apprenti, marqué « généré par LivretRS », avec les missions CFA '
+                .'suggérées (que vous pourrez ajuster ensuite).')
+            ->schema([
+                FileUpload::make('archive')
+                    ->label('Archive ZIP des livrables')
+                    ->disk('local')
+                    ->directory('livret-imports')
+                    ->acceptedFileTypes(['application/zip', 'application/x-zip-compressed', 'multipart/x-zip'])
+                    ->required(),
+            ])
+            ->action(function (Contract $record, array $data) {
+                $chemin = Storage::disk('local')->path($data['archive']);
+
+                try {
+                    $result = app(LivrablePackImporter::class)->import($record, $chemin, auth()->id());
+                } catch (RuntimeException $e) {
+                    Notification::make()
+                        ->title('Import impossible')
+                        ->body($e->getMessage())
+                        ->danger()
+                        ->send();
+
+                    return;
+                } finally {
+                    Storage::disk('local')->delete($data['archive']);
+                }
+
+                $details = $result->reconnus.' livrable(s) reconnu(s), '
+                    .$result->missionsRattachees.' rattachement(s) de mission.';
+
+                if ($result->nonReconnus() > 0) {
+                    $details .= ' '.$result->nonReconnus().' pièce(s) à taguer manuellement.';
+                }
+
+                Notification::make()
+                    ->title($result->importes.' livrable(s) importé(s) dans la GED')
+                    ->body($details)
+                    ->success()
+                    ->send();
+            });
     }
 
     private static function executer(Contract $record, ContractStatut $cible, ?string $comment = null): void

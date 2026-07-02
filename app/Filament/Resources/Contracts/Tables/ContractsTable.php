@@ -69,6 +69,7 @@ class ContractsTable
             ->recordActions([
                 ContractActions::signer(),
                 ContractActions::changerStatut(),
+                ContractActions::importerLivrables(),
                 ViewAction::make(),
                 EditAction::make(),
             ])
