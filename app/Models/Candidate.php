@@ -124,6 +124,43 @@ class Candidate extends Model
         return $this->morphMany(Document::class, 'documentable');
     }
 
+    /** Ids des missions CFA (L6231-2) couvertes par au moins un document de l'apprenti. */
+    public function missionsCouvertesIds(): Collection
+    {
+        return $this->documents()
+            ->join('cfa_mission_document', 'documents.id', '=', 'cfa_mission_document.document_id')
+            ->distinct()
+            ->pluck('cfa_mission_document.cfa_mission_id');
+    }
+
+    /**
+     * Couverture des 14 missions pour cet apprenti : chaque mission avec un
+     * drapeau « couverte » (au moins un livrable rattaché). Sert de vue d'audit.
+     *
+     * @return Collection<int, object{mission: CfaMission, couverte: bool}>
+     */
+    public function couvertureMissions(): Collection
+    {
+        $couvertes = $this->missionsCouvertesIds();
+
+        return CfaMission::query()->orderBy('numero')->get()->map(fn (CfaMission $mission) => (object) [
+            'mission' => $mission,
+            'couverte' => $couvertes->contains($mission->id),
+        ]);
+    }
+
+    /** Taux de couverture des 14 missions pour cet apprenti (0-100). */
+    public function tauxCouvertureMissions(): int
+    {
+        $total = CfaMission::query()->count();
+
+        if ($total === 0) {
+            return 0;
+        }
+
+        return (int) round($this->missionsCouvertesIds()->count() * 100 / $total);
+    }
+
     public function notes(): MorphMany
     {
         return $this->morphMany(Note::class, 'notable');

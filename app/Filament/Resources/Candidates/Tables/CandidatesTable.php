@@ -98,6 +98,17 @@ class CandidatesTable
                     ->modalContent(fn (Candidate $record) => view('filament.candidates.entreprises-a-cibler', [
                         'cibles' => $record->entreprisesACibler(),
                     ])),
+                Action::make('couvertureMissions')
+                    ->label('Missions CFA')
+                    ->icon('heroicon-o-academic-cap')
+                    ->color('gray')
+                    ->visible(fn (): bool => auth()->user()?->can('access_documents') ?? false)
+                    ->modalHeading(fn (Candidate $record): string => "Couverture des 14 missions CFA — {$record->nom_complet}")
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Fermer')
+                    ->modalContent(fn (Candidate $record) => view('filament.candidates.couverture-missions', [
+                        'record' => $record,
+                    ])),
                 ViewAction::make(),
                 EditAction::make(),
             ])
