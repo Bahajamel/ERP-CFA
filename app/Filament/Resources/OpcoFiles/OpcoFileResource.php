@@ -25,9 +25,9 @@ class OpcoFileResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBanknotes;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Admission & Contrats';
+    protected static string|\UnitEnum|null $navigationGroup = 'Contrats & OPCO';
 
-    protected static ?int $navigationSort = 3;
+    protected static ?int $navigationSort = 2;
 
     protected static ?string $navigationLabel = 'Dossiers OPCO';
 
