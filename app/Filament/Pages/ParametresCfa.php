@@ -7,9 +7,9 @@ use App\Livret\LivretRsException;
 use App\Models\CfaProfile;
 use App\Models\User;
 use Filament\Actions\Action;
-use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
@@ -20,7 +20,6 @@ use Filament\Schemas\Contracts\HasSchemas;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
 
 /**
  * Paramètres du CFA (singleton) — étapes 1 à 3 & préférences de génération de
@@ -125,9 +124,8 @@ class ParametresCfa extends Page implements HasSchemas
 
     public function form(Schema $schema): Schema
     {
-        $profile = CfaProfile::current();
-
         return $schema
+            ->model(CfaProfile::current())
             ->statePath('data')
             ->components([
                 Section::make('Identité du CFA')
@@ -170,18 +168,27 @@ class ParametresCfa extends Page implements HasSchemas
                     ]),
 
                 Section::make('Logo, signature et cachet')
-                    ->description('Appliqués aux livrables générés. Laissez vide pour conserver l\'existant.')
+                    ->description('Appliqués aux livrables générés. L\'image enregistrée reste affichée ici.')
                     ->columns(3)
                     ->schema([
-                        FileUpload::make('logo')->label('Logo')->image()
-                            ->disk('public')->directory('cfa-tmp')
-                            ->helperText(self::etatPiece($profile, 'logo')),
-                        FileUpload::make('signature')->label('Signature du représentant')->image()
-                            ->disk('public')->directory('cfa-tmp')
-                            ->helperText(self::etatPiece($profile, 'signature')),
-                        FileUpload::make('cachet')->label('Cachet / tampon')->image()
-                            ->disk('public')->directory('cfa-tmp')
-                            ->helperText(self::etatPiece($profile, 'cachet')),
+                        SpatieMediaLibraryFileUpload::make('logo')
+                            ->label('Logo')
+                            ->collection('logo')
+                            ->image()
+                            ->openable()
+                            ->downloadable(),
+                        SpatieMediaLibraryFileUpload::make('signature')
+                            ->label('Signature du représentant')
+                            ->collection('signature')
+                            ->image()
+                            ->openable()
+                            ->downloadable(),
+                        SpatieMediaLibraryFileUpload::make('cachet')
+                            ->label('Cachet / tampon')
+                            ->collection('cachet')
+                            ->image()
+                            ->openable()
+                            ->downloadable(),
                     ]),
 
                 Section::make('Préférences de génération')
@@ -209,33 +216,15 @@ class ParametresCfa extends Page implements HasSchemas
     public function save(): void
     {
         $data = $this->form->getState();
-        $profile = CfaProfile::current();
 
-        // Pièces graphiques : remplacent l'existant seulement si un fichier est fourni.
-        foreach (['logo', 'signature', 'cachet'] as $collection) {
-            $fichier = $data[$collection] ?? null;
-            unset($data[$collection]);
+        // Le logo/signature/cachet sont gérés par la media library (composants
+        // SpatieMediaLibraryFileUpload) : on les exclut de la mise à jour des
+        // colonnes, puis on persiste les médias via saveRelationships().
+        unset($data['logo'], $data['signature'], $data['cachet']);
 
-            $chemin = is_array($fichier) ? reset($fichier) : $fichier;
-            if (! $chemin) {
-                continue;
-            }
-
-            $profile->clearMediaCollection($collection);
-            $profile->addMediaFromDisk($chemin, 'public')->toMediaCollection($collection);
-            Storage::disk('public')->delete($chemin);
-        }
-
-        $profile->update($data);
+        CfaProfile::current()->update($data);
+        $this->form->saveRelationships();
 
         Notification::make()->title('Paramètres du CFA enregistrés')->success()->send();
-    }
-
-    /** Libellé d'état d'une pièce (présente/absente) pour l'aide du champ. */
-    private static function etatPiece(CfaProfile $profile, string $collection): string
-    {
-        return $profile->getFirstMedia($collection)
-            ? '✓ Une pièce est déjà enregistrée.'
-            : 'Aucune pièce enregistrée.';
     }
 }
