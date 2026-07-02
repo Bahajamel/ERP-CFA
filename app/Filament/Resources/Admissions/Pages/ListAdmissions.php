@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Admissions\Pages;
 
 use App\Filament\Resources\Admissions\AdmissionResource;
+use App\Filament\Widgets\ConversionFunnelChart;
 use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ListRecords;
 
@@ -14,6 +15,13 @@ class ListAdmissions extends ListRecords
     {
         return [
             CreateAction::make(),
+        ];
+    }
+
+    protected function getHeaderWidgets(): array
+    {
+        return [
+            ConversionFunnelChart::class,
         ];
     }
 }
