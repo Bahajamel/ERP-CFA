@@ -184,6 +184,15 @@ class GenerateurLivrables extends Page implements HasSchemas, HasTable
                     ->dateTime('d/m/Y H:i')
                     ->sortable(),
             ])
+            ->recordActions([
+                Action::make('telecharger')
+                    ->label('Télécharger')
+                    ->icon(Heroicon::OutlinedArrowDownTray)
+                    ->color('gray')
+                    ->url(fn (Document $record) => $record->getFirstMediaUrl('fichier'))
+                    ->openUrlInNewTab()
+                    ->visible(fn (Document $record) => $record->getFirstMedia('fichier') !== null),
+            ])
             ->defaultSort('created_at', 'desc');
     }
 }
