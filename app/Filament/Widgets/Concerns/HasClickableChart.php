@@ -33,7 +33,7 @@ trait HasClickableChart
         $optionsJson = json_encode($options, $flags) ?: '{}';
         $urlsJson = json_encode(array_values($this->getSegmentUrls()), $flags) ?: '[]';
 
-        return RawJs::make(<<<JS
+        $js = <<<JS
             (() => {
                 const options = {$optionsJson};
                 const urls = {$urlsJson};
@@ -52,6 +52,13 @@ trait HasClickableChart
                 };
                 return options;
             })()
-            JS);
+            JS;
+
+        // Le RawJs est injecté tel quel dans un attribut HTML double-quoté
+        // (x-data="chart({ options: … })"). On échappe & et " en entités, comme
+        // Filament le fait pour les options-tableau : le navigateur les restitue
+        // avant de passer la valeur à Alpine. Sans ça, les guillemets du JSON
+        // cassent l'attribut et le script s'affiche en texte brut.
+        return RawJs::make(str_replace(['&', '"'], ['&amp;', '&quot;'], $js));
     }
 }

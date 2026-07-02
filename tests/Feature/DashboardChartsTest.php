@@ -60,7 +60,10 @@ it('rend l\'entonnoir avec des segments cliquables vers les listes filtrées', f
     Livewire::test(ConversionFunnelChart::class)
         ->assertSuccessful()
         ->assertSee('onClick', false)
-        ->assertSee('tableFilters', false);
+        ->assertSee('tableFilters', false)
+        // Les options sont échappées pour l'attribut HTML : pas de JSON brut
+        // (sinon les guillemets cassent x-data et le script fuit en texte).
+        ->assertDontSee('{"plugins"', false);
 });
 
 it('rend la courbe des contrats signés et compte le mois courant', function () {
