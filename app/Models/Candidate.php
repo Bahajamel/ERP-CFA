@@ -128,6 +128,20 @@ class Candidate extends Model
         return $this->morphMany(Note::class, 'notable');
     }
 
+    /** Interactions commerciales, la plus récente en tête (timeline, P0-02-8). */
+    public function interactions(): MorphMany
+    {
+        return $this->morphMany(Interaction::class, 'interactable')
+            ->orderByDesc('date_interaction')
+            ->orderByDesc('id');
+    }
+
+    /** Prochaine relance planifiée (action datée de l'interaction la plus récente). */
+    public function prochaineRelance(): ?Interaction
+    {
+        return $this->interactions()->whereNotNull('prochaine_action_le')->first();
+    }
+
     /**
      * Entreprises à cibler pour ce candidat (P1-03-7, Pilier E / F4). Deux signaux :
      *  1. un besoin ouvert compatible (score de compatibilité > 0) ;
