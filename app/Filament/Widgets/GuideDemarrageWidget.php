@@ -24,6 +24,9 @@ class GuideDemarrageWidget extends Widget
 
     protected int|string|array $columnSpan = 'full';
 
+    /** Guide statique : rendu immédiat (non lazy) pour une pleine largeur stable. */
+    protected static bool $isLazy = false;
+
     /** Les étapes du parcours, avec un lien vers le module si l'accès est permis. */
     public function steps(): array
     {

@@ -18,6 +18,9 @@
     @endphp
 
     <style>
+        /* Force la cellule de grille du guide à occuper toute la largeur du dashboard. */
+        .fi-grid > *:has(.fi-guide-row) { grid-column:1 / -1 !important; }
+
         .fi-guide-row { display:flex; flex-wrap:wrap; gap:.55rem; }
         .fi-guide-step {
             flex:1 1 180px; min-width:180px; position:relative;
