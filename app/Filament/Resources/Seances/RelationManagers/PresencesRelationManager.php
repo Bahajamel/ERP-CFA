@@ -92,6 +92,19 @@ class PresencesRelationManager extends RelationManager
                     ->options(PresenceStatut::class),
             ])
             ->recordActions([
+                EditAction::make('justificatif')
+                    ->label('Justificatif')
+                    ->icon('heroicon-o-paper-clip')
+                    ->modalHeading('Justificatif d\'absence')
+                    ->visible(fn ($record): bool => $record->statut?->estAbsence() ?? false)
+                    ->schema([
+                        SpatieMediaLibraryFileUpload::make('justificatif')
+                            ->label('Justificatif')
+                            ->collection('justificatif')
+                            ->downloadable()
+                            ->openable()
+                            ->helperText('Dépose le certificat / justificatif de l\'absence.'),
+                    ]),
                 EditAction::make(),
             ])
             ->toolbarActions([
