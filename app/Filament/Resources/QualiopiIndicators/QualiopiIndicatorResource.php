@@ -69,6 +69,18 @@ class QualiopiIndicatorResource extends Resource
         return 'danger';
     }
 
+    /** Explique ce que compte le badge rouge (au survol). */
+    public static function getNavigationBadgeTooltip(): ?string
+    {
+        $n = QualiopiIndicator::query()
+            ->where('statut', \App\Enums\QualiopiStatut::NonConforme->value)
+            ->count();
+
+        return $n > 0
+            ? $n.' indicateur(s) Qualiopi non conforme(s) à corriger avant l\'audit'
+            : null;
+    }
+
     public static function getPages(): array
     {
         return [
