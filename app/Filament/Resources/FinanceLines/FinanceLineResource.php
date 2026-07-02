@@ -9,6 +9,8 @@ use App\Filament\Resources\FinanceLines\RelationManagers\InvoicesRelationManager
 use App\Filament\Resources\FinanceLines\RelationManagers\PaymentsRelationManager;
 use App\Filament\Resources\FinanceLines\Schemas\FinanceLineForm;
 use App\Filament\Resources\FinanceLines\Tables\FinanceLinesTable;
+use App\Filament\Widgets\FinanceEncaissementChart;
+use App\Filament\Widgets\FinanceFacturesChart;
 use App\Models\FinanceLine;
 use App\Models\User;
 use BackedEnum;
@@ -57,6 +59,14 @@ class FinanceLineResource extends Resource
         return [
             InvoicesRelationManager::class,
             PaymentsRelationManager::class,
+        ];
+    }
+
+    public static function getWidgets(): array
+    {
+        return [
+            FinanceEncaissementChart::class,
+            FinanceFacturesChart::class,
         ];
     }
 
