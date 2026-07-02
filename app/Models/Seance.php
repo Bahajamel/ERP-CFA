@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Séance de formation (EPIC-14) : créneau daté d'une promotion, support de
@@ -31,6 +32,19 @@ class Seance extends Model
     protected static function booted(): void
     {
         static::created(fn (self $seance) => $seance->genererPresences());
+
+        // Règle (P1-14-5) : une séance n'est validable que si toutes les présences
+        // sont renseignées (base du service fait).
+        static::saving(function (self $seance): void {
+            if ($seance->statut === SeanceStatut::Validee
+                && $seance->isDirty('statut')
+                && $seance->exists
+                && $seance->aDesPresencesNonRenseignees()) {
+                throw ValidationException::withMessages([
+                    'statut' => 'Séance non validable : des présences ne sont pas renseignées.',
+                ]);
+            }
+        });
     }
 
     public function promotion(): BelongsTo
