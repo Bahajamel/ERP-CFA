@@ -7,12 +7,14 @@ use App\Livret\LivrablePackImporter;
 use App\Livret\LivrablePayloadBuilder;
 use App\Livret\LivretRsClient;
 use App\Livret\LivretRsException;
+use App\Models\CfaProfile;
 use App\Models\Contract;
 use App\StateMachine\InvalidTransitionException;
 use Filament\Actions\Action;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Facades\Storage;
@@ -136,18 +138,39 @@ class ContractActions
             ->visible(fn (Contract $record) => app(LivretRsClient::class)->estConfigure()
                 && $record->candidate !== null
                 && (auth()->user()?->can('access_documents') ?? false))
-            ->requiresConfirmation()
             ->modalHeading('Générer les livrables via LivretRS')
-            ->modalDescription('L\'ERP va demander au service LivretRS de générer les livrables de '
-                .'cet apprenti à partir de ses données, puis les importer dans la GED avec les missions '
-                .'CFA suggérées. Le service ne conserve aucune donnée.')
-            ->action(function (Contract $record) {
+            ->modalDescription('L\'ERP va générer les livrables de cet apprenti puis les importer dans '
+                .'la GED avec les missions CFA suggérées. Le service ne conserve aucune donnée.')
+            ->modalSubmitActionLabel('Générer')
+            ->schema([
+                Select::make('theme_code')
+                    ->label('Thème graphique')
+                    ->options([
+                        'institutionnel' => 'Institutionnel',
+                        'premium' => 'Premium graphique',
+                        'sobre' => 'Sobre',
+                    ])
+                    ->default(fn () => CfaProfile::current()->theme_defaut ?: 'institutionnel')
+                    ->required(),
+                Select::make('format')
+                    ->label('Format')
+                    ->options([
+                        'pdf' => 'PDF uniquement',
+                        'pdf_docx' => 'PDF + DOCX (éditable)',
+                    ])
+                    ->default(fn () => CfaProfile::current()->format_defaut ?: 'pdf')
+                    ->required(),
+                Toggle::make('verifier_rncp')
+                    ->label('Vérifier le code RNCP en ligne')
+                    ->default(fn () => (bool) CfaProfile::current()->verifier_rncp),
+            ])
+            ->action(function (Contract $record, array $data) {
                 // La génération (rendu de plusieurs PDF) dépasse la limite web
                 // par défaut (30 s) ; on l'aligne sur le timeout du service.
                 @set_time_limit((int) config('services.livretrs.timeout', 180) + 30);
 
                 try {
-                    $payload = app(LivrablePayloadBuilder::class)->pour($record);
+                    $payload = app(LivrablePayloadBuilder::class)->pour($record, $data);
                     $zip = app(LivretRsClient::class)->genererLivrables($payload);
                 } catch (LivretRsException|RuntimeException $e) {
                     Notification::make()

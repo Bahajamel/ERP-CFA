@@ -18,7 +18,11 @@ use RuntimeException;
  */
 class LivrablePayloadBuilder
 {
-    public function pour(Contract $contract): array
+    /**
+     * @param  array{theme_code?: string, format?: string, verifier_rncp?: bool}  $options
+     *         Surcharges ponctuelles (au clic) des défauts du profil CFA.
+     */
+    public function pour(Contract $contract, array $options = []): array
     {
         $candidate = $contract->candidate;
 
@@ -66,9 +70,11 @@ class LivrablePayloadBuilder
             'assets' => $this->assets($profile),
             'dossier' => $dossier,
             'livrables' => LivrableMissionMap::codes(),
-            'theme_code' => $profile->theme_defaut ?: 'institutionnel',
-            'format' => $profile->format_defaut ?: 'pdf',
-            'verifier_rncp' => (bool) $profile->verifier_rncp,
+            'theme_code' => $options['theme_code'] ?? ($profile->theme_defaut ?: 'institutionnel'),
+            'format' => $options['format'] ?? ($profile->format_defaut ?: 'pdf'),
+            'verifier_rncp' => array_key_exists('verifier_rncp', $options)
+                ? (bool) $options['verifier_rncp']
+                : (bool) $profile->verifier_rncp,
         ];
     }
 
