@@ -30,12 +30,12 @@ class RolePermissionSeeder extends Seeder
         $matrix = [
             'Administrateur' => '*',
             'Direction'      => $allButUsers,
-            'Commercial'     => ['candidates', 'companies', 'needs', 'matching', 'formations', 'tasks'],
-            'Admission'      => ['candidates', 'admissions', 'documents', 'formations', 'tasks'],
-            'Administratif'  => ['contracts', 'opco', 'documents', 'finance', 'tasks'],
-            'Scolarité'      => ['attendance', 'formations', 'tasks'],
-            'Pédagogie'      => ['candidates', 'admissions', 'attendance', 'quality', 'ruptures', 'formations', 'tasks'],
-            'Finance'        => ['finance', 'contracts', 'opco', 'tasks'],
+            'Commercial'     => ['candidates', 'companies', 'needs', 'matching', 'formations', 'tasks', 'reports'],
+            'Admission'      => ['candidates', 'admissions', 'documents', 'formations', 'tasks', 'reports'],
+            'Administratif'  => ['contracts', 'opco', 'documents', 'finance', 'tasks', 'reports'],
+            'Scolarité'      => ['attendance', 'formations', 'tasks', 'reports'],
+            'Pédagogie'      => ['candidates', 'admissions', 'attendance', 'quality', 'ruptures', 'formations', 'tasks', 'reports'],
+            'Finance'        => ['finance', 'contracts', 'opco', 'tasks', 'reports'],
             'Qualité'        => ['quality', 'documents', 'tasks'],
             'Formateur'      => ['attendance', 'formations', 'tasks'],
         ];

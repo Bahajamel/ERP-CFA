@@ -2,10 +2,12 @@
 
 namespace App\Filament\Resources\ServiceFaits\Pages;
 
+use App\Filament\Exports\ServiceFaitExporter;
 use App\Filament\Resources\ServiceFaits\ServiceFaitResource;
 use App\Models\Promotion;
 use App\Scolarite\ServiceFaitValidator;
 use Filament\Actions\Action;
+use Filament\Actions\ExportAction;
 use Filament\Forms\Components\Select;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
@@ -66,6 +68,12 @@ class ListServiceFaits extends ListRecords
                             ->send();
                     }
                 }),
+            ExportAction::make()
+                ->label('Exporter')
+                ->icon('heroicon-o-arrow-down-tray')
+                ->color('gray')
+                ->exporter(ServiceFaitExporter::class)
+                ->visible(fn (): bool => Auth::user()?->can('access_reports') ?? false),
         ];
     }
 }
