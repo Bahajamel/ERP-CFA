@@ -65,9 +65,8 @@ class LivrablePayloadBuilder
             ]),
         ]);
 
-        return [
+        $payload = [
             'cfa' => $this->cfa($profile),
-            'assets' => $this->assets($profile),
             'dossier' => $dossier,
             'livrables' => LivrableMissionMap::codes(),
             'theme_code' => $options['theme_code'] ?? ($profile->theme_defaut ?: 'institutionnel'),
@@ -76,6 +75,16 @@ class LivrablePayloadBuilder
                 ? (bool) $options['verifier_rncp']
                 : (bool) $profile->verifier_rncp,
         ];
+
+        // N'inclure « assets » que s'il y a des pièces : un tableau PHP vide
+        // s'encode en « [] » (tableau JSON) et non « {} », ce que le service
+        // (dict) rejette. Absent → le service applique son défaut {}.
+        $assets = $this->assets($profile);
+        if ($assets !== []) {
+            $payload['assets'] = $assets;
+        }
+
+        return $payload;
     }
 
     /** Identité du CFA depuis le profil (singleton). */

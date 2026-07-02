@@ -39,9 +39,30 @@ class FormationsTable
                     ->sortable(),
                 TextColumn::make('rythme_defaut')
                     ->label('Rythme')
-                    ->placeholder('—'),
+                    ->placeholder('—')
+                    ->toggleable(),
+                TextColumn::make('rncp_statut')
+                    ->label('RNCP')
+                    ->badge()
+                    ->state(fn (Formation $record): string => match (true) {
+                        $record->rncp_verifie_at === null => 'Non vérifié',
+                        $record->rncp_actif === true => 'Valide',
+                        $record->rncp_actif === false => 'Inactif',
+                        default => 'Inconnu',
+                    })
+                    ->color(fn (Formation $record): string => match (true) {
+                        $record->rncp_verifie_at === null => 'gray',
+                        $record->rncp_actif === true => 'success',
+                        $record->rncp_actif === false => 'danger',
+                        default => 'warning',
+                    })
+                    ->tooltip(fn (Formation $record): ?string => $record->rncp_verifie_at
+                        ? trim(($record->rncp_intitule ?? '').' · Niveau '.($record->rncp_niveau ?? '?'))
+                            .' · vérifié le '.$record->rncp_verifie_at->format('d/m/Y')
+                        : null),
                 IconColumn::make('is_active')
-                    ->label('Active')
+                    ->label('Au catalogue')
+                    ->tooltip('Formation proposée par le CFA (indépendant de l\'état RNCP)')
                     ->boolean(),
             ])
             ->recordActions([
@@ -61,6 +82,12 @@ class FormationsTable
                         }
 
                         if (! ($info['found'] ?? false)) {
+                            $record->update([
+                                'rncp_actif' => null,
+                                'rncp_etat' => 'Introuvable',
+                                'rncp_verifie_at' => now(),
+                            ]);
+
                             Notification::make()
                                 ->title('Code RNCP introuvable')
                                 ->body('Aucune fiche pour '.$record->code_rncp.' sur France Compétences.')
@@ -71,6 +98,16 @@ class FormationsTable
                         }
 
                         $actif = $info['actif'] ?? null;
+
+                        // Persiste le résultat pour l'afficher en continu (colonne RNCP).
+                        $record->update([
+                            'rncp_actif' => $actif,
+                            'rncp_etat' => $info['etat'] ?? null,
+                            'rncp_intitule' => $info['intitule'] ?? null,
+                            'rncp_niveau' => $info['niveau'] ?? null,
+                            'rncp_verifie_at' => now(),
+                        ]);
+
                         $statut = $actif === true ? 'Active' : ($actif === false ? 'Inactive' : 'État inconnu');
 
                         Notification::make()

@@ -17,6 +17,8 @@ class Formation extends Model
         return [
             'is_active' => 'boolean',
             'duree_mois' => 'integer',
+            'rncp_actif' => 'boolean',
+            'rncp_verifie_at' => 'datetime',
         ];
     }
 
