@@ -10,6 +10,7 @@ use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
@@ -52,6 +53,23 @@ it('n\'a plus de présences non renseignées une fois toutes émargées', functi
 
     expect($seance->aDesPresencesNonRenseignees())->toBeFalse()
         ->and($seance->tauxPresence())->toBe(100);
+});
+
+it('rattache un justificatif d\'absence à une présence', function () {
+    Storage::fake('public');
+
+    $promo = promotionAvecApprentis(1);
+    $seance = Seance::factory()->create(['promotion_id' => $promo->id]);
+    $presence = $seance->presences()->first();
+    $presence->update(['statut' => PresenceStatut::AbsentJustifie]);
+
+    expect($presence->aJustificatif())->toBeFalse();
+
+    $presence->addMediaFromString('certificat médical')
+        ->usingFileName('justif.pdf')
+        ->toMediaCollection('justificatif');
+
+    expect($presence->fresh()->aJustificatif())->toBeTrue();
 });
 
 it('affiche l\'émargement de la séance', function () {

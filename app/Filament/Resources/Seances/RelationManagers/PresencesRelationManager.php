@@ -7,9 +7,12 @@ use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
 use Filament\Forms\Components\Textarea;
 use Filament\Resources\RelationManagers\RelationManager;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
+use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\SelectColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -35,10 +38,22 @@ class PresencesRelationManager extends RelationManager
             Select::make('statut')
                 ->label('Présence')
                 ->options(PresenceStatut::class)
+                ->live()
                 ->required(),
             Textarea::make('commentaire')
                 ->label('Commentaire')
                 ->rows(2)
+                ->columnSpanFull(),
+            SpatieMediaLibraryFileUpload::make('justificatif')
+                ->label('Justificatif d\'absence')
+                ->collection('justificatif')
+                ->downloadable()
+                ->openable()
+                ->helperText('Requis pour justifier une absence.')
+                ->visible(fn (Get $get): bool => in_array($get('statut'), [
+                    PresenceStatut::AbsentJustifie->value,
+                    PresenceStatut::AbsentInjustifie->value,
+                ], true))
                 ->columnSpanFull(),
         ]);
     }
@@ -60,6 +75,11 @@ class PresencesRelationManager extends RelationManager
                         ->all())
                     ->selectablePlaceholder(false)
                     ->width('16rem'),
+                IconColumn::make('justificatif')
+                    ->label('Justificatif')
+                    ->state(fn ($record): bool => $record->aJustificatif())
+                    ->boolean()
+                    ->alignCenter(),
                 TextColumn::make('commentaire')
                     ->label('Commentaire')
                     ->placeholder('—')

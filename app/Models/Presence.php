@@ -6,15 +6,17 @@ use App\Enums\PresenceStatut;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
 
 /**
  * Présence d'un apprenti à une séance (émargement, EPIC-14). Un justificatif
- * d'absence est rattaché via la GED (Document polymorphe).
+ * d'absence peut être rattaché (collection média « justificatif », P1-14-3).
  */
-class Presence extends Model
+class Presence extends Model implements HasMedia
 {
     use HasFactory;
+    use InteractsWithMedia;
 
     protected $guarded = [];
 
@@ -23,6 +25,11 @@ class Presence extends Model
         return [
             'statut' => PresenceStatut::class,
         ];
+    }
+
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection('justificatif')->singleFile();
     }
 
     public function seance(): BelongsTo
@@ -35,9 +42,9 @@ class Presence extends Model
         return $this->belongsTo(Candidate::class);
     }
 
-    /** Justificatifs d'absence (GED polymorphe). */
-    public function documents(): MorphMany
+    /** Un justificatif d'absence est-il joint ? */
+    public function aJustificatif(): bool
     {
-        return $this->morphMany(Document::class, 'documentable');
+        return $this->getFirstMedia('justificatif') !== null;
     }
 }
