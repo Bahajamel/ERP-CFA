@@ -94,13 +94,13 @@ class ConversionFunnelChart extends ChartWidget
             // Candidats actifs : pas de statut unique → liste complète.
             CandidateResource::getUrl('index'),
             AdmissionResource::getUrl('index', [
-                'tableFilters' => ['statut' => ['value' => AdmissionStatut::Valide->value]],
+                'filters' => ['statut' => ['value' => AdmissionStatut::Valide->value]],
             ]),
             ContractResource::getUrl('index', [
-                'tableFilters' => ['statut_contrat' => ['value' => ContractStatut::Signe->value]],
+                'filters' => ['statut_contrat' => ['value' => ContractStatut::Signe->value]],
             ]),
             OpcoFileResource::getUrl('index', [
-                'tableFilters' => ['statut' => ['value' => OpcoStatut::Accepte->value]],
+                'filters' => ['statut' => ['value' => OpcoStatut::Accepte->value]],
             ]),
         ];
     }

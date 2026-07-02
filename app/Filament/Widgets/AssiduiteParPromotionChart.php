@@ -3,7 +3,7 @@
 namespace App\Filament\Widgets;
 
 use App\Enums\PresenceStatut;
-use App\Filament\Pages\Assiduite;
+use App\Filament\Resources\Seances\SeanceResource;
 use App\Filament\Widgets\Concerns\HasClickableChart;
 use App\Models\Presence;
 use App\Models\Promotion;
@@ -11,7 +11,7 @@ use Filament\Widgets\ChartWidget;
 
 /**
  * Taux de présence par promotion : repère en un coup d'œil les classes qui
- * décrochent. Clic sur une barre → page Assiduité filtrée sur la classe.
+ * décrochent. Clic sur une barre → liste des séances/émargement de la classe.
  * Réservée aux profils ayant accès à l'assiduité.
  */
 class AssiduiteParPromotionChart extends ChartWidget
@@ -20,7 +20,7 @@ class AssiduiteParPromotionChart extends ChartWidget
 
     protected ?string $heading = 'Assiduité par promotion';
 
-    protected ?string $description = 'Taux de présence — clic → assiduité de la classe';
+    protected ?string $description = 'Taux de présence — clic → émargement de la classe';
 
     protected static ?int $sort = 7;
 
@@ -103,7 +103,9 @@ class AssiduiteParPromotionChart extends ChartWidget
         }
 
         return array_map(
-            fn (int $id): string => Assiduite::getUrl(['classe' => $id]),
+            fn (int $id): string => SeanceResource::getUrl('index', [
+                'filters' => ['promotion_id' => ['value' => $id]],
+            ]),
             $this->promotionIds ?? [],
         );
     }

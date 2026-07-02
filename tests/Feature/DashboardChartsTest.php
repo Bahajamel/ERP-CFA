@@ -5,6 +5,7 @@ use App\Enums\PresenceStatut;
 use App\Filament\Pages\Assiduite;
 use App\Filament\Resources\Admissions\Pages\ListAdmissions;
 use App\Filament\Resources\Contracts\Pages\ListContracts;
+use App\Filament\Resources\Seances\Pages\ListSeances;
 use App\Filament\Widgets\AssiduiteParPromotionChart;
 use App\Filament\Widgets\ContratsSignesParMoisChart;
 use App\Filament\Widgets\ConversionFunnelChart;
@@ -60,7 +61,7 @@ it('rend l\'entonnoir avec des segments cliquables vers les listes filtrées', f
     Livewire::test(ConversionFunnelChart::class)
         ->assertSuccessful()
         ->assertSee('onClick', false)
-        ->assertSee('tableFilters', false)
+        ->assertSee('statut', false)
         // Les options sont échappées pour l'attribut HTML : pas de JSON brut
         // (sinon les guillemets cassent x-data et le script fuit en texte).
         ->assertDontSee('{"plugins"', false);
@@ -87,7 +88,9 @@ it('rend l\'assiduité par promotion, cliquable vers la page filtrée', function
     Livewire::test(AssiduiteParPromotionChart::class)
         ->assertSuccessful()
         ->assertSee('onClick', false)
-        ->assertSee('assiduite?classe=', false);
+        // Le clic mène à la liste des séances/émargement filtrée sur la classe.
+        ->assertSee('seances', false)
+        ->assertSee('promotion_id', false);
 });
 
 // ---------------------------------------------------------------------------
@@ -123,17 +126,18 @@ it('embarque le graphique d\'assiduité en tête de la page Assiduité', functio
         ->assertSeeLivewire(AssiduiteParPromotionChart::class);
 });
 
-it('la page Assiduité filtre sur la classe depuis ?classe=<id> (deep-link du clic)', function () {
+it('le clic mène à la liste des séances filtrée sur la classe (deep-link)', function () {
     $promoA = Promotion::factory()->create();
     $promoB = Promotion::factory()->create();
-    $alpha = Candidate::factory()->create(['promotion_id' => $promoA->id]);
-    $beta = Candidate::factory()->create(['promotion_id' => $promoB->id]);
+    $seanceA = Seance::factory()->create(['promotion_id' => $promoA->id]);
+    $seanceB = Seance::factory()->create(['promotion_id' => $promoB->id]);
 
     connecteAvecRole('Scolarité');
 
-    Livewire::test(Assiduite::class, ['classe' => (string) $promoA->id])
-        ->assertCanSeeTableRecords([$alpha])
-        ->assertCanNotSeeTableRecords([$beta]);
+    Livewire::withQueryParams(['filters' => ['promotion_id' => ['value' => (string) $promoA->id]]])
+        ->test(ListSeances::class)
+        ->assertCanSeeTableRecords([$seanceA])
+        ->assertCanNotSeeTableRecords([$seanceB]);
 });
 
 it('calcule le taux de présence par promotion', function () {
