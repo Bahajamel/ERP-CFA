@@ -13,6 +13,7 @@ class OpcoForm
             ->components([
                 TextInput::make('nom')
                     ->label('Nom')
+                    ->placeholder('ex : OPCO EP, AKTO, ATLAS')
                     ->required(),
             ]);
     }

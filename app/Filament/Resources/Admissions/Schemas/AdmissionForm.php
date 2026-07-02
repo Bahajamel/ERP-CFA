@@ -27,6 +27,7 @@ class AdmissionForm
                             ->disabledOn('edit'),
                         Textarea::make('commentaire')
                             ->label('Commentaire')
+                            ->placeholder('ex : Remarques sur le dossier, points à vérifier…')
                             ->rows(3),
                     ]),
             ]);
