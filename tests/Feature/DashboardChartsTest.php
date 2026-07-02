@@ -2,6 +2,9 @@
 
 use App\Enums\ContractStatut;
 use App\Enums\PresenceStatut;
+use App\Filament\Pages\Assiduite;
+use App\Filament\Resources\Admissions\Pages\ListAdmissions;
+use App\Filament\Resources\Contracts\Pages\ListContracts;
 use App\Filament\Widgets\AssiduiteParPromotionChart;
 use App\Filament\Widgets\ContratsSignesParMoisChart;
 use App\Filament\Widgets\ConversionFunnelChart;
@@ -82,6 +85,39 @@ it('rend l\'assiduité par promotion, cliquable vers la page filtrée', function
         ->assertSuccessful()
         ->assertSee('onClick', false)
         ->assertSee('promotion_id', false);
+});
+
+// ---------------------------------------------------------------------------
+// Placement de chaque graphique dans sa section (widgets d'en-tête)
+// ---------------------------------------------------------------------------
+
+it('embarque la courbe des contrats en tête de la liste des contrats', function () {
+    connecteAvecRole('Direction');
+
+    Livewire::test(ListContracts::class)
+        ->assertSuccessful()
+        ->assertSeeLivewire(ContratsSignesParMoisChart::class);
+});
+
+it('embarque l\'entonnoir en tête de la liste des admissions', function () {
+    connecteAvecRole('Direction');
+
+    Livewire::test(ListAdmissions::class)
+        ->assertSuccessful()
+        ->assertSeeLivewire(ConversionFunnelChart::class);
+});
+
+it('embarque le graphique d\'assiduité en tête de la page Assiduité', function () {
+    $promo = Promotion::factory()->create();
+    Candidate::factory()->create(['promotion_id' => $promo->id]);
+    $seance = Seance::factory()->create(['promotion_id' => $promo->id]);
+    $seance->presences()->update(['statut' => PresenceStatut::Present]);
+
+    connecteAvecRole('Scolarité');
+
+    Livewire::test(Assiduite::class)
+        ->assertSuccessful()
+        ->assertSeeLivewire(AssiduiteParPromotionChart::class);
 });
 
 it('calcule le taux de présence par promotion', function () {

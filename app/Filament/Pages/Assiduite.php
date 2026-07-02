@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Filament\Widgets\AssiduiteParPromotionChart;
 use App\Models\Candidate;
 use App\Models\User;
 use Filament\Forms\Components\DatePicker;
@@ -45,6 +46,14 @@ class Assiduite extends Page implements HasTable
         $user = Auth::user();
 
         return $user instanceof User && $user->can('access_attendance');
+    }
+
+    /** @return array<int, class-string> */
+    protected function getHeaderWidgets(): array
+    {
+        return [
+            AssiduiteParPromotionChart::class,
+        ];
     }
 
     /** Assiduité d'un apprenti sur la période filtrée, mémoïsée par ligne. */
