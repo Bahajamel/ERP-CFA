@@ -2,8 +2,10 @@
 
 namespace App\Filament\Resources\Documents\Schemas;
 
+use App\Enums\DocumentSource;
 use App\Enums\DocumentStatut;
 use App\Enums\DocumentType;
+use App\Models\CfaMission;
 use App\Support\DocumentableTypes;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
@@ -58,6 +60,24 @@ class DocumentForm
                             ->downloadable()
                             ->openable()
                             ->columnSpanFull(),
+                    ]),
+                Section::make('Missions CFA couvertes')
+                    ->description('Missions du CFA (article L6231-2) que ce document permet de prouver. Un livrable peut en couvrir plusieurs.')
+                    ->schema([
+                        Select::make('missions')
+                            ->label('Missions L6231-2')
+                            ->relationship('missions', 'titre')
+                            ->getOptionLabelFromRecordUsing(fn (CfaMission $record) => $record->numero.'° '.$record->titre)
+                            ->multiple()
+                            ->preload()
+                            ->searchable()
+                            ->placeholder('Ex. 4° Information sur les droits et devoirs')
+                            ->columnSpanFull(),
+                        Select::make('source')
+                            ->label('Origine')
+                            ->options(DocumentSource::class)
+                            ->default(DocumentSource::Manuel->value)
+                            ->required(),
                     ]),
             ]);
     }
