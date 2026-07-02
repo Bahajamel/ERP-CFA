@@ -20,7 +20,7 @@
     <style>
         .fi-guide-row { display:flex; flex-wrap:wrap; gap:.55rem; }
         .fi-guide-step {
-            flex:1 1 135px; min-width:135px; position:relative;
+            flex:1 1 180px; min-width:180px; position:relative;
             display:flex; flex-direction:column; gap:.4rem;
             padding:.9rem .8rem; border-radius:.9rem; text-decoration:none; color:inherit;
             background:rgb(var(--gray-50, 249 250 251));
