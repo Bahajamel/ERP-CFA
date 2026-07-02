@@ -2,6 +2,5 @@
 
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return view('welcome');
-});
+// La racine renvoie directement vers le panneau d'administration (l'application).
+Route::redirect('/', '/admin');
