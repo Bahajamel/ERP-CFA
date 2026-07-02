@@ -4,18 +4,24 @@ namespace App\Filament\Resources\Admissions\RelationManagers;
 
 use App\Enums\ChecklistItemStatut;
 use App\Enums\DocumentType;
+use App\Models\AdmissionChecklistItem;
+use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Toggle;
+use Filament\Notifications\Notification;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
+use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Support\Arr;
 
 class ItemsRelationManager extends RelationManager
 {
@@ -54,6 +60,11 @@ class ItemsRelationManager extends RelationManager
                 IconColumn::make('est_obligatoire')
                     ->label('Obligatoire')
                     ->boolean(),
+                IconColumn::make('document_id')
+                    ->label('Fichier')
+                    ->boolean()
+                    ->tooltip(fn (AdmissionChecklistItem $record) => $record->document?->nom_fichier
+                        ?? $record->document?->getFirstMedia('fichier')?->file_name),
                 TextColumn::make('statut')
                     ->label('Statut')
                     ->badge(),
@@ -62,6 +73,14 @@ class ItemsRelationManager extends RelationManager
                 CreateAction::make()->label('Ajouter une pièce'),
             ])
             ->recordActions([
+                self::joindreFichier(),
+                Action::make('telecharger')
+                    ->label('Télécharger')
+                    ->icon(Heroicon::OutlinedArrowDownTray)
+                    ->color('gray')
+                    ->url(fn (AdmissionChecklistItem $record) => $record->document?->getFirstMediaUrl('fichier'))
+                    ->openUrlInNewTab()
+                    ->visible(fn (AdmissionChecklistItem $record) => $record->document?->getFirstMedia('fichier') !== null),
                 EditAction::make(),
                 DeleteAction::make(),
             ])
@@ -70,5 +89,52 @@ class ItemsRelationManager extends RelationManager
                     DeleteBulkAction::make(),
                 ]),
             ]);
+    }
+
+    /**
+     * Dépose le fichier d'une pièce directement depuis l'admission : crée (ou met
+     * à jour) le document dans la GED, rattaché au candidat, le lie à la pièce, et
+     * passe automatiquement son statut à « présente ». Un seul geste.
+     */
+    protected static function joindreFichier(): Action
+    {
+        return Action::make('joindreFichier')
+            ->label(fn (AdmissionChecklistItem $record) => $record->document_id ? 'Remplacer le fichier' : 'Joindre le fichier')
+            ->icon(Heroicon::OutlinedPaperClip)
+            ->modalHeading('Déposer la pièce')
+            ->modalSubmitActionLabel('Enregistrer')
+            ->schema([
+                FileUpload::make('fichier')
+                    ->label('Fichier de la pièce')
+                    ->required()
+                    ->storeFiles(false)
+                    ->downloadable(),
+            ])
+            ->action(function (AdmissionChecklistItem $record, array $data): void {
+                $file = Arr::wrap($data['fichier']);
+                $file = reset($file);
+
+                if ($file === false) {
+                    return;
+                }
+
+                try {
+                    $record->attacherPreuve(
+                        $file->getRealPath(),
+                        $file->getClientOriginalName(),
+                        auth()->id(),
+                    );
+                } catch (\RuntimeException $e) {
+                    Notification::make()->danger()->title($e->getMessage())->send();
+
+                    return;
+                }
+
+                Notification::make()
+                    ->success()
+                    ->title('Pièce déposée')
+                    ->body('Le fichier est enregistré dans la GED et la pièce passe à « présente ».')
+                    ->send();
+            });
     }
 }
