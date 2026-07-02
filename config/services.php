@@ -35,4 +35,14 @@ return [
         ],
     ],
 
+    /*
+    | Service de génération de livrables LivretRS (moteur core/ exposé en
+    | HTTP, stateless / privacy-safe). Vide = génération automatique
+    | désactivée (l'import manuel du pack ZIP reste disponible).
+    */
+    'livretrs' => [
+        'url' => env('LIVRETRS_URL'),
+        'timeout' => (int) env('LIVRETRS_TIMEOUT', 180),
+    ],
+
 ];
