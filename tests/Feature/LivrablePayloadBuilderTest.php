@@ -62,6 +62,15 @@ it('inclut le logo du profil (base64) dans les assets du payload', function () {
         ->and($payload['assets'])->not->toHaveKey('signature');
 });
 
+it('omet la clé assets quand aucune pièce n\'est configurée (évite [] au lieu de {})', function () {
+    $candidate = Candidate::factory()->create();
+    $contract = Contract::factory()->create(['candidate_id' => $candidate->id]);
+
+    $payload = (new LivrablePayloadBuilder)->pour($contract);
+
+    expect($payload)->not->toHaveKey('assets');
+});
+
 it('n\'inclut ni NIR ni CERFA dans le payload (minimisation RGPD)', function () {
     $candidate = Candidate::factory()->create();
     $contract = Contract::factory()->create(['candidate_id' => $candidate->id]);
