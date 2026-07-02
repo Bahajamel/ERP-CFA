@@ -19,6 +19,19 @@ it('recherche un CFA et renvoie la liste des candidats', function () {
         ->and($resultats[0]['nda'])->toBe('11751234575');
 });
 
+it('vérifie un code RNCP via le service', function () {
+    config(['services.livretrs.url' => 'http://livretrs.test']);
+    Http::fake(['*' => Http::response([
+        'found' => true, 'actif' => true, 'etat' => 'Active', 'intitule' => 'BTS MCO', 'niveau' => '5',
+    ], 200)]);
+
+    $info = (new LivretRsClient)->verifierRncp('38362');
+
+    expect($info['found'])->toBeTrue()
+        ->and($info['actif'])->toBeTrue()
+        ->and($info['niveau'])->toBe('5');
+});
+
 it('écrit le ZIP renvoyé par le service dans un fichier temporaire', function () {
     config(['services.livretrs.url' => 'http://livretrs.test']);
     Http::fake(['*' => Http::response('PK-contenu-zip', 200)]);

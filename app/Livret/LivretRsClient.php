@@ -50,6 +50,35 @@ class LivretRsClient
     }
 
     /**
+     * Vérifie un code RNCP en ligne (France Compétences).
+     * Renvoie {found, actif, etat, intitule, niveau}.
+     *
+     * @throws LivretRsException
+     */
+    public function verifierRncp(string $code): array
+    {
+        $base = rtrim((string) config('services.livretrs.url'), '/');
+
+        if ($base === '') {
+            throw new LivretRsException('Service LivretRS non configuré (LIVRETRS_URL vide).');
+        }
+
+        try {
+            $reponse = Http::timeout(20)
+                ->acceptJson()
+                ->get($base.'/verify-rncp', ['code' => $code]);
+        } catch (Throwable $e) {
+            throw new LivretRsException('Service LivretRS injoignable : '.$e->getMessage(), previous: $e);
+        }
+
+        if (! $reponse->successful()) {
+            throw new LivretRsException('Vérification RNCP : le service a répondu '.$reponse->status().'.');
+        }
+
+        return $reponse->json() ?? [];
+    }
+
+    /**
      * Demande la génération et renvoie le chemin d'un ZIP temporaire.
      *
      * @throws LivretRsException
