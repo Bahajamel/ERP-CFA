@@ -26,7 +26,22 @@ it('charge les 32 indicateurs du RNQ répartis sur 7 critères', function () {
 
     expect(QualiopiIndicator::count())->toBe(32)
         ->and(QualiopiIndicator::distinct('critere')->count('critere'))->toBe(7)
-        ->and(QualiopiIndicator::where('specifique_cfa', true)->count())->toBe(11);
+        ->and(QualiopiIndicator::where('specifique_cfa', true)->count())->toBe(6);
+});
+
+it('respecte la répartition officielle des indicateurs par critère (RNQ V8)', function () {
+    $this->seed(QualiopiIndicatorSeeder::class);
+
+    $repartition = QualiopiIndicator::query()
+        ->selectRaw('critere, count(*) as total')
+        ->groupBy('critere')
+        ->orderBy('critere')
+        ->pluck('total', 'critere')
+        ->map(fn ($total) => (int) $total)
+        ->all();
+
+    // Guide de lecture officiel : C1=3, C2=5, C3=8, C4=4, C5=2, C6=7, C7=3.
+    expect($repartition)->toBe([1 => 3, 2 => 5, 3 => 8, 4 => 4, 5 => 2, 6 => 7, 7 => 3]);
 });
 
 it('est idempotent et préserve l\'état de conformité déjà saisi', function () {
