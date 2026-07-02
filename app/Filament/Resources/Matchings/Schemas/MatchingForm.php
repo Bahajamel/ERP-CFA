@@ -41,6 +41,7 @@ class MatchingForm
                             ->displayFormat('d/m/Y'),
                         Textarea::make('retour_entreprise')
                             ->label('Retour entreprise')
+                            ->placeholder('ex : Entretien positif, en attente de décision')
                             ->columnSpanFull(),
                     ]),
             ]);

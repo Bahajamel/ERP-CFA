@@ -26,6 +26,7 @@ class NeedForm
                             ->required(),
                         TextInput::make('intitule_poste')
                             ->label('Intitulé du poste')
+                            ->placeholder('ex : Apprenti boulanger, Développeur web')
                             ->required(),
                         Select::make('formation_id')
                             ->label('Formation visée')
@@ -33,7 +34,8 @@ class NeedForm
                             ->searchable()
                             ->preload(),
                         TextInput::make('localisation')
-                            ->label('Localisation'),
+                            ->label('Localisation')
+                            ->placeholder('ex : Lyon 3e, télétravail partiel'),
                         DatePicker::make('date_demarrage')
                             ->label('Date de démarrage souhaitée')
                             ->displayFormat('d/m/Y'),
@@ -43,7 +45,8 @@ class NeedForm
                             ->default(1)
                             ->required(),
                         TextInput::make('rythme')
-                            ->label("Rythme d'alternance"),
+                            ->label("Rythme d'alternance")
+                            ->placeholder('ex : 2 j CFA / 3 j entreprise'),
                         Select::make('statut')
                             ->label('Statut')
                             ->options(NeedStatut::class)
@@ -51,6 +54,7 @@ class NeedForm
                             ->required(),
                         Textarea::make('prerequis')
                             ->label('Prérequis')
+                            ->placeholder('ex : Niveau CAP, permis B, expérience en vente appréciée')
                             ->columnSpanFull(),
                     ]),
                 Section::make('Interlocuteurs entreprise')

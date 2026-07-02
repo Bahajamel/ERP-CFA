@@ -14,17 +14,22 @@ class FormationForm
             ->components([
                 TextInput::make('libelle')
                     ->label('Libellé')
+                    ->placeholder('ex : CAP Boulanger, BTS SIO')
                     ->required()
                     ->columnSpanFull(),
                 TextInput::make('code_rncp')
-                    ->label('Code RNCP'),
+                    ->label('Code RNCP')
+                    ->placeholder('ex : RNCP34556'),
                 TextInput::make('niveau')
-                    ->label('Niveau'),
+                    ->label('Niveau')
+                    ->placeholder('ex : 3 (CAP), 5 (BTS), 6 (Licence)'),
                 TextInput::make('duree_mois')
                     ->label('Durée (mois)')
+                    ->placeholder('ex : 24')
                     ->numeric(),
                 TextInput::make('rythme_defaut')
-                    ->label('Rythme par défaut'),
+                    ->label('Rythme par défaut')
+                    ->placeholder('ex : 2 j CFA / 3 j entreprise'),
                 Toggle::make('is_active')
                     ->label('Active')
                     ->default(true),

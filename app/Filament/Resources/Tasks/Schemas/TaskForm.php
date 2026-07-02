@@ -22,6 +22,7 @@ class TaskForm
                     ->schema([
                         TextInput::make('titre')
                             ->label('Titre')
+                            ->placeholder("ex : Relancer l'entreprise pour la signature")
                             ->required()
                             ->columnSpanFull(),
                         Select::make('assignee_id')
@@ -44,6 +45,7 @@ class TaskForm
                             ->required(),
                         Textarea::make('description')
                             ->label('Description')
+                            ->placeholder('ex : Contexte, détails, prochaine action à mener…')
                             ->columnSpanFull(),
                     ]),
             ]);

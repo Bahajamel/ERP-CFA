@@ -54,6 +54,7 @@ class QualiopiIndicatorForm
                             ->displayFormat('d/m/Y'),
                         Textarea::make('commentaire')
                             ->label('Commentaire / plan d\'action')
+                            ->placeholder('ex : Preuve à mettre à jour, action prévue le…, responsable identifié')
                             ->rows(4)
                             ->columnSpanFull(),
                     ]),

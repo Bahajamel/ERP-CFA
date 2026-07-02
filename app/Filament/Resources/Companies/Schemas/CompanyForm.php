@@ -19,17 +19,23 @@ class CompanyForm
                     ->schema([
                         TextInput::make('raison_sociale')
                             ->label('Raison sociale')
+                            ->placeholder('ex : Boulangerie Martin SARL')
                             ->required(),
                         TextInput::make('nom_commercial')
-                            ->label('Nom commercial'),
+                            ->label('Nom commercial')
+                            ->placeholder('ex : Chez Martin'),
                         TextInput::make('siret')
                             ->label('SIRET')
+                            ->placeholder('ex : 123 456 789 00012')
+                            ->helperText('14 chiffres')
                             ->required()
                             ->unique(ignoreRecord: true),
                         TextInput::make('secteur')
-                            ->label("Secteur d'activité"),
+                            ->label("Secteur d'activité")
+                            ->placeholder('ex : Restauration, BTP, Informatique'),
                         TextInput::make('adresse')
                             ->label('Adresse')
+                            ->placeholder('ex : 5 avenue de la République, 69003 Lyon')
                             ->columnSpanFull(),
                         Select::make('opco_id')
                             ->label('OPCO')

@@ -39,10 +39,12 @@ class OpcoFileForm
                         TextInput::make('montant_prevu')
                             ->label('Montant prévu (€)')
                             ->numeric()
+                            ->placeholder('ex : 8000')
                             ->prefix('€'),
                         TextInput::make('montant_accepte')
                             ->label('Montant accepté (€)')
                             ->numeric()
+                            ->placeholder('ex : 8000')
                             ->prefix('€'),
                     ]),
                 Section::make('Suivi & blocage')
@@ -58,9 +60,11 @@ class OpcoFileForm
                             ->displayFormat('d/m/Y'),
                         Textarea::make('motif_rejet')
                             ->label('Motif de rejet')
+                            ->placeholder('ex : CERFA incomplet, pièce manquante')
                             ->columnSpanFull(),
                         Textarea::make('commentaire_interne')
                             ->label('Commentaire interne')
+                            ->placeholder("ex : Note pour l'équipe, relance prévue le…")
                             ->columnSpanFull(),
                     ]),
             ]);

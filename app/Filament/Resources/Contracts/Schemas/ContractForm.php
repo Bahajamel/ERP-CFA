@@ -43,9 +43,11 @@ class ContractForm
                     ->columns(2)
                     ->schema([
                         TextInput::make('code_rncp')
-                            ->label('Code RNCP'),
+                            ->label('Code RNCP')
+                            ->placeholder('ex : RNCP34556'),
                         TextInput::make('rythme')
-                            ->label("Rythme d'alternance"),
+                            ->label("Rythme d'alternance")
+                            ->placeholder('ex : 2 j CFA / 3 j entreprise'),
                         DatePicker::make('date_debut')
                             ->label('Date de début')
                             ->displayFormat('d/m/Y'),
@@ -54,6 +56,7 @@ class ContractForm
                             ->displayFormat('d/m/Y'),
                         TextInput::make('lieu_formation')
                             ->label('Lieu de formation')
+                            ->placeholder('ex : CFA de Lyon, 15 rue Garibaldi')
                             ->columnSpanFull(),
                     ]),
                 Section::make('Signature & suivi')

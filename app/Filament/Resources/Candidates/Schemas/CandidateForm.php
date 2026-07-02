@@ -20,25 +20,31 @@ class CandidateForm
                     ->schema([
                         TextInput::make('nom')
                             ->label('Nom')
+                            ->placeholder('ex : Dupont')
                             ->required(),
                         TextInput::make('prenom')
                             ->label('Prénom')
+                            ->placeholder('ex : Marie')
                             ->required(),
                         TextInput::make('email')
                             ->label('Adresse e-mail')
                             ->email()
+                            ->placeholder('ex : marie.dupont@email.com')
                             ->requiredWithout('telephone')
                             ->validationMessages(['required_without' => 'Renseignez au moins un email ou un téléphone.']),
                         TextInput::make('telephone')
                             ->label('Téléphone')
                             ->tel()
+                            ->placeholder('ex : 06 12 34 56 78')
                             ->requiredWithout('email')
                             ->validationMessages(['required_without' => 'Renseignez au moins un email ou un téléphone.']),
                         DatePicker::make('date_naissance')
                             ->label('Date de naissance')
+                            ->placeholder('ex : 15/03/2004')
                             ->displayFormat('d/m/Y'),
                         TextInput::make('adresse')
                             ->label('Adresse')
+                            ->placeholder('ex : 12 rue des Écoles, 75005 Paris')
                             ->columnSpanFull(),
                     ]),
                 Section::make('Formation & suivi')
@@ -56,13 +62,17 @@ class CandidateForm
                             ->searchable()
                             ->preload(),
                         TextInput::make('niveau_actuel')
-                            ->label('Niveau actuel'),
+                            ->label('Niveau actuel')
+                            ->placeholder('ex : Terminale, Bac, Bac+2'),
                         TextInput::make('mobilite')
-                            ->label('Mobilité'),
+                            ->label('Mobilité')
+                            ->placeholder('ex : Île-de-France, 30 km, permis B'),
                         TextInput::make('disponibilite')
-                            ->label('Disponibilité'),
+                            ->label('Disponibilité')
+                            ->placeholder('ex : Septembre 2026, immédiate'),
                         TextInput::make('source')
-                            ->label('Source'),
+                            ->label('Source')
+                            ->placeholder('ex : Salon, site web, LinkedIn, bouche-à-oreille'),
                         Select::make('commercial_id')
                             ->label('Commercial')
                             ->relationship('commercial', 'name')

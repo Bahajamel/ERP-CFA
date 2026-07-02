@@ -15,12 +15,14 @@ class UserForm
             ->components([
                 TextInput::make('name')
                     ->label('Nom complet')
+                    ->placeholder('ex : Marie Dupont')
                     ->required()
                     ->maxLength(255),
 
                 TextInput::make('email')
                     ->label('Adresse e-mail')
                     ->email()
+                    ->placeholder('ex : marie.dupont@cfa-v2s.fr')
                     ->required()
                     ->unique(ignoreRecord: true)
                     ->maxLength(255),
