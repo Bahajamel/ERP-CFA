@@ -12,7 +12,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        // Confiance aux proxies : derrière un tunnel de partage (cloudflared /
+        // localtunnel) ou un reverse-proxy de staging, Laravel détecte le bon
+        // schéma (https) et le bon hôte via les en-têtes X-Forwarded-* — sans
+        // quoi les assets partent en http (page cassée) et le CSRF échoue (419).
+        $middleware->trustProxies(at: '*');
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

@@ -26,7 +26,7 @@ class AdmissionResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedClipboardDocumentCheck;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Admission & Contrats';
+    protected static string|\UnitEnum|null $navigationGroup = 'Admission';
 
     protected static ?int $navigationSort = 1;
 

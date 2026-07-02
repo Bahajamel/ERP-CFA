@@ -27,6 +27,8 @@ class QualiopiIndicatorResource extends Resource
 
     protected static string|\UnitEnum|null $navigationGroup = 'Qualité';
 
+    protected static ?int $navigationSort = 1;
+
     protected static ?string $navigationLabel = 'Registre Qualiopi';
 
     protected static ?string $modelLabel = 'indicateur Qualiopi';
