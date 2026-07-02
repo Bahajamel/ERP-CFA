@@ -87,7 +87,7 @@ it('rend l\'assiduité par promotion, cliquable vers la page filtrée', function
     Livewire::test(AssiduiteParPromotionChart::class)
         ->assertSuccessful()
         ->assertSee('onClick', false)
-        ->assertSee('promotion_id', false);
+        ->assertSee('assiduite?classe=', false);
 });
 
 // ---------------------------------------------------------------------------
@@ -121,6 +121,19 @@ it('embarque le graphique d\'assiduité en tête de la page Assiduité', functio
     Livewire::test(Assiduite::class)
         ->assertSuccessful()
         ->assertSeeLivewire(AssiduiteParPromotionChart::class);
+});
+
+it('la page Assiduité filtre sur la classe depuis ?classe=<id> (deep-link du clic)', function () {
+    $promoA = Promotion::factory()->create();
+    $promoB = Promotion::factory()->create();
+    $alpha = Candidate::factory()->create(['promotion_id' => $promoA->id]);
+    $beta = Candidate::factory()->create(['promotion_id' => $promoB->id]);
+
+    connecteAvecRole('Scolarité');
+
+    Livewire::test(Assiduite::class, ['classe' => (string) $promoA->id])
+        ->assertCanSeeTableRecords([$alpha])
+        ->assertCanNotSeeTableRecords([$beta]);
 });
 
 it('calcule le taux de présence par promotion', function () {

@@ -103,9 +103,7 @@ class AssiduiteParPromotionChart extends ChartWidget
         }
 
         return array_map(
-            fn (int $id): string => Assiduite::getUrl([
-                'tableFilters' => ['promotion_id' => ['value' => $id]],
-            ]),
+            fn (int $id): string => Assiduite::getUrl(['classe' => $id]),
             $this->promotionIds ?? [],
         );
     }

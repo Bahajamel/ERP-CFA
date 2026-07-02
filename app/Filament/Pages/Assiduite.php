@@ -48,6 +48,18 @@ class Assiduite extends Page implements HasTable
         return $user instanceof User && $user->can('access_attendance');
     }
 
+    /**
+     * Deep-link depuis le graphique « Assiduité par promotion » : ?classe=<id>
+     * pré-applique le filtre de classe pour arriver directement sur l'assiduité
+     * de la promotion cliquée.
+     */
+    public function mount(?string $classe = null): void
+    {
+        if (filled($classe)) {
+            $this->tableFilters['promotion_id']['value'] = $classe;
+        }
+    }
+
     /** @return array<int, class-string> */
     protected function getHeaderWidgets(): array
     {
@@ -118,6 +130,9 @@ class Assiduite extends Page implements HasTable
                     // Filtre de calcul uniquement : n'exclut pas d'apprenti de la liste.
                     ->query(fn (Builder $query): Builder => $query),
             ])
+            // Filtres appliqués immédiatement (pas de bouton « Appliquer ») :
+            // nécessaire pour que le deep-link ?classe=<id> soit pris en compte.
+            ->deferFilters(false)
             ->defaultSort('nom');
     }
 }
