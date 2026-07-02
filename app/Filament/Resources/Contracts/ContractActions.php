@@ -4,6 +4,9 @@ namespace App\Filament\Resources\Contracts;
 
 use App\Enums\ContractStatut;
 use App\Livret\LivrablePackImporter;
+use App\Livret\LivrablePayloadBuilder;
+use App\Livret\LivretRsClient;
+use App\Livret\LivretRsException;
 use App\Models\Contract;
 use App\StateMachine\InvalidTransitionException;
 use Filament\Actions\Action;
@@ -113,6 +116,60 @@ class ContractActions
 
                 Notification::make()
                     ->title($result->importes.' livrable(s) importé(s) dans la GED')
+                    ->body($details)
+                    ->success()
+                    ->send();
+            });
+    }
+
+    /**
+     * Générer automatiquement les livrables via le service LivretRS, puis les
+     * importer dans la GED de l'apprenti. Visible uniquement si le service est
+     * configuré (LIVRETRS_URL). Sinon, l'import manuel du ZIP reste disponible.
+     */
+    public static function genererLivrables(): Action
+    {
+        return Action::make('genererLivrables')
+            ->label('Générer les livrables (auto)')
+            ->icon(Heroicon::OutlinedSparkles)
+            ->color('primary')
+            ->visible(fn (Contract $record) => app(LivretRsClient::class)->estConfigure()
+                && $record->candidate !== null
+                && (auth()->user()?->can('access_documents') ?? false))
+            ->requiresConfirmation()
+            ->modalHeading('Générer les livrables via LivretRS')
+            ->modalDescription('L\'ERP va demander au service LivretRS de générer les livrables de '
+                .'cet apprenti à partir de ses données, puis les importer dans la GED avec les missions '
+                .'CFA suggérées. Le service ne conserve aucune donnée.')
+            ->action(function (Contract $record) {
+                try {
+                    $payload = app(LivrablePayloadBuilder::class)->pour($record);
+                    $zip = app(LivretRsClient::class)->genererLivrables($payload);
+                } catch (LivretRsException|RuntimeException $e) {
+                    Notification::make()
+                        ->title('Génération impossible')
+                        ->body($e->getMessage())
+                        ->danger()
+                        ->send();
+
+                    return;
+                }
+
+                try {
+                    $result = app(LivrablePackImporter::class)->import($record, $zip, auth()->id());
+                } finally {
+                    @unlink($zip);
+                }
+
+                $details = $result->reconnus.' livrable(s) reconnu(s), '
+                    .$result->missionsRattachees.' rattachement(s) de mission.';
+
+                if ($result->nonReconnus() > 0) {
+                    $details .= ' '.$result->nonReconnus().' pièce(s) à taguer manuellement.';
+                }
+
+                Notification::make()
+                    ->title($result->importes.' livrable(s) générés et importés')
                     ->body($details)
                     ->success()
                     ->send();

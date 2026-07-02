@@ -91,6 +91,12 @@ class LivrableMissionMap
         return $code === null ? [] : (self::MAP[$code] ?? []);
     }
 
+    /** Tous les codes livrables connus (jeu par défaut demandé à la génération). */
+    public static function codes(): array
+    {
+        return array_keys(self::MAP);
+    }
+
     /** Réduit une chaîne à ses lettres/chiffres en minuscules (sans extension). */
     private static function normalize(string $value): string
     {
