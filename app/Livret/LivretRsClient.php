@@ -20,6 +20,36 @@ class LivretRsClient
     }
 
     /**
+     * Recherche intelligente d'un CFA par nom (sources officielles gratuites :
+     * recherche-entreprises.api.gouv.fr + liste publique DGEFP, sans clé).
+     * Renvoie une liste de candidats (nom, siren, siret, naf, nda, adresse…).
+     *
+     * @throws LivretRsException
+     */
+    public function rechercherCfa(string $nom): array
+    {
+        $base = rtrim((string) config('services.livretrs.url'), '/');
+
+        if ($base === '') {
+            throw new LivretRsException('Service LivretRS non configuré (LIVRETRS_URL vide).');
+        }
+
+        try {
+            $reponse = Http::timeout(20)
+                ->acceptJson()
+                ->get($base.'/search-cfa', ['nom' => $nom]);
+        } catch (Throwable $e) {
+            throw new LivretRsException('Service LivretRS injoignable : '.$e->getMessage(), previous: $e);
+        }
+
+        if (! $reponse->successful()) {
+            throw new LivretRsException('Recherche CFA : le service a répondu '.$reponse->status().'.');
+        }
+
+        return $reponse->json('results') ?? [];
+    }
+
+    /**
      * Demande la génération et renvoie le chemin d'un ZIP temporaire.
      *
      * @throws LivretRsException
