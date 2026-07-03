@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\AdmissionStatut;
 use App\Enums\ContractStatut;
+use App\Enums\InvoiceStatut;
 use App\Enums\OpcoStatut;
 use App\Enums\PaymentStatut;
 use App\Enums\RiskLevel;
@@ -11,6 +12,7 @@ use App\Enums\TaskPriorite;
 use App\Enums\TaskStatut;
 use App\Models\Admission;
 use App\Models\Contract;
+use App\Models\Invoice;
 use App\Models\OpcoFile;
 use App\Models\OpcoPayment;
 use App\Models\QualiopiIndicator;
@@ -33,6 +35,7 @@ class AlerteService
             + $this->contratsASigner()
             + $this->opcoSansRetour()
             + $this->echeancesAVenir()
+            + $this->facturesEnRetard()
             + $this->risquesRupture()
             + $this->nonConformitesQualiopi();
 
@@ -134,6 +137,44 @@ class AlerteService
                     assigneeId: $payment->opcoFile->responsable_correction_id,
                     taskable: $payment->opcoFile,
                     priorite: TaskPriorite::Normale,
+                );
+            });
+
+        return $n;
+    }
+
+    /**
+     * Relance des factures impayées : facture émise, échue et non soldée →
+     * tâche de relance (priorité selon l'ancienneté du retard).
+     */
+    private function facturesEnRetard(): int
+    {
+        $n = 0;
+
+        Invoice::query()
+            ->where('statut', InvoiceStatut::Emise->value)
+            ->whereNotNull('date_echeance')
+            ->whereDate('date_echeance', '<', now()->toDateString())
+            ->with('financeLine.contract.candidate')
+            ->get()
+            ->each(function (Invoice $invoice) use (&$n) {
+                if ($invoice->resteAPayer() <= 0) {
+                    return;
+                }
+
+                $joursRetard = $invoice->date_echeance->diffInDays(now());
+                $priorite = $joursRetard >= 30 ? TaskPriorite::Urgente : TaskPriorite::Haute;
+
+                $n += (int) $this->creerAlerte(
+                    cle: "finance:impaye:{$invoice->id}",
+                    titre: 'Facture impayée à relancer — '.($invoice->numero ?: 'brouillon #'.$invoice->id),
+                    description: 'Échue le '.$invoice->date_echeance->format('d/m/Y')
+                        .' ('.(int) $joursRetard.' j de retard) · reste '
+                        .number_format($invoice->resteAPayer(), 2, ',', ' ').' € · '
+                        .($invoice->destinataire ?? ''),
+                    assigneeId: $invoice->created_by,
+                    taskable: $invoice,
+                    priorite: $priorite,
                 );
             });
 
