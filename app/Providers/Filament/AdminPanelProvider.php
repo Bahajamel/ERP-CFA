@@ -6,6 +6,7 @@ use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
+use Filament\Auth\MultiFactor\App\AppAuthentication;
 use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
@@ -32,6 +33,15 @@ class AdminPanelProvider extends PanelProvider
             ->viteTheme('resources/css/filament/admin/theme.css')
             ->brandName('ERP CFA')
             ->login()
+            // Page profil : l'utilisateur y active/désactive sa double authentification.
+            ->profile(isSimple: false)
+            // Double authentification par application (TOTP) avec codes de secours.
+            // Facultative pour l'instant (isRequired: false) afin de ne pas verrouiller
+            // les comptes existants ; passer à `isRequired: true` pour l'imposer à tous.
+            ->multiFactorAuthentication(
+                AppAuthentication::make()->recoverable(),
+                isRequired: false,
+            )
             ->databaseNotifications()
             ->databaseNotificationsPolling('30s')
             ->colors([
