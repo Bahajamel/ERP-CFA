@@ -85,6 +85,16 @@ class Contract extends Model
         return $this->hasMany(FinanceLine::class);
     }
 
+    public function rupture(): HasOne
+    {
+        return $this->hasOne(Rupture::class);
+    }
+
+    public function tasks(): MorphMany
+    {
+        return $this->morphMany(Task::class, 'taskable');
+    }
+
     public function documents(): MorphMany
     {
         return $this->morphMany(Document::class, 'documentable');
