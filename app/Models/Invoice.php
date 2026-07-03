@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\InvoiceStatut;
+use App\Enums\TaskStatut;
 use App\StateMachine\ManagesState;
 use BackedEnum;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -67,6 +68,17 @@ class Invoice extends Model
         return $this->morphMany(Document::class, 'documentable');
     }
 
+    public function tasks(): MorphMany
+    {
+        return $this->morphMany(Task::class, 'taskable');
+    }
+
+    /** Clé de la tâche de relance impayé (alerte auto). */
+    public function cleRelance(): string
+    {
+        return "finance:impaye:{$this->id}";
+    }
+
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
@@ -118,6 +130,14 @@ class Invoice extends Model
     {
         if ($to === InvoiceStatut::Emise && $this->date_emission === null) {
             $this->forceFill(['date_emission' => now()->toDateString()])->saveQuietly();
+        }
+
+        // Facture soldée ou annulée : on clôt la relance d'impayé éventuelle.
+        if (in_array($to, [InvoiceStatut::Payee, InvoiceStatut::Annulee], true)) {
+            $this->tasks()
+                ->where('cle', $this->cleRelance())
+                ->whereNotIn('statut', [TaskStatut::Terminee->value, TaskStatut::Annulee->value])
+                ->update(['statut' => TaskStatut::Terminee->value]);
         }
     }
 }

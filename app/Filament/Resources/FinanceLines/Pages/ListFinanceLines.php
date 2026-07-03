@@ -6,6 +6,7 @@ use App\Filament\Exports\FinanceLineExporter;
 use App\Filament\Resources\FinanceLines\FinanceLineResource;
 use App\Filament\Widgets\FinanceEncaissementChart;
 use App\Filament\Widgets\FinanceFacturesChart;
+use App\Filament\Widgets\FinanceRecouvrementStats;
 use Filament\Actions\CreateAction;
 use Filament\Actions\ExportAction;
 use Filament\Resources\Pages\ListRecords;
@@ -31,6 +32,7 @@ class ListFinanceLines extends ListRecords
     protected function getHeaderWidgets(): array
     {
         return [
+            FinanceRecouvrementStats::class,
             FinanceEncaissementChart::class,
             FinanceFacturesChart::class,
         ];
