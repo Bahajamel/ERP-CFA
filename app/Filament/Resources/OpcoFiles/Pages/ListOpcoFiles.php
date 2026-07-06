@@ -13,6 +13,13 @@ class ListOpcoFiles extends ListRecords
 {
     protected static string $resource = OpcoFileResource::class;
 
+    public function getSubheading(): ?string
+    {
+        return 'Le nerf de la guerre : le financement de chaque contrat par l\'OPCO. Déposez le dossier, '
+            .'suivez son statut (déposé → accepté), et traitez sans délai les rejets / demandes de '
+            .'correction — un dossier bloqué, c\'est du financement en danger.';
+    }
+
     protected function getHeaderActions(): array
     {
         return [

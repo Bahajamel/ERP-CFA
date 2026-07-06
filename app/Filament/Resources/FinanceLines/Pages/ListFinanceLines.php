@@ -15,6 +15,13 @@ class ListFinanceLines extends ListRecords
 {
     protected static string $resource = FinanceLineResource::class;
 
+    public function getSubheading(): ?string
+    {
+        return 'Le suivi financier par contrat : montants attendu, facturé, encaissé et bloqué. '
+            .'Générez les factures, suivez les échéances et les retards. Un montant bloqué exige '
+            .'toujours un motif — pour ne jamais perdre le fil du financement.';
+    }
+
     protected function getHeaderActions(): array
     {
         return [

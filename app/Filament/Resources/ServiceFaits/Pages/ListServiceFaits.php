@@ -19,6 +19,13 @@ class ListServiceFaits extends ListRecords
 {
     protected static string $resource = ServiceFaitResource::class;
 
+    public function getSubheading(): ?string
+    {
+        return 'La preuve d\'assiduité qui justifie le financement OPCO : validez chaque mois une fois '
+            .'toutes ses séances renseignées. Le service fait est alors figé (taux d\'assiduité, '
+            .'nombre de séances) — c\'est la pièce qui sécurise le versement.';
+    }
+
     protected function getHeaderActions(): array
     {
         return [

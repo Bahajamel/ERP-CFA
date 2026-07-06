@@ -10,6 +10,13 @@ class ListSeances extends ListRecords
 {
     protected static string $resource = SeanceResource::class;
 
+    public function getSubheading(): ?string
+    {
+        return 'Les séances de formation et l\'assiduité : créez une séance, saisissez présences, '
+            .'absences et retards. Ces données alimentent le service fait (facturation OPCO) et '
+            .'la conformité Qualiopi — une absence injustifiée déclenche une alerte.';
+    }
+
     protected function getHeaderActions(): array
     {
         return [

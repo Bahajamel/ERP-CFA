@@ -15,6 +15,13 @@ class ListNeeds extends ListRecords
 {
     protected static string $resource = NeedResource::class;
 
+    public function getSubheading(): ?string
+    {
+        return 'Un besoin = un poste à pourvoir chez une entreprise (métier, formation visée, rythme). '
+            .'C\'est ce que le matching cherche à combler avec vos candidats. Suivez chaque besoin de '
+            .'sa création jusqu\'au candidat retenu via la « Vue Pipeline ».';
+    }
+
     protected function getHeaderActions(): array
     {
         return [

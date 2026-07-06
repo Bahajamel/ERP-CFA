@@ -14,6 +14,13 @@ class ListContracts extends ListRecords
 {
     protected static string $resource = ContractResource::class;
 
+    public function getSubheading(): ?string
+    {
+        return 'Le contrat d\'apprentissage, de la préparation à l\'archivage. Faites-le évoluer via les '
+            .'actions (signature électronique, transmission OPCO, activation). En cas de problème, '
+            .'ouvrez un dossier de rupture directement depuis le contrat.';
+    }
+
     protected function getHeaderActions(): array
     {
         return [
