@@ -2,11 +2,17 @@
 
 namespace App\Filament\Resources\Candidates\Schemas;
 
+use App\Enums\AvailabilityType;
 use App\Enums\CandidateStatut;
+use App\Support\AdresseBan;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 
 class CandidateForm
@@ -42,10 +48,45 @@ class CandidateForm
                             ->label('Date de naissance')
                             ->placeholder('ex : 15/03/2004')
                             ->displayFormat('d/m/Y'),
-                        TextInput::make('adresse')
-                            ->label('Adresse')
-                            ->placeholder('ex : 12 rue des Écoles, 75005 Paris')
+                    ]),
+                Section::make('Adresse')
+                    ->description('Recherchez une adresse pour remplir automatiquement les champs, ou saisissez-la à la main.')
+                    ->columns(2)
+                    ->schema([
+                        Select::make('adresse_recherche')
+                            ->label('Rechercher une adresse')
+                            ->placeholder('Tapez une adresse…')
+                            ->searchable()
+                            ->dehydrated(false)
+                            ->getSearchResultsUsing(fn (string $search): array => app(AdresseBan::class)->options($search))
+                            ->getOptionLabelUsing(fn ($value): ?string => AdresseBan::decode($value)['label'] ?? null)
+                            ->afterStateUpdated(function ($state, Set $set): void {
+                                $data = AdresseBan::decode($state);
+
+                                if ($data === null) {
+                                    return;
+                                }
+
+                                $set('adresse', $data['adresse']);
+                                $set('code_postal', $data['code_postal']);
+                                $set('ville', $data['ville']);
+                                $set('pays', $data['pays'] ?? 'France');
+                            })
+                            ->helperText('Autocomplétion Base Adresse Nationale (France). La saisie manuelle reste possible.')
                             ->columnSpanFull(),
+                        TextInput::make('adresse')
+                            ->label('Adresse (voie)')
+                            ->placeholder('ex : 12 rue des Écoles')
+                            ->columnSpanFull(),
+                        TextInput::make('code_postal')
+                            ->label('Code postal')
+                            ->placeholder('ex : 75005'),
+                        TextInput::make('ville')
+                            ->label('Ville')
+                            ->placeholder('ex : Paris'),
+                        TextInput::make('pays')
+                            ->label('Pays')
+                            ->default('France'),
                     ]),
                 Section::make('Formation & suivi')
                     ->columns(2)
@@ -67,9 +108,6 @@ class CandidateForm
                         TextInput::make('mobilite')
                             ->label('Mobilité')
                             ->placeholder('ex : Île-de-France, 30 km, permis B'),
-                        TextInput::make('disponibilite')
-                            ->label('Disponibilité')
-                            ->placeholder('ex : Septembre 2026, immédiate'),
                         TextInput::make('source')
                             ->label('Source')
                             ->placeholder('ex : Salon, site web, LinkedIn, bouche-à-oreille'),
@@ -85,6 +123,59 @@ class CandidateForm
                             ->disabled()
                             ->dehydrated(false)
                             ->helperText('Le statut évolue via l\'action « Changer le statut » (transitions contrôlées).'),
+                    ]),
+                Section::make('CV du candidat')
+                    ->description('Le CV est le seul document demandé à cette étape. Il sera automatiquement disponible côté pré-admission.')
+                    ->schema([
+                        SpatieMediaLibraryFileUpload::make('cv')
+                            ->label('CV (PDF, DOC ou DOCX)')
+                            ->collection('cv')
+                            ->acceptedFileTypes([
+                                'application/pdf',
+                                'application/msword',
+                                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                            ])
+                            ->maxSize(5120)
+                            ->downloadable()
+                            ->openable()
+                            ->helperText('Taille maximale : 5 Mo.')
+                            ->columnSpanFull(),
+                    ]),
+                Section::make('Disponibilités')
+                    ->description('Périodes de disponibilité ou d\'indisponibilité du candidat. Vous pouvez en ajouter plusieurs.')
+                    ->schema([
+                        Repeater::make('availabilities')
+                            ->label('')
+                            ->relationship()
+                            ->schema([
+                                Select::make('type')
+                                    ->label('Type')
+                                    ->options(AvailabilityType::class)
+                                    ->default(AvailabilityType::Disponible->value)
+                                    ->required(),
+                                Toggle::make('immediate')
+                                    ->label('Immédiate')
+                                    ->helperText('Disponible tout de suite, sans date.')
+                                    ->live(),
+                                DatePicker::make('date_debut')
+                                    ->label('À partir du')
+                                    ->displayFormat('d/m/Y')
+                                    ->hidden(fn ($get) => (bool) $get('immediate')),
+                                DatePicker::make('date_fin')
+                                    ->label('Jusqu\'au')
+                                    ->displayFormat('d/m/Y')
+                                    ->hidden(fn ($get) => (bool) $get('immediate')),
+                                TextInput::make('commentaire')
+                                    ->label('Commentaire')
+                                    ->columnSpanFull(),
+                            ])
+                            ->columns(2)
+                            ->defaultItems(0)
+                            ->addActionLabel('Ajouter une disponibilité')
+                            ->collapsible()
+                            ->itemLabel(fn (array $state): ?string => ($state['type'] ?? null)
+                                ? AvailabilityType::tryFrom($state['type'])?->getLabel()
+                                : 'Disponibilité'),
                     ]),
             ]);
     }

@@ -5,7 +5,6 @@ namespace App\Filament\Resources\Admissions;
 use App\Filament\Resources\Admissions\Pages\CreateAdmission;
 use App\Filament\Resources\Admissions\Pages\EditAdmission;
 use App\Filament\Resources\Admissions\Pages\ListAdmissions;
-use App\Filament\Resources\Admissions\RelationManagers\ItemsRelationManager;
 use App\Filament\Resources\Admissions\Schemas\AdmissionForm;
 use App\Filament\Resources\Admissions\Tables\AdmissionsTable;
 use App\Models\Admission;
@@ -48,9 +47,9 @@ class AdmissionResource extends Resource
 
     public static function getRelations(): array
     {
-        return [
-            ItemsRelationManager::class,
-        ];
+        // Pré-admission : aucune gestion documentaire ici. Le seul document de
+        // cette étape est le CV, porté par le candidat et affiché dans le dossier.
+        return [];
     }
 
     public static function getPages(): array
