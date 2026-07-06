@@ -39,14 +39,6 @@ class CompaniesTable
                     ->color('gray')
                     ->placeholder('—')
                     ->toggleable(),
-                TextColumn::make('formations_recherchees')
-                    ->label('Formations recherchées')
-                    ->state(fn (Company $record): array => $record->formationsRecherchees()->all())
-                    ->badge()
-                    ->color('primary')
-                    ->placeholder('—')
-                    ->listWithLineBreaks()
-                    ->tooltip('Formations des besoins ouverts de cette entreprise'),
                 TextColumn::make('opco.nom')
                     ->label('OPCO')
                     ->placeholder('—')
