@@ -139,6 +139,9 @@ class CandidatesTable
                     RestoreBulkAction::make(),
                 ]),
             ])
-            ->defaultSort('created_at', 'desc');
+            ->defaultSort('created_at', 'desc')
+            ->emptyStateIcon('heroicon-o-user-plus')
+            ->emptyStateHeading('Aucun candidat pour le moment')
+            ->emptyStateDescription('Créez votre premier candidat pour démarrer le suivi : son dossier de pré-admission sera ouvert automatiquement.');
     }
 }

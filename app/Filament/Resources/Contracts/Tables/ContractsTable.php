@@ -69,6 +69,9 @@ class ContractsTable
                     RestoreBulkAction::make(),
                 ]),
             ])
-            ->defaultSort('created_at', 'desc');
+            ->defaultSort('created_at', 'desc')
+            ->emptyStateIcon('heroicon-o-document-text')
+            ->emptyStateHeading('Aucun contrat')
+            ->emptyStateDescription('Créez un contrat d\'apprentissage dès qu\'un candidat est accepté : le dossier OPCO s\'ouvrira automatiquement à la transmission.');
     }
 }

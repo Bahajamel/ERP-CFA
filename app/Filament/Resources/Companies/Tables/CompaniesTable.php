@@ -85,6 +85,9 @@ class CompaniesTable
                     RestoreBulkAction::make(),
                 ]),
             ])
-            ->defaultSort('raison_sociale');
+            ->defaultSort('raison_sociale')
+            ->emptyStateIcon('heroicon-o-building-office-2')
+            ->emptyStateHeading('Aucune entreprise enregistrée')
+            ->emptyStateDescription('Ajoutez une entreprise partenaire ou lancez une prospection La Bonne Alternance depuis les besoins pour alimenter votre CRM.');
     }
 }
