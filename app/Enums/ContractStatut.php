@@ -53,7 +53,6 @@ enum ContractStatut: string implements HasLabel, HasColor, HasStateTransitions
 
     /**
      * Contrats « en cours » : apprentissage engagé (signé jusqu'à actif).
-     * Population pertinente pour l'évaluation du risque de rupture.
      */
     public static function enCours(): array
     {

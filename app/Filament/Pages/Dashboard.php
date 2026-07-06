@@ -3,7 +3,6 @@
 namespace App\Filament\Pages;
 
 use App\Filament\Widgets\AdmissionStatsOverview;
-use App\Filament\Widgets\ApprentisARisqueTable;
 use App\Filament\Widgets\CommercialStatsOverview;
 use App\Filament\Widgets\DirectionStatsOverview;
 use App\Filament\Widgets\DossiersAdmissionTable;
@@ -38,7 +37,6 @@ class Dashboard extends BaseDashboard
             OpcoBloquesTable::class,
             DossiersAdmissionTable::class,
             RelancesCommercialesTable::class,
-            ApprentisARisqueTable::class,
             MesTachesTable::class,
         ];
     }

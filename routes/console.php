@@ -11,8 +11,5 @@ Artisan::command('inspire', function () {
 // Alertes financières : détection quotidienne des versements OPCO en retard.
 Schedule::command('opco:flag-echeances')->dailyAt('06:00');
 
-// Risque de rupture : recalcul des scores AVANT la génération des alertes.
-Schedule::command('app:evaluer-risques')->dailyAt('05:45');
-
-// Alertes proactives transverses (dossiers, signatures, OPCO, échéances, ruptures).
+// Alertes proactives transverses (dossiers, signatures, OPCO, échéances).
 Schedule::command('app:generer-alertes')->dailyAt('06:15');

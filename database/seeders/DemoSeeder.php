@@ -34,7 +34,6 @@ use App\Models\Rupture;
 use App\Models\SignatureRequest;
 use App\Models\Task;
 use App\Models\User;
-use App\Services\RuptureRiskService;
 use App\Services\SignatureService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
@@ -331,7 +330,7 @@ class DemoSeeder extends Seeder
             'sent_at' => now()->subDays(2),
         ]);
 
-        // ---- Apprenti à risque élevé : maître d'apprentissage parti + OPCO rejeté ----
+        // ---- Apprenti avec un dossier OPCO rejeté (à corriger) ----
         $yanis = Candidate::create([
             'nom' => 'Moreau', 'prenom' => 'Yanis', 'email' => 'yanis.moreau@email.fr',
             'telephone' => fake()->phoneNumber(), 'date_naissance' => fake()->dateTimeBetween('-22 years', '-18 years'),
@@ -348,9 +347,6 @@ class DemoSeeder extends Seeder
             'contract_id' => $contratRisque->id, 'opco_id' => $opco2i->id, 'date_depot' => now()->subMonths(2),
             'statut' => OpcoStatut::Rejete, 'montant_prevu' => 8600, 'motif_rejet' => 'Pièces justificatives incomplètes.',
         ]);
-
-        // Recalcule le risque de rupture des contrats en cours (widget « apprentis à risque »).
-        app(RuptureRiskService::class)->evaluerTous();
     }
 
     private function user(string $name, string $email, string $role): User
