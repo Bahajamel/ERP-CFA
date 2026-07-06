@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Companies\Tables;
 
 use App\Enums\CompanyStatut;
 use App\Models\Company;
+use App\Models\Formation;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -38,6 +39,14 @@ class CompaniesTable
                     ->color('gray')
                     ->placeholder('—')
                     ->toggleable(),
+                TextColumn::make('formations_recherchees')
+                    ->label('Formations recherchées')
+                    ->state(fn (Company $record): array => $record->formationsRecherchees()->all())
+                    ->badge()
+                    ->color('primary')
+                    ->placeholder('—')
+                    ->listWithLineBreaks()
+                    ->tooltip('Formations des besoins ouverts de cette entreprise'),
                 TextColumn::make('opco.nom')
                     ->label('OPCO')
                     ->placeholder('—')
@@ -83,6 +92,17 @@ class CompaniesTable
                 SelectFilter::make('statut')
                     ->label('Statut')
                     ->options(CompanyStatut::class),
+                SelectFilter::make('formation_recherchee')
+                    ->label('Formation recherchée')
+                    ->options(fn (): array => Formation::query()->orderBy('libelle')->pluck('libelle', 'id')->all())
+                    ->searchable()
+                    ->query(fn (Builder $query, array $data): Builder => $query->when(
+                        $data['value'],
+                        fn (Builder $q, $formationId): Builder => $q->whereHas(
+                            'needs',
+                            fn (Builder $n): Builder => $n->ouverts()->where('formation_id', $formationId),
+                        ),
+                    )),
                 Filter::make('relance_a_faire')
                     ->label('Relance à faire')
                     ->query(fn (Builder $query): Builder => $query->whereHas(
