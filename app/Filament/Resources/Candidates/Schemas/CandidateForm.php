@@ -3,7 +3,6 @@
 namespace App\Filament\Resources\Candidates\Schemas;
 
 use App\Enums\AvailabilityType;
-use App\Enums\CandidateStatut;
 use App\Support\AdresseBan;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Repeater;
@@ -99,31 +98,40 @@ class CandidateForm
                             ->preload(),
                         Select::make('promotion_id')
                             ->label('Classe / Promotion')
+                            ->placeholder('Rechercher ou créer une promotion…')
                             ->relationship('promotion', 'libelle')
                             ->getOptionLabelFromRecordUsing(fn ($record) => trim($record->libelle.' — '.($record->annee_scolaire ?? '')))
                             ->searchable()
-                            ->preload(),
+                            ->preload()
+                            ->createOptionForm([
+                                Select::make('formation_id')
+                                    ->label('Formation')
+                                    ->relationship('formation', 'libelle')
+                                    ->searchable()
+                                    ->preload(),
+                                TextInput::make('libelle')
+                                    ->label('Libellé de la promotion')
+                                    ->placeholder('ex : Promo 2025-2026')
+                                    ->required(),
+                                TextInput::make('annee_scolaire')
+                                    ->label('Année scolaire')
+                                    ->placeholder('ex : 2025-2026'),
+                                DatePicker::make('date_debut')
+                                    ->label('Début')
+                                    ->displayFormat('d/m/Y'),
+                                DatePicker::make('date_fin')
+                                    ->label('Fin')
+                                    ->displayFormat('d/m/Y'),
+                            ])
+                            ->createOptionModalHeading('Nouvelle promotion'),
                         TextInput::make('niveau_actuel')
                             ->label('Niveau actuel')
                             ->placeholder('ex : Terminale, Bac, Bac+2'),
-                        TextInput::make('mobilite')
-                            ->label('Mobilité')
-                            ->placeholder('ex : Île-de-France, 30 km, permis B'),
-                        TextInput::make('source')
-                            ->label('Source')
-                            ->placeholder('ex : Salon, site web, LinkedIn, bouche-à-oreille'),
                         Select::make('commercial_id')
                             ->label('Commercial')
                             ->relationship('commercial', 'name')
                             ->searchable()
                             ->preload(),
-                        Select::make('statut')
-                            ->label('Statut')
-                            ->options(CandidateStatut::class)
-                            ->default(CandidateStatut::Incomplet->value)
-                            ->disabled()
-                            ->dehydrated(false)
-                            ->helperText('Le statut évolue via l\'action « Changer le statut » (transitions contrôlées).'),
                     ]),
                 Section::make('CV du candidat')
                     ->description('Le CV est le seul document demandé à cette étape. Il sera automatiquement disponible côté pré-admission.')
