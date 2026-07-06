@@ -35,6 +35,24 @@ class AdmissionResource extends Resource
 
     protected static ?string $pluralModelLabel = 'dossiers d\'admission';
 
+    /** Badge de navigation : dossiers encore à vérifier (action attendue). */
+    public static function getNavigationBadge(): ?string
+    {
+        $n = Admission::query()->where('statut', \App\Enums\AdmissionStatut::AVerifier->value)->count();
+
+        return $n > 0 ? (string) $n : null;
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'warning';
+    }
+
+    public static function getNavigationBadgeTooltip(): ?string
+    {
+        return 'Dossiers à vérifier';
+    }
+
     public static function form(Schema $schema): Schema
     {
         return AdmissionForm::configure($schema);

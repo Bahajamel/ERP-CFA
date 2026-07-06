@@ -69,7 +69,22 @@
 }
 .fi-sidebar-nav {
   scrollbar-width: thin;
-  scrollbar-color: rgba(148, 163, 214, 0.25) transparent;
+  scrollbar-color: rgba(148, 163, 214, 0.28) transparent;
+}
+/* Scrollbar de la sidebar : fine et fondue dans le bleu nuit (pas de piste
+   claire disgracieuse sous Chrome/Edge). */
+.fi-sidebar-nav::-webkit-scrollbar {
+  width: 6px;
+}
+.fi-sidebar-nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+.fi-sidebar-nav::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 214, 0.28);
+  border-radius: 99px;
+}
+.fi-sidebar-nav::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 214, 0.45);
 }
 
 /* Libellés de groupes : petites capitales espacées */
@@ -131,9 +146,11 @@
    ============================================================ */
 .fi-topbar > nav,
 .fi-topbar {
-  background-color: color-mix(in srgb, var(--cfa-card) 78%, transparent) !important;
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  /* Opacité élevée : l'effet verre reste subtil sans laisser le contenu
+     scrollé transparaître sous la barre (lisibilité avant tout). */
+  background-color: color-mix(in srgb, var(--cfa-card) 94%, transparent) !important;
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
   border-bottom: 1px solid var(--cfa-card-border);
   box-shadow: none !important;
 }
