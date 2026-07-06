@@ -109,7 +109,22 @@ it('signe le contrat et archive la preuve quand toutes les parties ont signé', 
         ->and($request->fresh()->completed_at)->not->toBeNull()
         ->and($contract->fresh()->statut_signature)->toBe(ContractSignatureStatut::Signe)
         ->and($contract->fresh()->statut_contrat)->toBe(ContractStatut::Signe)
+        ->and($contract->fresh()->opcoFile()->exists())->toBeTrue()
         ->and($contract->documents()->where('type', DocumentType::Contrat->value)->exists())->toBeTrue();
+});
+
+it('signe le contrat et ouvre le dossier OPCO même s\'il n\'était pas « Envoyé pour signature »', function () {
+    // Cas réel du bug : contrat encore en amont (jamais passé par « Envoyé »).
+    $contract = contratSignable(['statut_contrat' => ContractStatut::Brouillon]);
+    $service = serviceSimu();
+    $request = $service->envoyer($contract);
+
+    $service->simulerSignatureComplete($request);
+
+    $fresh = $contract->fresh();
+    expect($fresh->statut_contrat)->toBe(ContractStatut::Signe)
+        ->and($fresh->statut_signature)->toBe(ContractSignatureStatut::Signe)
+        ->and($fresh->opcoFile()->exists())->toBeTrue();
 });
 
 it('finalise via le webhook du prestataire', function () {
