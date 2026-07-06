@@ -1,6 +1,5 @@
 <?php
 
-use App\Enums\AvailabilityType;
 use App\Enums\CompanyStatut;
 use App\Filament\Resources\Candidates\Pages\ViewCandidate;
 use App\Filament\Resources\Companies\Pages\CreateCompany;
@@ -61,36 +60,24 @@ it('expose les coordonnées GPS renvoyées par la Base Adresse Nationale', funct
 |--------------------------------------------------------------------------
 */
 
-it('affiche les disponibilités du candidat dans la fiche 360°', function () {
+it('affiche la date de disponibilité du candidat dans la fiche 360°', function () {
     $this->seed(RolePermissionSeeder::class);
     $this->actingAs(adminUser());
 
-    $candidate = Candidate::factory()->create();
-    $candidate->availabilities()->create([
-        'type' => AvailabilityType::Disponible->value,
-        'immediate' => false,
-        'date_debut' => '2026-09-01',
-        'date_fin' => '2026-12-31',
-        'commentaire' => 'Après la rentrée',
-    ]);
+    $candidate = Candidate::factory()->create(['date_disponibilite' => '2026-09-01']);
 
     Livewire::test(ViewCandidate::class, ['record' => $candidate->getKey()])
         ->assertOk()
-        ->assertSee('du 01/09/2026 au 31/12/2026')
-        ->assertSee('Après la rentrée');
+        ->assertSee('Disponible à partir du')
+        ->assertSee('01/09/2026');
 });
 
-it('conserve les disponibilités après une modification du candidat', function () {
-    $candidate = Candidate::factory()->create();
-    $dispo = $candidate->availabilities()->create([
-        'type' => AvailabilityType::Disponible->value,
-        'immediate' => true,
-    ]);
+it('conserve la date de disponibilité après une modification du candidat', function () {
+    $candidate = Candidate::factory()->create(['date_disponibilite' => '2026-09-01']);
 
     $candidate->update(['nom' => 'Nom modifié']);
 
-    expect($candidate->fresh()->availabilities)->toHaveCount(1)
-        ->and($candidate->fresh()->availabilities->first()->id)->toBe($dispo->id);
+    expect($candidate->fresh()->date_disponibilite->format('Y-m-d'))->toBe('2026-09-01');
 });
 
 /*

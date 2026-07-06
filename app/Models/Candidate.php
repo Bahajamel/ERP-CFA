@@ -41,6 +41,7 @@ class Candidate extends Model implements HasMedia
     {
         return [
             'date_naissance' => 'date',
+            'date_disponibilite' => 'date',
             'statut' => CandidateStatut::class,
         ];
     }

@@ -2,14 +2,11 @@
 
 namespace App\Filament\Resources\Candidates\Schemas;
 
-use App\Enums\AvailabilityType;
 use App\Support\AdresseBan;
 use Filament\Forms\Components\DatePicker;
-use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
 use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
@@ -150,46 +147,13 @@ class CandidateForm
                             ->helperText('Taille maximale : 5 Mo.')
                             ->columnSpanFull(),
                     ]),
-                Section::make('Disponibilités')
-                    ->description('Périodes de disponibilité ou d\'indisponibilité du candidat. Vous pouvez en ajouter plusieurs.')
+                Section::make('Disponibilité')
+                    ->description('Date à partir de laquelle le candidat est disponible. Laissez vide si inconnue.')
+                    ->columns(2)
                     ->schema([
-                        Repeater::make('availabilities')
-                            ->label('')
-                            ->relationship()
-                            ->schema([
-                                Select::make('type')
-                                    ->label('Type')
-                                    ->options(AvailabilityType::class)
-                                    ->default(AvailabilityType::Disponible->value)
-                                    ->required(),
-                                Toggle::make('immediate')
-                                    ->label('Immédiate')
-                                    ->helperText('Disponible tout de suite, sans date.')
-                                    ->live(),
-                                DatePicker::make('date_debut')
-                                    ->label('À partir du')
-                                    ->native(false)
-                                    ->displayFormat('d/m/Y')
-                                    ->closeOnDateSelection()
-                                    ->visible(fn ($get) => ! (bool) $get('immediate')),
-                                DatePicker::make('date_fin')
-                                    ->label('Jusqu\'au')
-                                    ->native(false)
-                                    ->displayFormat('d/m/Y')
-                                    ->closeOnDateSelection()
-                                    ->afterOrEqual('date_debut')
-                                    ->visible(fn ($get) => ! (bool) $get('immediate')),
-                                TextInput::make('commentaire')
-                                    ->label('Commentaire')
-                                    ->columnSpanFull(),
-                            ])
-                            ->columns(2)
-                            ->defaultItems(0)
-                            ->addActionLabel('Ajouter une disponibilité')
-                            ->collapsible()
-                            ->itemLabel(fn (array $state): ?string => ($state['type'] ?? null)
-                                ? AvailabilityType::tryFrom($state['type'])?->getLabel()
-                                : 'Disponibilité'),
+                        DatePicker::make('date_disponibilite')
+                            ->label('Disponible à partir du')
+                            ->displayFormat('d/m/Y'),
                     ]),
             ]);
     }
