@@ -13,6 +13,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\Toggle;
 use Filament\Resources\RelationManagers\RelationManager;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
@@ -38,14 +39,29 @@ class MatchingsRelationManager extends RelationManager
                     ->label('Statut')
                     ->options(MatchingStatut::class)
                     ->default(MatchingStatut::Propose->value)
-                    ->required(),
+                    ->required()
+                    ->live(),
                 Toggle::make('cv_envoye')
                     ->label('CV envoyé'),
                 DatePicker::make('date_entretien')
                     ->label("Date d'entretien")
                     ->displayFormat('d/m/Y'),
+                DatePicker::make('next_action_at')
+                    ->label('Prochaine action')
+                    ->displayFormat('d/m/Y'),
                 Textarea::make('retour_entreprise')
                     ->label('Retour entreprise')
+                    ->columnSpanFull(),
+                Textarea::make('refusal_reason')
+                    ->label('Motif de refus')
+                    ->helperText('Obligatoire pour un statut « Refusé » (motif ou retour entreprise).')
+                    ->visible(fn (Get $get): bool => in_array($get('statut'), [
+                        MatchingStatut::RefuseEntreprise->value,
+                        MatchingStatut::RefuseCandidat->value,
+                    ], true))
+                    ->columnSpanFull(),
+                Textarea::make('notes')
+                    ->label('Notes internes')
                     ->columnSpanFull(),
             ]);
     }
