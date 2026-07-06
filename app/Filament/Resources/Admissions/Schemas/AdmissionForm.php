@@ -18,7 +18,7 @@ class AdmissionForm
     {
         return $schema
             ->components([
-                Section::make("Dossier de pré-admission")
+                Section::make('Dossier de pré-admission')
                     ->description('Le statut évolue via les actions de workflow, pas manuellement.')
                     ->columns(1)
                     ->schema([
@@ -68,27 +68,39 @@ class AdmissionForm
                             ->columnSpanFull(),
                     ]),
 
-                Section::make('CV')
-                    ->description('Seul document requis à cette étape. Il est fourni depuis la fiche candidat.')
+                Section::make('Pièces du candidat')
+                    ->description('Les pièces fournies dans la fiche candidat sont réutilisées ici — '
+                        .'aucun nouvel upload n\'est nécessaire. Le CV est le seul document requis à cette étape.')
                     ->visibleOn('edit')
                     ->schema([
                         Placeholder::make('cv')
-                            ->hiddenLabel()
+                            ->label('CV')
                             ->content(function (?Admission $record): HtmlString {
-                                $candidate = $record?->candidate;
+                                $info = $record?->candidate?->cvInfo();
 
-                                if ($candidate !== null && $candidate->hasCv()) {
-                                    $url = e($candidate->cvUrl());
-
+                                if ($info === null) {
                                     return new HtmlString(
-                                        '<a href="'.$url.'" target="_blank" rel="noopener" '
-                                        .'class="text-primary-600 hover:underline font-medium">📄 Télécharger le CV</a>'
+                                        '<span class="text-danger-600 font-medium">⚠ Aucun CV fourni pour ce candidat.</span>'
+                                        .'<br><span class="text-sm text-gray-500">Ajoutez-le dans la fiche candidat '
+                                        .'pour pouvoir valider ce dossier.</span>'
                                     );
                                 }
 
+                                $nom = e($info['name']);
+                                $type = e(strtoupper($info['extension'] ?: 'fichier'));
+                                $date = $info['added_at']?->format('d/m/Y') ?? '—';
+                                $url = e($info['url']);
+
                                 return new HtmlString(
-                                    '<span class="text-danger-600 font-medium">⚠ CV manquant — '
-                                    .'ajoutez-le dans la fiche candidat pour pouvoir valider ce dossier.</span>'
+                                    '<div class="flex flex-col gap-1">'
+                                    .'<div class="flex items-center gap-2">'
+                                    .'<span class="font-medium">📄 '.$nom.'</span>'
+                                    .'<span class="text-xs rounded bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5">'.$type.'</span>'
+                                    .'</div>'
+                                    .'<span class="text-sm text-gray-500">Ajouté le '.$date.'</span>'
+                                    .'<a href="'.$url.'" target="_blank" rel="noopener" '
+                                    .'class="text-primary-600 hover:underline font-medium">Consulter / télécharger le CV</a>'
+                                    .'</div>'
                                 );
                             }),
                     ]),

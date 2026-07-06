@@ -46,9 +46,6 @@ class MatchingsRelationManager extends RelationManager
                 DatePicker::make('date_entretien')
                     ->label("Date d'entretien")
                     ->displayFormat('d/m/Y'),
-                DatePicker::make('next_action_at')
-                    ->label('Prochaine action')
-                    ->displayFormat('d/m/Y'),
                 Textarea::make('retour_entreprise')
                     ->label('Retour entreprise')
                     ->columnSpanFull(),

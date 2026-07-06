@@ -51,7 +51,6 @@ class AdmissionsTable
             ])
             ->recordActions([
                 AdmissionActions::valider(),
-                AdmissionActions::changerStatut(),
                 ViewAction::make(),
                 EditAction::make(),
             ])

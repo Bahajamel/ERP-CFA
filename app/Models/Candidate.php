@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 use Spatie\Activitylog\LogOptions;
@@ -108,8 +109,26 @@ class Candidate extends Model implements HasMedia
     /** URL de téléchargement du CV (média « cv » en priorité, sinon document GED). */
     public function cvUrl(): ?string
     {
+        return $this->cvInfo()['url'] ?? null;
+    }
+
+    /**
+     * Métadonnées du CV pour l'affichage (nom du fichier, type, date d'ajout,
+     * URL), quelle que soit la source (média « cv » ou document GED de type CV).
+     * Le fichier n'est jamais dupliqué : la pré-admission réutilise la même pièce.
+     *
+     * @return array{name:string, mime:?string, extension:?string, added_at:?Carbon, url:string}|null
+     */
+    public function cvInfo(): ?array
+    {
         if (($media = $this->getFirstMedia('cv')) !== null) {
-            return $media->getUrl();
+            return [
+                'name' => $media->file_name,
+                'mime' => $media->mime_type,
+                'extension' => $media->extension,
+                'added_at' => $media->created_at,
+                'url' => $media->getUrl(),
+            ];
         }
 
         $doc = $this->documents()
@@ -118,7 +137,19 @@ class Candidate extends Model implements HasMedia
             ->latest()
             ->first();
 
-        return $doc?->getFirstMediaUrl('fichier') ?: null;
+        $media = $doc?->getFirstMedia('fichier');
+
+        if ($media === null) {
+            return null;
+        }
+
+        return [
+            'name' => $media->file_name,
+            'mime' => $media->mime_type,
+            'extension' => $media->extension,
+            'added_at' => $media->created_at,
+            'url' => $media->getUrl(),
+        ];
     }
 
     public function getActivitylogOptions(): LogOptions

@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Candidates\Pages;
 use App\Filament\Resources\Candidates\CandidateResource;
 use App\Models\Candidate;
 use Filament\Actions\EditAction;
+use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Resources\Pages\ViewRecord;
 use Filament\Schemas\Components\Section;
@@ -73,6 +74,29 @@ class ViewCandidate extends ViewRecord
                         ->label('Validé le')
                         ->dateTime('d/m/Y')
                         ->placeholder('—'),
+                ]),
+
+            Section::make('Disponibilités')
+                ->schema([
+                    TextEntry::make('aucune_dispo')
+                        ->hiddenLabel()
+                        ->state('Aucune disponibilité renseignée.')
+                        ->visible(fn (Candidate $record): bool => $record->availabilities->isEmpty()),
+                    RepeatableEntry::make('availabilities')
+                        ->hiddenLabel()
+                        ->visible(fn (Candidate $record): bool => $record->availabilities->isNotEmpty())
+                        ->schema([
+                            TextEntry::make('libelle')
+                                ->hiddenLabel()
+                                ->state(fn ($record): string => $record->libelle())
+                                ->badge()
+                                ->color(fn ($record): string => $record->type->getColor()),
+                            TextEntry::make('commentaire')
+                                ->hiddenLabel()
+                                ->color('gray')
+                                ->placeholder('—'),
+                        ])
+                        ->columns(2),
                 ]),
 
             Section::make('2 · Entreprise & contrat')

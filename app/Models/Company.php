@@ -24,6 +24,8 @@ class Company extends Model
     {
         return [
             'statut' => CompanyStatut::class,
+            'latitude' => 'float',
+            'longitude' => 'float',
         ];
     }
 
@@ -40,6 +42,12 @@ class Company extends Model
     public function contactPrincipal(): HasMany
     {
         return $this->hasMany(CompanyContact::class)->where('is_principal', true);
+    }
+
+    /** Contacts marqués comme tuteurs (maîtres d'apprentissage) de l'entreprise. */
+    public function tuteurs(): HasMany
+    {
+        return $this->hasMany(CompanyContact::class)->where('is_tuteur', true);
     }
 
     public function needs(): HasMany
