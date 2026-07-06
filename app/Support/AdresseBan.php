@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Throwable;
 
@@ -29,17 +30,9 @@ class AdresseBan
             return [];
         }
 
-        try {
-            $reponse = Http::timeout(5)->get(self::ENDPOINT, [
-                'q' => $recherche,
-                'limit' => 6,
-                'autocomplete' => 1,
-            ]);
-        } catch (Throwable) {
-            return [];
-        }
+        $reponse = $this->appel($recherche);
 
-        if (! $reponse->successful()) {
+        if ($reponse === null || ! $reponse->successful()) {
             return [];
         }
 
@@ -65,6 +58,33 @@ class AdresseBan
         }
 
         return $options;
+    }
+
+    /**
+     * Appel HTTP à la BAN. En local, si le poste n'a pas de bundle CA configuré
+     * (erreur cURL 60 fréquente sous Windows), on retente sans vérification SSL
+     * pour ne pas bloquer la saisie d'adresse en dev. En production, la
+     * vérification SSL reste stricte.
+     */
+    private function appel(string $recherche): ?Response
+    {
+        $params = ['q' => $recherche, 'limit' => 6, 'autocomplete' => 1];
+
+        try {
+            return Http::timeout(5)->get(self::ENDPOINT, $params);
+        } catch (Throwable $e) {
+            if (app()->environment('local')) {
+                try {
+                    return Http::timeout(5)->withoutVerifying()->get(self::ENDPOINT, $params);
+                } catch (Throwable) {
+                    return null;
+                }
+            }
+
+            report($e);
+
+            return null;
+        }
     }
 
     /**

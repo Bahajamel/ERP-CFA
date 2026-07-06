@@ -97,6 +97,20 @@ Set-Content $ini $c -Encoding UTF8
 & "$phpDir\php.exe" -m   # vérifie que pdo_pgsql, mbstring, intl, zip... sont listés
 ```
 
+**⚠️ Certificats SSL (obligatoire pour les appels HTTPS sortants)** — sans bundle
+CA, PHP échoue sur tout appel HTTPS (autocomplétion d'adresse Base Adresse
+Nationale, vérification RNCP, service LivretRS…) avec `cURL error 60`. À faire une
+fois :
+
+```powershell
+Invoke-WebRequest https://curl.se/ca/cacert.pem -OutFile "$phpDir\cacert.pem"
+Add-Content "$phpDir\php.ini" "`ncurl.cainfo = `"$phpDir\cacert.pem`"`nopenssl.cafile = `"$phpDir\cacert.pem`""
+```
+
+> En environnement `local`, le code tolère l'absence de CA (repli sans
+> vérification SSL) pour ne pas bloquer la démo, mais configurer le bundle reste
+> recommandé.
+
 ### 3.3 Composer (via script officiel)
 
 ```powershell
