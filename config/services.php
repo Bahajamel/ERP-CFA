@@ -45,4 +45,26 @@ return [
         'timeout' => (int) env('LIVRETRS_TIMEOUT', 180),
     ],
 
+    /*
+    | API La Bonne Alternance (mission-apprentissage / api.apprentissage.beta.gouv.fr).
+    | Recherche des entreprises qui recrutent en alternance pour un métier / une
+    | formation (par code RNCP) autour d'un point géographique.
+    | Clé (Bearer) obtenue sur l'espace développeurs. Vide = prospection désactivée.
+    | ⚠️ Usage gratuit réservé au non-lucratif (revente des données interdite).
+    | `results_key` et `search_path` sont paramétrables car le schéma de l'API évolue.
+    */
+    'labonnealternance' => [
+        'api_key' => env('LBA_API_KEY'),
+        'base_url' => env('LBA_BASE_URL', 'https://api.apprentissage.beta.gouv.fr'),
+        'search_path' => env('LBA_SEARCH_PATH', '/api/job/v1/search'),
+        'results_key' => env('LBA_RESULTS_KEY', 'recruiters'),
+        'timeout' => (int) env('LBA_TIMEOUT', 15),
+        'default_radius' => (int) env('LBA_DEFAULT_RADIUS', 30),
+        // Centre de recherche par défaut = localisation du CFA.
+        'center' => [
+            'lat' => (float) env('LBA_CENTER_LAT', 48.8566),
+            'lon' => (float) env('LBA_CENTER_LON', 2.3522),
+        ],
+    ],
+
 ];
