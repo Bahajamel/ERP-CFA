@@ -37,6 +37,26 @@ class ContractResource extends Resource
 
     protected static ?string $pluralModelLabel = 'contrats';
 
+    /** Badge de navigation : contrats dont la signature n'est pas finalisée. */
+    public static function getNavigationBadge(): ?string
+    {
+        $n = Contract::query()
+            ->where('statut_signature', '!=', \App\Enums\ContractSignatureStatut::Signe->value)
+            ->count();
+
+        return $n > 0 ? (string) $n : null;
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'warning';
+    }
+
+    public static function getNavigationBadgeTooltip(): ?string
+    {
+        return 'Contrats à faire signer';
+    }
+
     public static function getGloballySearchableAttributes(): array
     {
         return ['candidate.nom', 'candidate.prenom', 'company.raison_sociale', 'code_rncp'];

@@ -9,6 +9,7 @@ use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
@@ -20,8 +21,12 @@ class NeedForm
     public static function configure(Schema $schema): Schema
     {
         return $schema
+            // Deux colonnes équilibrées (pas de trous entre cartes).
+            ->columns(2)
             ->components([
+                Group::make([
                 Section::make('Poste recherché')
+                    ->icon('heroicon-o-briefcase')
                     ->columns(2)
                     ->schema([
                         Select::make('company_id')
@@ -59,7 +64,23 @@ class NeedForm
                             ->placeholder('ex : Niveau CAP, permis B, expérience en vente appréciée')
                             ->columnSpanFull(),
                     ]),
+                Section::make('Interlocuteurs entreprise')
+                    ->icon('heroicon-o-user-circle')
+                    ->columns(2)
+                    ->schema([
+                        Select::make('contact_id')
+                            ->label('Contact responsable')
+                            ->relationship('contact', 'nom')
+                            ->searchable(),
+                        Select::make('tuteur_id')
+                            ->label('Tuteur prévu')
+                            ->relationship('tuteur', 'nom')
+                            ->searchable(),
+                    ]),
+                ])->columnSpan(1),
+                Group::make([
                 Section::make('Localisation & rayon de recherche')
+                    ->icon('heroicon-o-map-pin')
                     ->description('Géolocalisez le lieu du poste et définissez le rayon de recherche (km) : un cercle s\'affiche sur la carte.')
                     ->columns(2)
                     ->schema([
@@ -116,18 +137,7 @@ class NeedForm
                                 'rayonKm' => $get('rayon_km'),
                             ])),
                     ]),
-                Section::make('Interlocuteurs entreprise')
-                    ->columns(2)
-                    ->schema([
-                        Select::make('contact_id')
-                            ->label('Contact responsable')
-                            ->relationship('contact', 'nom')
-                            ->searchable(),
-                        Select::make('tuteur_id')
-                            ->label('Tuteur prévu')
-                            ->relationship('tuteur', 'nom')
-                            ->searchable(),
-                    ]),
+                ])->columnSpan(1),
             ]);
     }
 }

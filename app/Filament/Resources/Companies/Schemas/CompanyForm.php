@@ -6,6 +6,7 @@ use App\Enums\CompanyStatut;
 use App\Support\AdresseBan;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
@@ -15,8 +16,12 @@ class CompanyForm
     public static function configure(Schema $schema): Schema
     {
         return $schema
+            // Deux colonnes équilibrées (pas de trous entre cartes).
+            ->columns(2)
             ->components([
+                Group::make([
                 Section::make('Entreprise')
+                    ->icon('heroicon-o-building-office-2')
                     ->columns(2)
                     ->schema([
                         TextInput::make('raison_sociale')
@@ -50,7 +55,10 @@ class CompanyForm
                             ->required()
                             ->visibleOn('edit'),
                     ]),
+                ])->columnSpan(1),
+                Group::make([
                 Section::make('Adresse')
+                    ->icon('heroicon-o-map-pin')
                     ->description('Recherchez une adresse pour remplir automatiquement les champs et géolocaliser l\'entreprise, ou saisissez-la à la main.')
                     ->columns(2)
                     ->schema([
@@ -100,6 +108,7 @@ class CompanyForm
                             ->numeric()
                             ->helperText('Renseignée automatiquement par la recherche d\'adresse.'),
                     ]),
+                ])->columnSpan(1),
             ]);
     }
 }

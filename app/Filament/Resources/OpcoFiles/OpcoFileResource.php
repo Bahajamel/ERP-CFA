@@ -35,6 +35,24 @@ class OpcoFileResource extends Resource
 
     protected static ?string $pluralModelLabel = 'dossiers OPCO';
 
+    /** Badge de navigation : dossiers bloqués (rejetés / en correction). */
+    public static function getNavigationBadge(): ?string
+    {
+        $n = OpcoFile::query()->whereIn('statut', \App\Enums\OpcoStatut::bloques())->count();
+
+        return $n > 0 ? (string) $n : null;
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'danger';
+    }
+
+    public static function getNavigationBadgeTooltip(): ?string
+    {
+        return 'Dossiers bloqués — financement en attente';
+    }
+
     public static function getGloballySearchableAttributes(): array
     {
         return ['contract.candidate.nom', 'contract.candidate.prenom', 'opco.nom'];
