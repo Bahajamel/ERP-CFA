@@ -47,32 +47,18 @@ class ContractsTable
                 TextColumn::make('statut_contrat')
                     ->label('Statut contrat')
                     ->badge(),
-                TextColumn::make('risk_level')
-                    ->label('Risque rupture')
-                    ->badge()
-                    ->placeholder('—')
-                    ->tooltip(fn ($record) => collect($record->risk_factors ?? [])
-                        ->pluck('label')
-                        ->implode(' · ') ?: null)
-                    ->sortable('risk_score')
-                    ->toggleable(),
             ])
             ->filters([
                 SelectFilter::make('statut_contrat')
                     ->label('Statut du contrat')
                     ->options(ContractStatut::class),
-                SelectFilter::make('risk_level')
-                    ->label('Risque de rupture')
-                    ->options(\App\Enums\RiskLevel::class),
                 TrashedFilter::make(),
             ])
             ->recordActions([
                 ContractActions::signer(),
                 ContractActions::envoyerSignature(),
                 ContractActions::simulerSignature(),
-                ContractActions::changerStatut(),
                 ContractActions::genererLivrables(),
-                ContractActions::importerLivrables(),
                 ViewAction::make(),
                 EditAction::make(),
             ])

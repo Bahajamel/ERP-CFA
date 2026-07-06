@@ -17,13 +17,22 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
 
-class Contract extends Model
+class Contract extends Model implements HasMedia
 {
     use HasFactory;
-    use SoftDeletes;
+    use InteractsWithMedia;
     use LogsActivity;
     use ManagesState;
+    use SoftDeletes;
+
+    /** Le CERFA (contrat d'apprentissage) signé, rattaché directement au contrat. */
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection('cerfa')->singleFile();
+    }
 
     protected $guarded = [];
 
@@ -40,10 +49,21 @@ class Contract extends Model
             'date_fin' => 'date',
             'statut_signature' => ContractSignatureStatut::class,
             'statut_contrat' => ContractStatut::class,
-            'risk_level' => \App\Enums\RiskLevel::class,
-            'risk_factors' => 'array',
-            'risk_evaluated_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Le contrat est-il signé (dossier complet et signé) ? Condition de génération
+     * des livrables : un contrat signé implique un dossier complet et validé.
+     */
+    public function estSigne(): bool
+    {
+        return $this->statut_signature === ContractSignatureStatut::Signe
+            || in_array($this->statut_contrat, [
+                ContractStatut::Signe,
+                ContractStatut::TransmisOpco,
+                ContractStatut::Actif,
+            ], true);
     }
 
     public function getActivitylogOptions(): LogOptions
@@ -146,8 +166,9 @@ class Contract extends Model
             $this->forceFill(['statut_signature' => ContractSignatureStatut::Signe])->saveQuietly();
         }
 
-        // Transmission OPCO : ouvre le dossier OPCO s'il n'existe pas (P0-08-4).
-        if ($to === ContractStatut::TransmisOpco) {
+        // Dès la signature (et à la transmission), on ouvre automatiquement le
+        // dossier OPCO pour lancer le suivi du financement et des paiements.
+        if (in_array($to, [ContractStatut::Signe, ContractStatut::TransmisOpco], true)) {
             $this->opcoFile()->firstOrCreate([], ['statut' => OpcoStatut::APreparer->value]);
         }
 

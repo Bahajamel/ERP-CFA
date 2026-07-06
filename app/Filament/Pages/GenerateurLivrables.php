@@ -98,10 +98,12 @@ class GenerateurLivrables extends Page implements HasSchemas, HasTable
                     ->schema([
                         Select::make('contract_id')
                             ->label('Apprenti (contrat)')
+                            ->helperText('Seuls les contrats au dossier complet et signé sont éligibles.')
                             ->options(fn () => Contract::query()
                                 ->whereNotNull('candidate_id')
                                 ->with('candidate')
                                 ->get()
+                                ->filter(fn (Contract $c) => $c->estSigne())
                                 ->mapWithKeys(fn (Contract $c) => [
                                     $c->id => ($c->candidate?->nom_complet ?? 'Apprenti').' — Contrat #'.$c->id,
                                 ])
@@ -143,6 +145,19 @@ class GenerateurLivrables extends Page implements HasSchemas, HasTable
         }
 
         $data = $this->form->getState();
+
+        // Garde-fou : la génération n'est possible que si le dossier est complet et signé.
+        $contract = Contract::find((int) $data['contract_id']);
+
+        if ($contract === null || ! $contract->estSigne()) {
+            Notification::make()
+                ->title('Dossier non éligible')
+                ->body('Les livrables ne peuvent être générés que pour un contrat au dossier complet et signé.')
+                ->danger()
+                ->send();
+
+            return;
+        }
 
         GenererLivrablesJob::dispatch((int) $data['contract_id'], auth()->id(), [
             'theme_code' => $data['theme_code'] ?? null,

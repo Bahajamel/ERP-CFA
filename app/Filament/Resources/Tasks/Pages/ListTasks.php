@@ -13,7 +13,7 @@ class ListTasks extends ListRecords
     public function getSubheading(): ?string
     {
         return 'Votre liste de travail : tâches assignées aux équipes, manuelles ou générées '
-            .'automatiquement par l\'ERP (pièce manquante, OPCO bloqué, risque de rupture, '
+            .'automatiquement par l\'ERP (pièce manquante, OPCO bloqué, facture en retard, '
             .'non-conformité Qualiopi…). Priorisez et traitez — rien ne se perd.';
     }
 

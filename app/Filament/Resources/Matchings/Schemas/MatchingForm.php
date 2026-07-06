@@ -3,6 +3,8 @@
 namespace App\Filament\Resources\Matchings\Schemas;
 
 use App\Enums\MatchingStatut;
+use App\Models\Candidate;
+use App\Models\Need;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -22,12 +24,17 @@ class MatchingForm
                         Select::make('candidate_id')
                             ->label('Candidat')
                             ->relationship('candidate', 'nom')
+                            ->getOptionLabelFromRecordUsing(fn (Candidate $record): string => $record->nom_complet)
                             ->searchable(['nom', 'prenom'])
+                            ->preload()
                             ->required(),
                         Select::make('need_id')
                             ->label('Besoin')
                             ->relationship('need', 'intitule_poste')
+                            ->getOptionLabelFromRecordUsing(fn (Need $record): string => $record->intitule_poste
+                                .($record->company ? ' — '.$record->company->raison_sociale : ''))
                             ->searchable()
+                            ->preload()
                             ->required(),
                         Select::make('statut')
                             ->label('Statut')

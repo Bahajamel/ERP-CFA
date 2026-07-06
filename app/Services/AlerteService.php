@@ -7,7 +7,6 @@ use App\Enums\ContractStatut;
 use App\Enums\InvoiceStatut;
 use App\Enums\OpcoStatut;
 use App\Enums\PaymentStatut;
-use App\Enums\RiskLevel;
 use App\Enums\TaskPriorite;
 use App\Enums\TaskStatut;
 use App\Models\Admission;
@@ -36,7 +35,6 @@ class AlerteService
             + $this->opcoSansRetour()
             + $this->echeancesAVenir()
             + $this->facturesEnRetard()
-            + $this->risquesRupture()
             + $this->nonConformitesQualiopi();
 
         $this->flaggerTachesEnRetard();
@@ -174,42 +172,6 @@ class AlerteService
                         .($invoice->destinataire ?? ''),
                     assigneeId: $invoice->created_by,
                     taskable: $invoice,
-                    priorite: $priorite,
-                );
-            });
-
-        return $n;
-    }
-
-    /**
-     * Alerte sur les contrats à risque élevé/critique de rupture (score calculé
-     * en amont par app:evaluer-risques). Une tâche par contrat, priorisée selon
-     * le niveau, assignée au commercial qui suit l'apprenti.
-     */
-    private function risquesRupture(): int
-    {
-        $n = 0;
-
-        Contract::query()
-            ->whereIn('risk_level', RiskLevel::aRisque())
-            ->with('candidate')
-            ->get()
-            ->each(function (Contract $contract) use (&$n) {
-                $facteurs = collect($contract->risk_factors ?? [])
-                    ->pluck('label')
-                    ->implode(' · ');
-
-                $priorite = $contract->risk_level === RiskLevel::Critique
-                    ? TaskPriorite::Urgente
-                    : TaskPriorite::Haute;
-
-                $n += (int) $this->creerAlerte(
-                    cle: "rupture:risque:{$contract->id}",
-                    titre: 'Risque de rupture ('.$contract->risk_level->getLabel().') — '
-                        .($contract->candidate?->nom_complet ?? 'apprenti'),
-                    description: 'Score '.$contract->risk_score.'/100 · '.($facteurs ?: 'facteurs à examiner'),
-                    assigneeId: $contract->candidate?->commercial_id,
-                    taskable: $contract,
                     priorite: $priorite,
                 );
             });
