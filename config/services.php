@@ -57,9 +57,15 @@ return [
         'api_key' => env('LBA_API_KEY'),
         'base_url' => env('LBA_BASE_URL', 'https://api.apprentissage.beta.gouv.fr'),
         'search_path' => env('LBA_SEARCH_PATH', '/api/job/v1/search'),
-        'results_key' => env('LBA_RESULTS_KEY', 'recruiters'),
+        // Sections de la réponse à agréger : offres publiées (jobs) + entreprises
+        // susceptibles de recruter sans offre (recruiters). Schéma confirmé sur l'API réelle.
+        'results_keys' => ['jobs', 'recruiters'],
         'timeout' => (int) env('LBA_TIMEOUT', 15),
         'default_radius' => (int) env('LBA_DEFAULT_RADIUS', 30),
+        // Vérification du certificat SSL. Laisser à true en production. En dev
+        // Windows, si cURL n'a pas de bundle CA (« cURL error 60 »), soit on
+        // configure curl.cainfo dans php.ini (recommandé), soit LBA_VERIFY_SSL=false.
+        'verify_ssl' => filter_var(env('LBA_VERIFY_SSL', true), FILTER_VALIDATE_BOOLEAN),
         // Centre de recherche par défaut = localisation du CFA.
         'center' => [
             'lat' => (float) env('LBA_CENTER_LAT', 48.8566),

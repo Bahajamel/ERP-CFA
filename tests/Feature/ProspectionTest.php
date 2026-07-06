@@ -16,7 +16,8 @@ beforeEach(function () {
         'api_key' => 'test-key',
         'base_url' => 'https://lba.test',
         'search_path' => '/api/job/v1/search',
-        'results_key' => 'recruiters',
+        'results_keys' => ['jobs', 'recruiters'],
+        'verify_ssl' => true,
         'timeout' => 5,
         'default_radius' => 30,
         'center' => ['lat' => 48.85, 'lon' => 2.35],
@@ -43,7 +44,7 @@ function recruteur(string $name, ?string $siret, string $naf = 'Développement i
 }
 
 it('mappe les entreprises qui recrutent depuis la réponse LBA', function () {
-    Http::fake(['lba.test/*' => Http::response(['recruiters' => [recruteur('Acme SAS', '12345678900011')]])]);
+    Http::fake(['lba.test/*' => Http::response(['jobs' => [recruteur('Acme SAS', '12345678900011')]])]);
     $formation = Formation::factory()->create(['code_rncp' => 'RNCP34029']);
 
     $resultats = app(LaBonneAlternanceClient::class)->searchForFormation($formation, 48.85, 2.35, 30);
@@ -58,8 +59,20 @@ it('mappe les entreprises qui recrutent depuis la réponse LBA', function () {
         ->and($c->telephone)->toBe('0102030405');
 });
 
+it('agrège les offres (jobs) et les entreprises susceptibles de recruter (recruiters)', function () {
+    Http::fake(['lba.test/*' => Http::response([
+        'jobs' => [recruteur('Avec offre', '11111111100011')],
+        'recruiters' => [recruteur('Sans offre', '22222222200022')],
+    ])]);
+    $formation = Formation::factory()->create(['code_rncp' => 'RNCP34029']);
+
+    $resultats = app(LaBonneAlternanceClient::class)->searchForFormation($formation, 48.85, 2.35, 30);
+
+    expect($resultats->pluck('siret'))->toContain('11111111100011', '22222222200022');
+});
+
 it('importe les prospects comme entreprises (statut Prospect) + besoins à qualifier', function () {
-    Http::fake(['lba.test/*' => Http::response(['recruiters' => [
+    Http::fake(['lba.test/*' => Http::response(['jobs' => [
         recruteur('Acme SAS', '12345678900011'),
         recruteur('Beta SARL', '98765432100022'),
     ]])]);
@@ -77,7 +90,7 @@ it('importe les prospects comme entreprises (statut Prospect) + besoins à quali
 
 it('ne recrée pas une entreprise au SIRET déjà connu (dédoublonnage)', function () {
     $existante = Company::factory()->create(['siret' => '12345678900011', 'statut' => CompanyStatut::Partenaire]);
-    Http::fake(['lba.test/*' => Http::response(['recruiters' => [recruteur('Acme SAS', '12345678900011')]])]);
+    Http::fake(['lba.test/*' => Http::response(['jobs' => [recruteur('Acme SAS', '12345678900011')]])]);
     $formation = Formation::factory()->create(['code_rncp' => 'RNCP34029']);
 
     $r = app(ProspectionService::class)->prospectForFormation($formation, 48.85, 2.35, 30);
@@ -89,7 +102,7 @@ it('ne recrée pas une entreprise au SIRET déjà connu (dédoublonnage)', funct
 });
 
 it('ignore les entreprises sans SIRET', function () {
-    Http::fake(['lba.test/*' => Http::response(['recruiters' => [recruteur('Sans Siret', null)]])]);
+    Http::fake(['lba.test/*' => Http::response(['jobs' => [recruteur('Sans Siret', null)]])]);
     $formation = Formation::factory()->create(['code_rncp' => 'RNCP34029']);
 
     $r = app(ProspectionService::class)->prospectForFormation($formation, 48.85, 2.35, 30);

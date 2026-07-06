@@ -34,19 +34,25 @@ class LaBonneAlternanceClient
             throw new RuntimeException('Clé API La Bonne Alternance absente (renseignez LBA_API_KEY).');
         }
 
-        $response = Http::baseUrl($config['base_url'])
+        $request = Http::baseUrl($config['base_url'])
             ->withToken($config['api_key'])
             ->acceptJson()
-            ->timeout((int) $config['timeout'])
-            ->get($config['search_path'], array_filter(
-                $params,
-                fn ($value): bool => $value !== null && $value !== '',
-            ))
-            ->throw();
+            ->timeout((int) $config['timeout']);
 
-        $items = $response->json($config['results_key']) ?? [];
+        // Échappatoire dev (Windows sans bundle CA) : cf. config verify_ssl.
+        if (($config['verify_ssl'] ?? true) === false) {
+            $request->withoutVerifying();
+        }
 
-        return collect($items)
+        $response = $request->get($config['search_path'], array_filter(
+            $params,
+            fn ($value): bool => $value !== null && $value !== '',
+        ))->throw();
+
+        // On agrège les offres publiées (jobs) et les entreprises susceptibles de
+        // recruter (recruiters) ; le dédoublonnage par SIRET se fait à l'import.
+        return collect($config['results_keys'] ?? ['jobs'])
+            ->flatMap(fn (string $key): array => $response->json($key) ?? [])
             ->map(fn (array $item): RecruitingCompany => RecruitingCompany::fromApi($item))
             ->values();
     }
