@@ -17,7 +17,10 @@ use Filament\Support\Icons\Heroicon;
  */
 class AdmissionActions
 {
-    /** Validation rapide (visible seulement si la règle métier l'autorise). */
+    /**
+     * Valider (« présenter ») le dossier de pré-admission. Visible seulement si
+     * la règle métier l'autorise, c.-à-d. si le CV du candidat est présent.
+     */
     public static function valider(): Action
     {
         return Action::make('valider')
@@ -25,7 +28,7 @@ class AdmissionActions
             ->icon(Heroicon::OutlinedCheckBadge)
             ->color('success')
             ->requiresConfirmation()
-            ->modalDescription('Toutes les pièces obligatoires sont présentes. Confirmer la validation du dossier ?')
+            ->modalDescription('Le CV du candidat est présent. Confirmer la validation de ce dossier de pré-admission ?')
             ->visible(fn (Admission $record) => $record->canTransitionTo(AdmissionStatut::Valide))
             ->action(function (Admission $record) {
                 self::executer($record, AdmissionStatut::Valide);
@@ -52,24 +55,6 @@ class AdmissionActions
             ])
             ->action(function (Admission $record, array $data) {
                 self::executer($record, AdmissionStatut::from($data['statut']), $data['commentaire'] ?? null);
-            });
-    }
-
-    /** (Re)génère les pièces obligatoires standard. */
-    public static function genererChecklist(): Action
-    {
-        return Action::make('genererChecklist')
-            ->label('Générer la checklist')
-            ->icon(Heroicon::OutlinedListBullet)
-            ->color('gray')
-            ->requiresConfirmation()
-            ->action(function (Admission $record) {
-                $record->genererChecklistObligatoire();
-
-                Notification::make()
-                    ->title('Checklist des pièces obligatoires générée')
-                    ->success()
-                    ->send();
             });
     }
 

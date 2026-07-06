@@ -3,11 +3,13 @@
 namespace App\Models;
 
 use App\Enums\CandidateStatut;
-use App\Enums\ChecklistItemStatut;
+use App\Enums\DocumentType;
 use App\Enums\PresenceStatut;
 use App\Matching\CompatibilityScorer;
+use App\Observers\CandidateObserver;
 use App\StateMachine\ManagesState;
 use BackedEnum;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -20,10 +22,14 @@ use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
 
-class Candidate extends Model
+#[ObservedBy(CandidateObserver::class)]
+class Candidate extends Model implements HasMedia
 {
     use HasFactory;
+    use InteractsWithMedia;
     use LogsActivity;
     use ManagesState;
     use SoftDeletes;
@@ -36,6 +42,22 @@ class Candidate extends Model
             'date_naissance' => 'date',
             'statut' => CandidateStatut::class,
         ];
+    }
+
+    /**
+     * CV du candidat : un seul fichier (PDF / DOC / DOCX), attaché dès la
+     * pré-candidature. C'est l'unique document demandé à cette étape ; il est
+     * ensuite réutilisé tel quel côté pré-admission (aucune duplication).
+     */
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection('cv')
+            ->singleFile()
+            ->acceptsMimeTypes([
+                'application/pdf',
+                'application/msword',
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            ]);
     }
 
     /**
@@ -54,25 +76,49 @@ class Candidate extends Model
     }
 
     /**
-     * Règle métier (CDC §5 / P0-02-6) : blocage du passage à « Dossier complet »
-     * tant qu'une pièce obligatoire de l'admission est manquante ou non conforme.
+     * Règle métier (pré-candidature) : blocage du passage à « Dossier complet »
+     * tant que le CV — seul document requis à cette étape — n'est pas fourni.
      */
     public function guardTransition(BackedEnum $from, BackedEnum $to): ?string
     {
-        if ($to === CandidateStatut::Complet && $this->hasMissingRequiredPieces()) {
-            return 'Dossier incomplet : des pièces obligatoires sont manquantes ou non conformes.';
+        if ($to === CandidateStatut::Complet && ! $this->hasCv()) {
+            return 'Dossier incomplet : le CV du candidat est manquant.';
         }
 
         return null;
     }
 
-    /** Vrai s'il existe au moins une pièce obligatoire non « présente ». */
-    public function hasMissingRequiredPieces(): bool
+    /**
+     * Le candidat a-t-il un CV ? Vrai si un fichier existe dans la collection
+     * média « cv » OU s'il possède un document GED de type CV avec un fichier
+     * (les deux sources sont acceptées — détection centralisée et fiable).
+     */
+    public function hasCv(): bool
     {
-        return (bool) $this->admission?->items()
-            ->where('est_obligatoire', true)
-            ->where('statut', '!=', ChecklistItemStatut::Presente->value)
+        if ($this->getFirstMedia('cv') !== null) {
+            return true;
+        }
+
+        return $this->documents()
+            ->where('type', DocumentType::CvCandidat->value)
+            ->whereHas('media')
             ->exists();
+    }
+
+    /** URL de téléchargement du CV (média « cv » en priorité, sinon document GED). */
+    public function cvUrl(): ?string
+    {
+        if (($media = $this->getFirstMedia('cv')) !== null) {
+            return $media->getUrl();
+        }
+
+        $doc = $this->documents()
+            ->where('type', DocumentType::CvCandidat->value)
+            ->whereHas('media')
+            ->latest()
+            ->first();
+
+        return $doc?->getFirstMediaUrl('fichier') ?: null;
     }
 
     public function getActivitylogOptions(): LogOptions
@@ -122,6 +168,12 @@ class Candidate extends Model
     public function documents(): MorphMany
     {
         return $this->morphMany(Document::class, 'documentable');
+    }
+
+    /** Périodes de disponibilité / indisponibilité du candidat (structure évolutive). */
+    public function availabilities(): HasMany
+    {
+        return $this->hasMany(CandidateAvailability::class);
     }
 
     /** Ids des missions CFA (L6231-2) couvertes par au moins un document de l'apprenti. */

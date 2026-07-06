@@ -3,12 +3,11 @@
 namespace Database\Seeders;
 
 use App\Enums\AdmissionStatut;
+use App\Enums\AvailabilityType;
 use App\Enums\CandidateStatut;
-use App\Enums\ChecklistItemStatut;
 use App\Enums\CompanyStatut;
 use App\Enums\ContractSignatureStatut;
 use App\Enums\ContractStatut;
-use App\Enums\DocumentType;
 use App\Enums\MatchingStatut;
 use App\Enums\NeedStatut;
 use App\Enums\OpcoStatut;
@@ -166,35 +165,38 @@ class DemoSeeder extends Seeder
         // proprement en « Pourvu » (date de clôture + cascade des pistes ouvertes).
         $needs[5]->transitionTo(NeedStatut::Pourvu);
 
-        // -------- Admissions + checklist --------
-        // Candidat 0 : dossier validé (parcours complet)
-        $adm0 = Admission::create(['candidate_id' => $candidates[0]->id, 'statut' => AdmissionStatut::Valide, 'validated_by' => $admission->id, 'validated_at' => now()->subDays(15), 'commentaire' => 'Dossier complet et conforme.']);
-        $this->checklist($adm0, [
-            [DocumentType::CvCandidat, ChecklistItemStatut::Presente],
-            [DocumentType::TestPositionnement, ChecklistItemStatut::Presente],
-            [DocumentType::Cerfa, ChecklistItemStatut::Presente],
-            [DocumentType::Convention, ChecklistItemStatut::Presente],
+        // -------- Pré-admission (CV = seul document requis) --------
+        // Un dossier de pré-admission est créé automatiquement à la création de
+        // chaque candidat (observer). On y attache un CV pour la plupart, on met
+        // à jour les statuts, et on laisse volontairement 2 candidats sans CV.
+        $avecCv = [0, 1, 2, 3, 5, 6, 7, 9];
+        foreach ($avecCv as $i) {
+            $this->attacherCvDemo($candidates[$i]);
+        }
+
+        // Statuts des dossiers de pré-admission (dossiers déjà créés par l'observer).
+        $candidates[0]->admission->forceFill([
+            'statut' => AdmissionStatut::Valide->value, 'validated_by' => $admission->id,
+            'validated_at' => now()->subDays(15), 'commentaire' => 'CV reçu, dossier validé.',
+        ])->save();
+        $candidates[7]->admission->forceFill([
+            'statut' => AdmissionStatut::Valide->value, 'validated_by' => $admission->id,
+            'validated_at' => now()->subDays(25),
+        ])->save();
+        // Candidat 2 : CV présent, prêt à valider (reste « À vérifier »).
+        // Candidats 4 et 8 : PAS de CV → dossier « Incomplet » (démo « CV manquant »).
+        $candidates[4]->admission->forceFill(['statut' => AdmissionStatut::Incomplet->value])->save();
+        $candidates[8]->admission->forceFill(['statut' => AdmissionStatut::Incomplet->value])->save();
+
+        // Quelques disponibilités structurées (démo de la nouvelle fonctionnalité).
+        $candidates[1]->availabilities()->create([
+            'type' => AvailabilityType::Disponible->value, 'immediate' => true,
+            'commentaire' => 'Disponible immédiatement',
         ]);
-        // Candidat 2 : à vérifier, une pièce manquante
-        $adm2 = Admission::create(['candidate_id' => $candidates[2]->id, 'statut' => AdmissionStatut::AVerifier]);
-        $this->checklist($adm2, [
-            [DocumentType::CvCandidat, ChecklistItemStatut::Presente],
-            [DocumentType::TestPositionnement, ChecklistItemStatut::Presente],
-            [DocumentType::Cerfa, ChecklistItemStatut::Manquante],
-        ]);
-        // Candidat 5 : incomplet
-        $adm5 = Admission::create(['candidate_id' => $candidates[5]->id, 'statut' => AdmissionStatut::Incomplet]);
-        $this->checklist($adm5, [
-            [DocumentType::CvCandidat, ChecklistItemStatut::Presente],
-            [DocumentType::TestPositionnement, ChecklistItemStatut::Manquante],
-            [DocumentType::JustificatifAbsence, ChecklistItemStatut::NonConforme],
-        ]);
-        // Candidat 7 : validé
-        $adm7 = Admission::create(['candidate_id' => $candidates[7]->id, 'statut' => AdmissionStatut::Valide, 'validated_by' => $admission->id, 'validated_at' => now()->subDays(25)]);
-        $this->checklist($adm7, [
-            [DocumentType::CvCandidat, ChecklistItemStatut::Presente],
-            [DocumentType::Cerfa, ChecklistItemStatut::Presente],
-            [DocumentType::Convention, ChecklistItemStatut::Presente],
+        $candidates[3]->availabilities()->create([
+            'type' => AvailabilityType::Disponible->value,
+            'date_debut' => now()->addMonth()->startOfMonth()->toDateString(),
+            'commentaire' => 'Après ses examens',
         ]);
 
         // -------- Contrats --------
@@ -357,14 +359,21 @@ class DemoSeeder extends Seeder
         return $user;
     }
 
-    private function checklist(Admission $admission, array $items): void
+    /** Attache un CV de démonstration (PDF minimal valide) au candidat. */
+    private function attacherCvDemo(Candidate $candidate): void
     {
-        foreach ($items as [$type, $statut]) {
-            $admission->items()->create([
-                'document_type' => $type,
-                'est_obligatoire' => true,
-                'statut' => $statut,
-            ]);
+        if ($candidate->getFirstMedia('cv') !== null) {
+            return;
         }
+
+        // PDF minimal valide (détecté comme application/pdf, accepté par la collection).
+        $pdf = "%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n"
+            ."2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n"
+            ."3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 300 200]>>endobj\n"
+            ."trailer<</Root 1 0 R>>\n%%EOF";
+
+        $candidate->addMediaFromString($pdf)
+            ->usingFileName('CV_'.str_replace(' ', '_', $candidate->nom_complet).'.pdf')
+            ->toMediaCollection('cv');
     }
 }

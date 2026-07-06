@@ -1,13 +1,14 @@
 <?php
 
 use App\Enums\AdmissionStatut;
-use App\Enums\ChecklistItemStatut;
 use App\Filament\Resources\Admissions\AdmissionResource;
 use App\Models\Admission;
+use App\Models\Candidate;
 use App\Models\User;
 use App\StateMachine\InvalidTransitionException;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 
 uses(RefreshDatabase::class);
 
@@ -16,43 +17,39 @@ beforeEach(function () {
     $this->actingAs(User::factory()->create());
 });
 
-function admissionAVerifier(): Admission
+/** Dossier de pré-admission d'un candidat SANS CV (créé automatiquement). */
+function admissionSansCv(): Admission
 {
-    $admission = Admission::factory()->create(['statut' => AdmissionStatut::AVerifier]);
-    $admission->genererChecklistObligatoire();
-
-    return $admission->refresh();
+    return Candidate::factory()->create()->admission;
 }
 
-it('génère les pièces obligatoires standard, de façon idempotente', function () {
-    $admission = admissionAVerifier();
+/** Dossier de pré-admission d'un candidat AVEC un CV attaché. */
+function admissionAvecCv(): Admission
+{
+    Storage::fake('public');
+    $candidate = Candidate::factory()->create();
+    $candidate->addMediaFromString("%PDF-1.4\ntrailer<</Root 1 0 R>>\n%%EOF")
+        ->usingFileName('cv.pdf')
+        ->toMediaCollection('cv');
 
-    expect($admission->items()->count())->toBe(count(Admission::PIECES_OBLIGATOIRES));
+    return $candidate->admission;
+}
 
-    // Rejouer ne crée pas de doublon.
-    $admission->genererChecklistObligatoire();
-    expect($admission->items()->count())->toBe(count(Admission::PIECES_OBLIGATOIRES));
+it('crée automatiquement un dossier de pré-admission à la création du candidat', function () {
+    $candidate = Candidate::factory()->create();
+
+    expect($candidate->admission)->not->toBeNull()
+        ->and($candidate->admission->statut)->toBe(AdmissionStatut::AVerifier);
 });
 
-it('ne propose que des pièces pertinentes à l\'admission (pas le CV maître d\'apprentissage)', function () {
-    $types = App\Enums\DocumentType::pourAdmission();
+it('n\'ouvre qu\'un seul dossier par candidat (pas de doublon)', function () {
+    $candidate = Candidate::factory()->create();
 
-    expect($types)
-        ->not->toContain(App\Enums\DocumentType::CvMaitreApprentissage)
-        ->not->toContain(App\Enums\DocumentType::Contrat)
-        ->not->toContain(App\Enums\DocumentType::Cerfa)
-        ->not->toContain(App\Enums\DocumentType::Convention)
-        ->toContain(App\Enums\DocumentType::PieceIdentite)
-        ->toContain(App\Enums\DocumentType::CvCandidat)
-        ->toContain(App\Enums\DocumentType::DiplomeBulletins);
-
-    // Le libellé exact « CV maître d'apprentissage » ne doit pas figurer dans les options.
-    expect(App\Enums\DocumentType::optionsPour($types))
-        ->not->toHaveKey(App\Enums\DocumentType::CvMaitreApprentissage->value);
+    expect(Admission::where('candidate_id', $candidate->id)->count())->toBe(1);
 });
 
-it('interdit la validation tant qu\'une pièce obligatoire manque', function () {
-    $admission = admissionAVerifier();
+it('interdit la validation tant que le CV est manquant', function () {
+    $admission = admissionSansCv();
 
     expect($admission->estComplet())->toBeFalse()
         ->and($admission->canTransitionTo(AdmissionStatut::Valide))->toBeFalse();
@@ -63,9 +60,8 @@ it('interdit la validation tant qu\'une pièce obligatoire manque', function () 
     expect($admission->fresh()->statut)->toBe(AdmissionStatut::AVerifier);
 });
 
-it('autorise la validation quand toutes les pièces obligatoires sont présentes', function () {
-    $admission = admissionAVerifier();
-    $admission->items()->update(['statut' => ChecklistItemStatut::Presente->value]);
+it('autorise la validation quand le CV est fourni', function () {
+    $admission = admissionAvecCv();
 
     expect($admission->estComplet())->toBeTrue()
         ->and($admission->canTransitionTo(AdmissionStatut::Valide))->toBeTrue();
@@ -78,20 +74,22 @@ it('autorise la validation quand toutes les pièces obligatoires sont présentes
         ->and($admission->validated_by)->toBe(auth()->id());
 });
 
-it('exclut Validé des transitions autorisées tant que le dossier est incomplet', function () {
-    $admission = admissionAVerifier();
+it('exclut Validé des transitions autorisées tant que le CV manque', function () {
+    $admission = admissionSansCv();
 
     $autorisees = $admission->allowedTransitions();
     expect($autorisees)->not->toContain(AdmissionStatut::Valide)
         ->and($autorisees)->toContain(AdmissionStatut::Refuse);
+});
 
-    $admission->items()->update(['statut' => ChecklistItemStatut::Presente->value]);
+it('inclut Validé dans les transitions dès que le CV est fourni', function () {
+    $admission = admissionAvecCv();
+
     expect($admission->allowedTransitions())->toContain(AdmissionStatut::Valide);
 });
 
 it('refuse toute transition structurellement interdite (depuis un état terminal)', function () {
-    $admission = admissionAVerifier();
-    $admission->items()->update(['statut' => ChecklistItemStatut::Presente->value]);
+    $admission = admissionAvecCv();
     $admission->transitionTo(AdmissionStatut::Valide);
 
     expect($admission->allowedTransitions())->toBe([]);

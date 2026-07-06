@@ -48,17 +48,18 @@ class AlerteService
 
         Admission::query()
             ->whereNotIn('statut', [AdmissionStatut::Valide->value, AdmissionStatut::Refuse->value])
-            ->with('candidate')
+            ->with('candidate.media')
             ->get()
             ->each(function (Admission $admission) use (&$n) {
-                if ($admission->piecesObligatoiresManquantes()->isEmpty()) {
+                // Pré-admission : le seul document requis est le CV.
+                if (! $admission->cvManquant()) {
                     return;
                 }
 
                 $n += (int) $this->creerAlerte(
                     cle: "admission:incomplete:{$admission->id}",
-                    titre: 'Dossier d\'admission incomplet — '.($admission->candidate?->nom_complet ?? 'candidat'),
-                    description: 'Des pièces obligatoires sont manquantes ou non conformes.',
+                    titre: 'Pré-admission incomplète — '.($admission->candidate?->nom_complet ?? 'candidat'),
+                    description: 'Le CV du candidat est manquant.',
                     assigneeId: $admission->candidate?->commercial_id,
                     taskable: $admission,
                     priorite: TaskPriorite::Normale,

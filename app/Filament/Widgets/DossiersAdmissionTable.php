@@ -31,7 +31,7 @@ class DossiersAdmissionTable extends BaseWidget
         return $table
             ->query(
                 Admission::query()
-                    ->with('candidate')
+                    ->with('candidate.media')
                     ->whereIn('statut', [
                         AdmissionStatut::AVerifier->value,
                         AdmissionStatut::Incomplet->value,
@@ -50,11 +50,11 @@ class DossiersAdmissionTable extends BaseWidget
                 TextColumn::make('statut')
                     ->label('Statut')
                     ->badge(),
-                TextColumn::make('pieces_manquantes')
-                    ->label('Pièces manquantes')
-                    ->state(fn (Admission $record): int => $record->piecesObligatoiresManquantes()->count())
+                TextColumn::make('cv')
+                    ->label('CV')
+                    ->state(fn (Admission $record): string => $record->cvManquant() ? 'CV manquant' : 'CV fourni')
                     ->badge()
-                    ->color(fn (int $state): string => $state > 0 ? 'danger' : 'success')
+                    ->color(fn (string $state): string => $state === 'CV fourni' ? 'success' : 'danger')
                     ->alignCenter(),
                 TextColumn::make('created_at')
                     ->label('Créé le')

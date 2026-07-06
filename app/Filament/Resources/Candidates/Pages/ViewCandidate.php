@@ -64,18 +64,11 @@ class ViewCandidate extends ViewRecord
                         ->label('Dossier d\'admission')
                         ->badge()
                         ->placeholder('Aucun dossier'),
-                    TextEntry::make('pieces_obligatoires')
-                        ->label('Pièces obligatoires')
-                        ->state(function (Candidate $record) {
-                            if (! $record->admission) {
-                                return 'Aucun dossier';
-                            }
-                            $manquantes = $record->admission->piecesObligatoiresManquantes()->count();
-
-                            return $manquantes === 0 ? 'Complet' : $manquantes.' manquante(s)';
-                        })
+                    TextEntry::make('cv')
+                        ->label('CV')
+                        ->state(fn (Candidate $record) => $record->hasCv() ? 'CV fourni' : 'CV manquant')
                         ->badge()
-                        ->color(fn (string $state) => $state === 'Complet' ? 'success' : 'warning'),
+                        ->color(fn (string $state) => $state === 'CV fourni' ? 'success' : 'danger'),
                     TextEntry::make('admission.validated_at')
                         ->label('Validé le')
                         ->dateTime('d/m/Y')

@@ -1,15 +1,22 @@
 <?php
 
 use App\Enums\CandidateStatut;
-use App\Enums\ChecklistItemStatut;
-use App\Models\Admission;
-use App\Models\AdmissionChecklistItem;
 use App\Models\Candidate;
 use App\StateMachine\InvalidTransitionException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 uses(RefreshDatabase::class);
+
+/** Attache un CV (PDF minimal) au candidat, dans la collection média « cv ». */
+function attacherCv(Candidate $candidate): void
+{
+    Storage::fake('public');
+    $candidate->addMediaFromString("%PDF-1.4\ntrailer<</Root 1 0 R>>\n%%EOF")
+        ->usingFileName('cv.pdf')
+        ->toMediaCollection('cv');
+}
 
 /*
 |--------------------------------------------------------------------------
@@ -53,27 +60,16 @@ it('refuse une transition non déclarée', function () {
     $candidate->transitionTo(CandidateStatut::ContratSigne);
 })->throws(InvalidTransitionException::class);
 
-it('bloque « Dossier complet » si une pièce obligatoire est manquante', function () {
+it('bloque « Dossier complet » si le CV est manquant', function () {
     $candidate = Candidate::factory()->create(['statut' => CandidateStatut::Incomplet]);
-    $admission = Admission::factory()->create(['candidate_id' => $candidate->id]);
-    AdmissionChecklistItem::factory()->create([
-        'admission_id' => $admission->id,
-        'est_obligatoire' => true,
-        'statut' => ChecklistItemStatut::Manquante,
-    ]);
 
     expect(fn () => $candidate->fresh()->transitionTo(CandidateStatut::Complet))
         ->toThrow(InvalidTransitionException::class);
 });
 
-it('autorise « Dossier complet » quand les pièces obligatoires sont présentes', function () {
+it('autorise « Dossier complet » quand le CV est fourni', function () {
     $candidate = Candidate::factory()->create(['statut' => CandidateStatut::Incomplet]);
-    $admission = Admission::factory()->create(['candidate_id' => $candidate->id]);
-    AdmissionChecklistItem::factory()->create([
-        'admission_id' => $admission->id,
-        'est_obligatoire' => true,
-        'statut' => ChecklistItemStatut::Presente,
-    ]);
+    attacherCv($candidate);
 
     $candidate->fresh()->transitionTo(CandidateStatut::Complet);
 

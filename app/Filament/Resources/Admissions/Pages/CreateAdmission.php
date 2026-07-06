@@ -9,9 +9,6 @@ class CreateAdmission extends CreateRecord
 {
     protected static string $resource = AdmissionResource::class;
 
-    /** À l'ouverture du dossier, on génère les pièces obligatoires standard. */
-    protected function afterCreate(): void
-    {
-        $this->record->genererChecklistObligatoire();
-    }
+    // Pré-admission : aucune checklist de documents n'est générée à l'ouverture —
+    // le seul document requis est le CV, porté par le candidat.
 }
