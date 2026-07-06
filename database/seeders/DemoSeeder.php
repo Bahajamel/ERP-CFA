@@ -13,7 +13,6 @@ use App\Enums\MatchingStatut;
 use App\Enums\NeedStatut;
 use App\Enums\OpcoStatut;
 use App\Enums\QualiopiStatut;
-use App\Enums\RuptureInitiateur;
 use App\Enums\RuptureMotif;
 use App\Enums\RuptureStatut;
 use App\Enums\SignatureRequestStatut;
@@ -31,7 +30,7 @@ use App\Models\Need;
 use App\Models\Opco;
 use App\Models\OpcoFile;
 use App\Models\QualiopiIndicator;
-use App\Models\RuptureCase;
+use App\Models\Rupture;
 use App\Models\SignatureRequest;
 use App\Models\Task;
 use App\Models\User;
@@ -307,16 +306,15 @@ class DemoSeeder extends Seeder
             'tuteur_id' => $companies[3]['tuteur']->id, 'rythme' => $compta->rythme_defaut, 'lieu_formation' => 'CFA - Site principal',
             'statut_signature' => ContractSignatureStatut::Signe, 'statut_contrat' => ContractStatut::Rompu,
         ]);
-        RuptureCase::create([
+        Rupture::create([
             'contract_id' => $contratRompu->id,
             'date_rupture' => now()->subDays(18),
-            'motif' => RuptureMotif::InitiativeEmployeur->value,
-            'initiateur' => RuptureInitiateur::Employeur->value,
+            'motif' => RuptureMotif::Licenciement->value,
+            'initiative' => 'Employeur',
             'statut' => RuptureStatut::EnAccompagnement->value,
-            'motif_detail' => "Réorganisation de l'entreprise, poste supprimé.",
-            'recherche_employeur' => true,
             'accompagnement' => now()->subDays(15)->format('d/m/Y').' — Entretien réalisé, 2 pistes de reclassement identifiées.',
-            'responsable_id' => $direction->id,
+            'commentaire' => "Réorganisation de l'entreprise, poste supprimé.",
+            'created_by' => $direction->id,
         ]);
 
         // ---- Signature électronique : demande en cours (apprenti a déjà signé) ----

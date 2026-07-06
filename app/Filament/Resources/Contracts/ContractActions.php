@@ -2,21 +2,17 @@
 
 namespace App\Filament\Resources\Contracts;
 
+use App\Enums\ContractSignatureStatut;
 use App\Enums\ContractStatut;
-use App\Enums\RuptureInitiateur;
-use App\Enums\RuptureMotif;
+use App\Enums\SignatureRequestStatut;
 use App\Jobs\GenererLivrablesJob;
 use App\Livret\LivrablePackImporter;
 use App\Livret\LivretRsClient;
-use App\Enums\ContractSignatureStatut;
-use App\Enums\SignatureRequestStatut;
 use App\Models\CfaProfile;
 use App\Models\Contract;
-use App\Services\RuptureService;
 use App\Services\SignatureService;
 use App\StateMachine\InvalidTransitionException;
 use Filament\Actions\Action;
-use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
@@ -278,59 +274,6 @@ class ContractActions
                 Notification::make()
                     ->title('Contrat signé (simulation)')
                     ->body('Toutes les parties ont signé. Preuve archivée dans la GED.')
-                    ->success()
-                    ->send();
-            });
-    }
-
-    /**
-     * Ouvrir un dossier de rupture depuis le contrat : le contrat passe à
-     * « Rompu » et la régularisation OPCO / Finance est tracée (EPIC-18).
-     * Visible pour un contrat engagé sans dossier déjà ouvert.
-     */
-    public static function ouvrirRupture(): Action
-    {
-        return Action::make('ouvrirRupture')
-            ->label('Ouvrir un dossier de rupture')
-            ->icon(Heroicon::OutlinedExclamationTriangle)
-            ->color('danger')
-            ->visible(fn (Contract $record) => (auth()->user()?->can('access_ruptures') ?? false)
-                && $record->ruptureCase()->doesntExist()
-                && $record->statut_contrat->canTransitionTo(ContractStatut::Rompu))
-            ->modalHeading('Ouvrir un dossier de rupture')
-            ->modalDescription('Le contrat passera à « Rompu » et une tâche de régularisation sera créée '
-                .'côté OPCO et côté Finance. L\'apprenti pourra être accompagné vers un nouvel employeur.')
-            ->modalSubmitActionLabel('Ouvrir le dossier')
-            ->schema([
-                DatePicker::make('date_rupture')
-                    ->label('Date de rupture')
-                    ->displayFormat('d/m/Y')
-                    ->default(now())
-                    ->required(),
-                Select::make('motif')
-                    ->label('Motif de rupture')
-                    ->options(RuptureMotif::class)
-                    ->default(RuptureMotif::CommunAccord->value)
-                    ->required(),
-                Select::make('initiateur')
-                    ->label("À l'initiative de")
-                    ->options(RuptureInitiateur::class)
-                    ->default(RuptureInitiateur::CommunAccord->value)
-                    ->required(),
-                Textarea::make('motif_detail')
-                    ->label('Précisions (optionnel)'),
-            ])
-            ->action(function (Contract $record, array $data) {
-                app(RuptureService::class)->ouvrir($record, [
-                    'date_rupture' => $data['date_rupture'],
-                    'motif' => $data['motif'],
-                    'initiateur' => $data['initiateur'],
-                    'motif_detail' => $data['motif_detail'] ?? null,
-                ]);
-
-                Notification::make()
-                    ->title('Dossier de rupture ouvert')
-                    ->body('Le contrat est passé à « Rompu ». Régularisation OPCO / Finance créée.')
                     ->success()
                     ->send();
             });

@@ -80,12 +80,6 @@ class Contract extends Model
         return $this->hasOne(OpcoFile::class);
     }
 
-    /** Dossier de rupture (1—1), ouvert quand le contrat passe à « Rompu ». */
-    public function ruptureCase(): HasOne
-    {
-        return $this->hasOne(RuptureCase::class);
-    }
-
     /** Demandes de signature électronique multi-parties (EPIC-08). */
     public function signatureRequests(): HasMany
     {
@@ -155,18 +149,6 @@ class Contract extends Model
         // Transmission OPCO : ouvre le dossier OPCO s'il n'existe pas (P0-08-4).
         if ($to === ContractStatut::TransmisOpco) {
             $this->opcoFile()->firstOrCreate([], ['statut' => OpcoStatut::APreparer->value]);
-        }
-
-        // Rupture : ouvre un dossier de rupture (brouillon à compléter) si aucun
-        // n'existe, pour qu'un changement de statut direct laisse toujours une
-        // trace exploitable (EPIC-18). L'ouverture détaillée passe par RuptureService.
-        if ($to === ContractStatut::Rompu) {
-            $this->ruptureCase()->firstOrCreate([], [
-                'date_rupture' => now()->toDateString(),
-                'motif' => \App\Enums\RuptureMotif::Autre->value,
-                'initiateur' => \App\Enums\RuptureInitiateur::CommunAccord->value,
-                'responsable_id' => auth()->id(),
-            ]);
         }
 
         if (filled($comment)) {

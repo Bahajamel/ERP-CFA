@@ -1,5 +1,12 @@
 # Sprint 13 — Dossier de rupture (EPIC-18)
 
+> ⚠️ **NOTE D'INTÉGRATION (2026-07-06)** : ce module `RuptureCase` a été développé
+> en parallèle d'une implémentation du binôme (modèle `Rupture`, table `ruptures`).
+> À l'intégration sur `develop`, **c'est la version du binôme qui a été retenue**
+> (décision utilisateur) ; le module `RuptureCase` décrit ci-dessous a été retiré.
+> Le doc est conservé comme trace de conception. Le module rupture en production
+> est `App\Models\Rupture` + `RuptureResource`.
+
 **Durée :** 1 semaine · **Branche :** `feature/dossier-rupture` → `develop`
 **Origine :** compléter le différenciateur phare. On **détectait** déjà le risque
 de rupture (Sprint 11) ; il manquait la **gestion du cas** une fois la rupture
