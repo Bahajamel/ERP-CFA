@@ -60,11 +60,10 @@ class AdmissionForm
                         Placeholder::make('formation')
                             ->label('Formation visée')
                             ->content(fn (?Admission $record) => $record?->candidate?->formationVisee?->libelle ?? '—'),
-                        Placeholder::make('disponibilites')
-                            ->label('Disponibilités')
-                            ->content(fn (?Admission $record) => $record?->candidate?->availabilities->isNotEmpty()
-                                ? $record->candidate->availabilities->map(fn ($a) => $a->libelle())->implode(' · ')
-                                : ($record?->candidate?->disponibilite ?: '—'))
+                        Placeholder::make('disponibilite')
+                            ->label('Disponible à partir du')
+                            ->content(fn (?Admission $record) => $record?->candidate?->date_disponibilite?->format('d/m/Y')
+                                ?? ($record?->candidate?->disponibilite ?: '—'))
                             ->columnSpanFull(),
                     ]),
 
