@@ -50,6 +50,9 @@ class MatchingsTable
                     DeleteBulkAction::make(),
                 ]),
             ])
-            ->defaultSort('created_at', 'desc');
+            ->defaultSort('created_at', 'desc')
+            ->emptyStateIcon('heroicon-o-arrows-right-left')
+            ->emptyStateHeading('Aucune proposition en cours')
+            ->emptyStateDescription('Proposez un candidat sur un besoin d\'entreprise — le score de compatibilité vous aide à choisir le bon profil.');
     }
 }

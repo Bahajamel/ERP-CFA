@@ -9,6 +9,7 @@ use App\Filament\Widgets\DossiersAdmissionTable;
 use App\Filament\Widgets\MesActionsStats;
 use App\Filament\Widgets\MesTachesTable;
 use App\Filament\Widgets\OpcoBloquesTable;
+use App\Filament\Widgets\PrioritesDuJourWidget;
 use App\Filament\Widgets\RelancesCommercialesTable;
 use App\Filament\Widgets\TachesPrioritairesTable;
 use Filament\Pages\Dashboard as BaseDashboard;
@@ -29,6 +30,7 @@ class Dashboard extends BaseDashboard
     {
         return [
             AccountWidget::class,
+            PrioritesDuJourWidget::class,
             MesActionsStats::class,
             DirectionStatsOverview::class,
             CommercialStatsOverview::class,

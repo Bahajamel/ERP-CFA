@@ -158,6 +158,9 @@ class NeedsTable
                     DeleteBulkAction::make(),
                 ]),
             ])
-            ->defaultSort('created_at', 'desc');
+            ->defaultSort('created_at', 'desc')
+            ->emptyStateIcon('heroicon-o-briefcase')
+            ->emptyStateHeading('Aucun besoin de recrutement')
+            ->emptyStateDescription('Enregistrez le premier poste à pourvoir d\'une entreprise : le matching pourra ensuite proposer des candidats compatibles.');
     }
 }

@@ -59,6 +59,9 @@ class AdmissionsTable
                     DeleteBulkAction::make(),
                 ]),
             ])
-            ->defaultSort('created_at', 'desc');
+            ->defaultSort('created_at', 'desc')
+            ->emptyStateIcon('heroicon-o-clipboard-document-check')
+            ->emptyStateHeading('Aucun dossier de pré-admission')
+            ->emptyStateDescription('Les dossiers sont ouverts automatiquement à la création d\'un candidat. Créez un candidat pour commencer.');
     }
 }

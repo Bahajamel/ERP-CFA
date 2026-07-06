@@ -82,6 +82,9 @@ class OpcoFilesTable
                     DeleteBulkAction::make(),
                 ]),
             ])
-            ->defaultSort('created_at', 'desc');
+            ->defaultSort('created_at', 'desc')
+            ->emptyStateIcon('heroicon-o-banknotes')
+            ->emptyStateHeading('Aucun dossier OPCO')
+            ->emptyStateDescription('Les dossiers de financement sont créés automatiquement à la transmission d\'un contrat. Signez un contrat pour démarrer.');
     }
 }
