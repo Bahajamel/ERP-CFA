@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Contracts\Pages;
 use App\Enums\ContractStatut;
 use App\Filament\Resources\Contracts\ContractActions;
 use App\Filament\Resources\Contracts\ContractResource;
+use App\Models\Contract;
 use App\StateMachine\InvalidTransitionException;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\ForceDeleteAction;
@@ -40,7 +41,7 @@ class EditContract extends EditRecord
         $nouveauStatut = $data['statut_contrat'] ?? null;
         unset($data['statut_contrat']);
 
-        /** @var \App\Models\Contract $record */
+        /** @var Contract $record */
         $record = parent::handleRecordUpdate($record, $data);
 
         if ($nouveauStatut !== null && $record->statut_contrat->value !== $nouveauStatut) {

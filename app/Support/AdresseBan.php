@@ -46,11 +46,16 @@ class AdresseBan
                 continue;
             }
 
+            // La BAN renvoie la géométrie en [longitude, latitude].
+            $coords = $feature['geometry']['coordinates'] ?? [];
+
             $cle = json_encode([
                 'adresse' => trim(($p['name'] ?? $label)),
                 'code_postal' => $p['postcode'] ?? null,
                 'ville' => $p['city'] ?? null,
                 'pays' => 'France',
+                'latitude' => isset($coords[1]) ? (float) $coords[1] : null,
+                'longitude' => isset($coords[0]) ? (float) $coords[0] : null,
                 'label' => $label,
             ], JSON_UNESCAPED_UNICODE);
 
@@ -90,7 +95,7 @@ class AdresseBan
     /**
      * Décode la clé d'une option en adresse structurée.
      *
-     * @return array{adresse:?string, code_postal:?string, ville:?string, pays:?string, label:?string}|null
+     * @return array{adresse:?string, code_postal:?string, ville:?string, pays:?string, latitude:?float, longitude:?float, label:?string}|null
      */
     public static function decode(?string $cle): ?array
     {

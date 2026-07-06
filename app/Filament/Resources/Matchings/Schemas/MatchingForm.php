@@ -54,10 +54,6 @@ class MatchingForm
                         DatePicker::make('date_entretien')
                             ->label("Date d'entretien")
                             ->displayFormat('d/m/Y'),
-                        DatePicker::make('next_action_at')
-                            ->label('Prochaine action')
-                            ->displayFormat('d/m/Y')
-                            ->helperText('Date de relance / prochain suivi commercial.'),
                         Textarea::make('retour_entreprise')
                             ->label('Retour entreprise')
                             ->placeholder('ex : Entretien positif, en attente de décision')

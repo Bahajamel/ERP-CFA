@@ -29,6 +29,9 @@ class Need extends Model
             'date_demarrage' => 'date',
             'date_cloture' => 'date',
             'nb_postes' => 'integer',
+            'latitude' => 'float',
+            'longitude' => 'float',
+            'rayon_km' => 'integer',
             'statut' => NeedStatut::class,
         ];
     }

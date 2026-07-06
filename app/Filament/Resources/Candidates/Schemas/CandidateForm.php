@@ -168,12 +168,17 @@ class CandidateForm
                                     ->live(),
                                 DatePicker::make('date_debut')
                                     ->label('À partir du')
+                                    ->native(false)
                                     ->displayFormat('d/m/Y')
-                                    ->hidden(fn ($get) => (bool) $get('immediate')),
+                                    ->closeOnDateSelection()
+                                    ->visible(fn ($get) => ! (bool) $get('immediate')),
                                 DatePicker::make('date_fin')
                                     ->label('Jusqu\'au')
+                                    ->native(false)
                                     ->displayFormat('d/m/Y')
-                                    ->hidden(fn ($get) => (bool) $get('immediate')),
+                                    ->closeOnDateSelection()
+                                    ->afterOrEqual('date_debut')
+                                    ->visible(fn ($get) => ! (bool) $get('immediate')),
                                 TextInput::make('commentaire')
                                     ->label('Commentaire')
                                     ->columnSpanFull(),
