@@ -6,22 +6,18 @@ use App\Enums\ContractSignatureStatut;
 use App\Enums\ContractStatut;
 use App\Enums\SignatureRequestStatut;
 use App\Jobs\GenererLivrablesJob;
-use App\Livret\LivrablePackImporter;
 use App\Livret\LivretRsClient;
 use App\Models\CfaProfile;
 use App\Models\Contract;
 use App\Services\SignatureService;
 use App\StateMachine\InvalidTransitionException;
 use Filament\Actions\Action;
-use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Support\Icons\Heroicon;
-use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 
 /**
@@ -44,88 +40,6 @@ class ContractActions
             ->modalDescription('Confirmer la signature du contrat ? Un document contractuel ou une signature marquée « signée » est requis.')
             ->visible(fn (Contract $record) => $record->statut_contrat->canTransitionTo(ContractStatut::Signe))
             ->action(fn (Contract $record) => self::executer($record, ContractStatut::Signe));
-    }
-
-    /** Transition générique vers un état réellement atteignable. */
-    public static function changerStatut(): Action
-    {
-        return Action::make('changerStatut')
-            ->label('Faire évoluer')
-            ->icon(Heroicon::OutlinedArrowPath)
-            ->color('gray')
-            ->visible(fn (Contract $record) => count($record->allowedTransitions()) > 0)
-            ->schema([
-                Select::make('statut')
-                    ->label('Nouveau statut')
-                    ->options(fn (Contract $record) => collect($record->allowedTransitions())
-                        ->mapWithKeys(fn (ContractStatut $s) => [$s->value => $s->getLabel()])
-                        ->all())
-                    ->required(),
-                Textarea::make('commentaire')
-                    ->label('Commentaire (optionnel)'),
-            ])
-            ->action(fn (Contract $record, array $data) => self::executer(
-                $record,
-                ContractStatut::from($data['statut']),
-                $data['commentaire'] ?? null,
-            ));
-    }
-
-    /**
-     * Importer un pack de livrables généré par LivretRS (ZIP) : chaque PDF est
-     * classé dans la GED de l'apprenti, marqué « généré par LivretRS », avec
-     * les missions CFA suggérées. L'archive n'est pas conservée après import.
-     */
-    public static function importerLivrables(): Action
-    {
-        return Action::make('importerLivrables')
-            ->label('Importer les livrables')
-            ->icon(Heroicon::OutlinedArrowUpTray)
-            ->color('info')
-            ->visible(fn (Contract $record) => $record->candidate !== null
-                && (auth()->user()?->can('access_documents') ?? false))
-            ->modalHeading('Importer un pack de livrables LivretRS')
-            ->modalDescription('Déposez l\'archive ZIP produite par LivretRS. Chaque PDF sera classé '
-                .'dans la GED de l\'apprenti, marqué « généré par LivretRS », avec les missions CFA '
-                .'suggérées (que vous pourrez ajuster ensuite).')
-            ->schema([
-                FileUpload::make('archive')
-                    ->label('Archive ZIP des livrables')
-                    ->disk('local')
-                    ->directory('livret-imports')
-                    ->acceptedFileTypes(['application/zip', 'application/x-zip-compressed', 'multipart/x-zip'])
-                    ->required(),
-            ])
-            ->action(function (Contract $record, array $data) {
-                $chemin = Storage::disk('local')->path($data['archive']);
-
-                try {
-                    $result = app(LivrablePackImporter::class)->import($record, $chemin, auth()->id());
-                } catch (RuntimeException $e) {
-                    Notification::make()
-                        ->title('Import impossible')
-                        ->body($e->getMessage())
-                        ->danger()
-                        ->send();
-
-                    return;
-                } finally {
-                    Storage::disk('local')->delete($data['archive']);
-                }
-
-                $details = $result->reconnus.' livrable(s) reconnu(s), '
-                    .$result->missionsRattachees.' rattachement(s) de mission.';
-
-                if ($result->nonReconnus() > 0) {
-                    $details .= ' '.$result->nonReconnus().' pièce(s) à taguer manuellement.';
-                }
-
-                Notification::make()
-                    ->title($result->importes.' livrable(s) importé(s) dans la GED')
-                    ->body($details)
-                    ->success()
-                    ->send();
-            });
     }
 
     /**

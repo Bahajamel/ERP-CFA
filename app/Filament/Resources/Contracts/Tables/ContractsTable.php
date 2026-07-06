@@ -58,9 +58,7 @@ class ContractsTable
                 ContractActions::signer(),
                 ContractActions::envoyerSignature(),
                 ContractActions::simulerSignature(),
-                ContractActions::changerStatut(),
                 ContractActions::genererLivrables(),
-                ContractActions::importerLivrables(),
                 ViewAction::make(),
                 EditAction::make(),
             ])

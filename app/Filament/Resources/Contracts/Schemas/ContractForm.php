@@ -2,7 +2,9 @@
 
 namespace App\Filament\Resources\Contracts\Schemas;
 
+use App\Enums\ContractStatut;
 use App\Models\Candidate;
+use App\Models\Contract;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
@@ -71,6 +73,16 @@ class ContractForm
                             ->required()
                             ->columnSpanFull(),
                     ]),
+                Section::make('Statut du contrat')
+                    ->description('Faire évoluer le statut applique les règles métier : garde de signature, '
+                        .'ouverture automatique du dossier OPCO à la signature, etc.')
+                    ->visibleOn('edit')
+                    ->schema([
+                        Select::make('statut_contrat')
+                            ->label('Statut')
+                            ->options(fn (?Contract $record): array => $record ? self::statutOptions($record) : [])
+                            ->required(),
+                    ]),
                 Section::make('CERFA (contrat d\'apprentissage)')
                     ->description('Contrat d\'apprentissage entre le CFA et l\'entreprise (CERFA FA13). Déposez le document (PDF).')
                     ->schema([
@@ -83,5 +95,19 @@ class ContractForm
                             ->columnSpanFull(),
                     ]),
             ]);
+    }
+
+    /**
+     * Statuts sélectionnables en édition : le statut actuel (affiché) plus les
+     * transitions réellement atteignables selon la machine à états.
+     *
+     * @return array<string, string>
+     */
+    private static function statutOptions(Contract $record): array
+    {
+        return collect([$record->statut_contrat, ...$record->allowedTransitions()])
+            ->unique()
+            ->mapWithKeys(fn (ContractStatut $s): array => [$s->value => $s->getLabel()])
+            ->all();
     }
 }
