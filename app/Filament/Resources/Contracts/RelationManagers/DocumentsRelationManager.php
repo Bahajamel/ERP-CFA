@@ -32,6 +32,7 @@ class DocumentsRelationManager extends RelationManager
                 Select::make('type')
                     ->label('Type de document')
                     ->options(DocumentType::class)
+                    ->default(DocumentType::Cerfa->value)
                     ->required(),
                 Select::make('statut')
                     ->label('Statut')
@@ -71,7 +72,7 @@ class DocumentsRelationManager extends RelationManager
             ])
             ->headerActions([
                 CreateAction::make()
-                    ->label('Ajouter un document')
+                    ->label('Ajouter CERFA')
                     ->mutateFormDataUsing(function (array $data) {
                         $data['uploaded_by'] = auth()->id();
 
