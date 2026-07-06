@@ -12,6 +12,11 @@ use App\Enums\DocumentType;
 use App\Enums\MatchingStatut;
 use App\Enums\NeedStatut;
 use App\Enums\OpcoStatut;
+use App\Enums\QualiopiStatut;
+use App\Enums\RuptureInitiateur;
+use App\Enums\RuptureMotif;
+use App\Enums\RuptureStatut;
+use App\Enums\SignatureRequestStatut;
 use App\Enums\TaskPriorite;
 use App\Enums\TaskStatut;
 use App\Models\Admission;
@@ -19,13 +24,19 @@ use App\Models\Candidate;
 use App\Models\Company;
 use App\Models\CompanyContact;
 use App\Models\Contract;
+use App\Models\FinanceLine;
 use App\Models\Formation;
 use App\Models\Matching;
 use App\Models\Need;
 use App\Models\Opco;
 use App\Models\OpcoFile;
+use App\Models\QualiopiIndicator;
+use App\Models\RuptureCase;
+use App\Models\SignatureRequest;
 use App\Models\Task;
 use App\Models\User;
+use App\Services\RuptureRiskService;
+use App\Services\SignatureService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
@@ -261,6 +272,87 @@ class DemoSeeder extends Seeder
                 'source' => 'manuel',
             ]);
         }
+
+        // ============================================================
+        //  Différenciateurs métier — pour que chaque tableau de bord parle
+        // ============================================================
+        $qualite = $this->user('Awa Diallo', 'qualite@cfa-v2s.fr', 'Qualité');
+
+        // ---- Finance : lignes financières par contrat ----
+        FinanceLine::create([
+            'contract_id' => $contrat1->id,
+            'libelle' => 'Financement OPCO — année 1',
+            'montant_attendu' => 8000, 'montant_accepte' => 8000,
+        ]);
+        FinanceLine::create([
+            'contract_id' => $contrat0->id,
+            'libelle' => 'Financement OPCO — année 1',
+            'montant_attendu' => 9200, 'montant_bloque' => 9200,
+            'motif_blocage' => 'Dossier OPCO en correction (NIR erroné sur le CERFA).',
+        ]);
+
+        // ---- Qualiopi : quelques non-conformités à traiter (audit-ready) ----
+        QualiopiIndicator::query()->orderBy('numero')->take(3)->get()
+            ->each(fn (QualiopiIndicator $i) => $i->update([
+                'statut' => QualiopiStatut::NonConforme->value,
+                'responsable_id' => $qualite->id,
+                'commentaire' => 'Preuve à recollecter avant le prochain audit.',
+                'reviewed_at' => now()->subWeek(),
+            ]));
+
+        // ---- Rupture : dossier en accompagnement, reclassement en cours ----
+        $contratRompu = Contract::create([
+            'candidate_id' => $candidates[9]->id, 'company_id' => $companies[3]['model']->id, 'formation_id' => $compta->id,
+            'code_rncp' => $compta->code_rncp, 'date_debut' => now()->subMonths(4)->startOfMonth(), 'date_fin' => now()->addMonths(20)->startOfMonth(),
+            'tuteur_id' => $companies[3]['tuteur']->id, 'rythme' => $compta->rythme_defaut, 'lieu_formation' => 'CFA - Site principal',
+            'statut_signature' => ContractSignatureStatut::Signe, 'statut_contrat' => ContractStatut::Rompu,
+        ]);
+        RuptureCase::create([
+            'contract_id' => $contratRompu->id,
+            'date_rupture' => now()->subDays(18),
+            'motif' => RuptureMotif::InitiativeEmployeur->value,
+            'initiateur' => RuptureInitiateur::Employeur->value,
+            'statut' => RuptureStatut::EnAccompagnement->value,
+            'motif_detail' => "Réorganisation de l'entreprise, poste supprimé.",
+            'recherche_employeur' => true,
+            'accompagnement' => now()->subDays(15)->format('d/m/Y').' — Entretien réalisé, 2 pistes de reclassement identifiées.',
+            'responsable_id' => $direction->id,
+        ]);
+
+        // ---- Signature électronique : demande en cours (apprenti a déjà signé) ----
+        SignatureRequest::create([
+            'contract_id' => $contrat3->id,
+            'provider' => 'simulation',
+            'external_id' => 'SIMU-DEMO-'.$contrat3->id,
+            'statut' => SignatureRequestStatut::PartiellementSignee->value,
+            'signataires' => [
+                ['role' => SignatureService::ROLE_APPRENTI, 'libelle' => 'Apprenti', 'nom' => $candidates[5]->nom_complet, 'email' => $candidates[5]->email, 'ordre' => 1, 'signe_at' => now()->subDay()->toIso8601String()],
+                ['role' => SignatureService::ROLE_EMPLOYEUR, 'libelle' => 'Employeur', 'nom' => $companies[0]['tuteur']->nom_complet, 'email' => $companies[0]['tuteur']->email, 'ordre' => 2, 'signe_at' => null],
+                ['role' => SignatureService::ROLE_CFA, 'libelle' => 'CFA', 'nom' => 'Direction CFA', 'email' => 'direction@cfa-v2s.fr', 'ordre' => 3, 'signe_at' => null],
+            ],
+            'sent_at' => now()->subDays(2),
+        ]);
+
+        // ---- Apprenti à risque élevé : maître d'apprentissage parti + OPCO rejeté ----
+        $yanis = Candidate::create([
+            'nom' => 'Moreau', 'prenom' => 'Yanis', 'email' => 'yanis.moreau@email.fr',
+            'telephone' => fake()->phoneNumber(), 'date_naissance' => fake()->dateTimeBetween('-22 years', '-18 years'),
+            'formation_visee_id' => $cyber->id, 'niveau_actuel' => 'Bac', 'disponibilite' => 'Immédiate',
+            'commercial_id' => $thomas->id, 'statut' => CandidateStatut::ContratSigne,
+        ]);
+        $contratRisque = Contract::create([
+            'candidate_id' => $yanis->id, 'company_id' => $companies[2]['model']->id, 'formation_id' => $cyber->id,
+            'code_rncp' => $cyber->code_rncp, 'date_debut' => now()->subMonths(3)->startOfMonth(), 'date_fin' => now()->addMonths(21)->startOfMonth(),
+            'tuteur_id' => null, 'rythme' => $cyber->rythme_defaut, 'lieu_formation' => 'CFA - Site principal',
+            'statut_signature' => ContractSignatureStatut::Signe, 'statut_contrat' => ContractStatut::Actif,
+        ]);
+        OpcoFile::create([
+            'contract_id' => $contratRisque->id, 'opco_id' => $opco2i->id, 'date_depot' => now()->subMonths(2),
+            'statut' => OpcoStatut::Rejete, 'montant_prevu' => 8600, 'motif_rejet' => 'Pièces justificatives incomplètes.',
+        ]);
+
+        // Recalcule le risque de rupture des contrats en cours (widget « apprentis à risque »).
+        app(RuptureRiskService::class)->evaluerTous();
     }
 
     private function user(string $name, string $email, string $role): User
