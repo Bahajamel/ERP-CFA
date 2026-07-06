@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources\OpcoFiles\Schemas;
 
+use App\Enums\OpcoStatut;
+use App\Models\OpcoFile;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -15,6 +17,15 @@ class OpcoFileForm
     {
         return $schema
             ->components([
+                Section::make('Statut du dossier')
+                    ->description('Faire évoluer le statut applique les règles métier (garde de dépôt, motif de rejet, etc.).')
+                    ->visibleOn('edit')
+                    ->schema([
+                        Select::make('statut')
+                            ->label('Statut')
+                            ->options(fn (?OpcoFile $record): array => $record ? self::statutOptions($record) : [])
+                            ->required(),
+                    ]),
                 Section::make('Dossier OPCO')
                     ->columns(2)
                     ->schema([
@@ -68,5 +79,19 @@ class OpcoFileForm
                             ->columnSpanFull(),
                     ]),
             ]);
+    }
+
+    /**
+     * Statuts sélectionnables en édition : le statut actuel plus les transitions
+     * réellement atteignables selon la machine à états.
+     *
+     * @return array<string, string>
+     */
+    private static function statutOptions(OpcoFile $record): array
+    {
+        return collect([$record->statut, ...$record->allowedTransitions()])
+            ->unique()
+            ->mapWithKeys(fn (OpcoStatut $s): array => [$s->value => $s->getLabel()])
+            ->all();
     }
 }

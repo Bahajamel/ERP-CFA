@@ -73,7 +73,6 @@ class OpcoFilesTable
                 OpcoFileActions::preparerDepot(),
                 OpcoFileActions::accepter(),
                 OpcoFileActions::rejeter(),
-                OpcoFileActions::changerStatut(),
                 ViewAction::make(),
                 EditAction::make(),
             ])

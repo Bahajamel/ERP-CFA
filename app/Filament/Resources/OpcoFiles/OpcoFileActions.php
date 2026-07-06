@@ -98,31 +98,6 @@ class OpcoFileActions
             });
     }
 
-    /** Transition générique vers un état réellement atteignable. */
-    public static function changerStatut(): Action
-    {
-        return Action::make('changerStatut')
-            ->label('Faire évoluer')
-            ->icon(Heroicon::OutlinedArrowPath)
-            ->color('gray')
-            ->visible(fn (OpcoFile $record) => count($record->allowedTransitions()) > 0)
-            ->schema([
-                Select::make('statut')
-                    ->label('Nouveau statut')
-                    ->options(fn (OpcoFile $record) => collect($record->allowedTransitions())
-                        ->mapWithKeys(fn (OpcoStatut $s) => [$s->value => $s->getLabel()])
-                        ->all())
-                    ->required(),
-                Textarea::make('commentaire')
-                    ->label('Commentaire (optionnel)'),
-            ])
-            ->action(fn (OpcoFile $record, array $data) => self::executer(
-                $record,
-                OpcoStatut::from($data['statut']),
-                $data['commentaire'] ?? null,
-            ));
-    }
-
     private static function executer(OpcoFile $record, OpcoStatut $cible, ?string $comment = null): void
     {
         try {
