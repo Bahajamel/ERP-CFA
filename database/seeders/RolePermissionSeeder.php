@@ -32,7 +32,7 @@ class RolePermissionSeeder extends Seeder
             'Direction'      => $allButUsers,
             'Commercial'     => ['candidates', 'companies', 'needs', 'matching', 'formations', 'tasks', 'reports'],
             'Admission'      => ['candidates', 'admissions', 'documents', 'formations', 'tasks', 'reports'],
-            'Administratif'  => ['contracts', 'opco', 'documents', 'finance', 'tasks', 'reports'],
+            'Administratif'  => ['contracts', 'opco', 'documents', 'finance', 'ruptures', 'tasks', 'reports'],
             'Scolarité'      => ['attendance', 'formations', 'tasks', 'reports'],
             'Pédagogie'      => ['candidates', 'admissions', 'attendance', 'quality', 'ruptures', 'formations', 'tasks', 'reports'],
             'Finance'        => ['finance', 'contracts', 'opco', 'tasks', 'reports'],
