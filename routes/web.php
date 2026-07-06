@@ -1,11 +1,17 @@
 <?php
 
+use App\Http\Controllers\SignatureWebhookController;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
 // La racine renvoie directement vers le panneau d'administration (l'application).
 Route::redirect('/', '/admin');
+
+// Callback des prestataires de signature électronique eIDAS (EPIC-08).
+// Authentifié par secret partagé (config/signature.php), pas par session.
+Route::post('/webhooks/signature/{provider}', SignatureWebhookController::class)
+    ->name('webhooks.signature');
 
 /*
  * Accès rapide de DÉMONSTRATION : connecte directement le compte administrateur.

@@ -8,15 +8,20 @@ use App\Enums\RuptureMotif;
 use App\Jobs\GenererLivrablesJob;
 use App\Livret\LivrablePackImporter;
 use App\Livret\LivretRsClient;
+use App\Enums\ContractSignatureStatut;
+use App\Enums\SignatureRequestStatut;
 use App\Models\CfaProfile;
 use App\Models\Contract;
 use App\Services\RuptureService;
+use App\Services\SignatureService;
 use App\StateMachine\InvalidTransitionException;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Support\Icons\Heroicon;
@@ -179,6 +184,101 @@ class ContractActions
                     ->title('Génération lancée')
                     ->body('Les livrables sont en cours de génération. Vous serez notifié dès qu\'ils sont dans la GED.')
                     ->info()
+                    ->send();
+            });
+    }
+
+    /**
+     * Envoyer le contrat en signature électronique multi-parties via le
+     * prestataire eIDAS actif (EPIC-08). Visible tant que le contrat n'est pas
+     * signé et que la signature électronique est activée.
+     */
+    public static function envoyerSignature(): Action
+    {
+        return Action::make('envoyerSignature')
+            ->label('Envoyer en signature électronique')
+            ->icon(Heroicon::OutlinedPencilSquare)
+            ->color('primary')
+            ->visible(fn (Contract $record) => app(SignatureService::class)->estActive()
+                && $record->statut_signature !== ContractSignatureStatut::Signe
+                && (auth()->user()?->can('access_contracts') ?? false))
+            ->modalHeading('Signature électronique du contrat')
+            ->modalDescription('Chaque partie recevra une demande de signature. À la signature de '
+                .'toutes les parties, le contrat passera automatiquement à « Signé ».')
+            ->modalSubmitActionLabel('Envoyer aux signataires')
+            ->fillForm(fn (Contract $record) => [
+                'signataires' => app(SignatureService::class)->signatairesParDefaut($record),
+            ])
+            ->schema([
+                Repeater::make('signataires')
+                    ->label('Signataires')
+                    ->schema([
+                        TextInput::make('libelle')
+                            ->label('Rôle')
+                            ->disabled()
+                            ->dehydrated(),
+                        TextInput::make('nom')
+                            ->label('Nom')
+                            ->required(),
+                        TextInput::make('email')
+                            ->label('Email')
+                            ->email()
+                            ->required(),
+                    ])
+                    ->columns(3)
+                    ->addable(false)
+                    ->deletable(false)
+                    ->reorderable(false),
+            ])
+            ->action(function (Contract $record, array $data) {
+                try {
+                    $request = app(SignatureService::class)->envoyer($record, $data['signataires']);
+                } catch (RuntimeException $e) {
+                    Notification::make()->title('Envoi impossible')->body($e->getMessage())->danger()->send();
+
+                    return;
+                }
+
+                Notification::make()
+                    ->title('Demande de signature envoyée')
+                    ->body($request->nombreSignataires().' signataire(s) notifié(s).')
+                    ->success()
+                    ->send();
+            });
+    }
+
+    /**
+     * Simuler la signature de toutes les parties (driver « simulation » only) :
+     * déroule le parcours complet jusqu'au contrat signé, pour la démo.
+     */
+    public static function simulerSignature(): Action
+    {
+        return Action::make('simulerSignature')
+            ->label('Simuler la signature (démo)')
+            ->icon(Heroicon::OutlinedSparkles)
+            ->color('gray')
+            ->requiresConfirmation()
+            ->modalDescription('Simuler la signature de toutes les parties ? Le contrat passera à « Signé ».')
+            ->visible(fn (Contract $record) => app(SignatureService::class)->provider()->nom() === 'simulation'
+                && $record->signatureRequests()
+                    ->whereIn('statut', SignatureRequestStatut::enCours())
+                    ->exists())
+            ->action(function (Contract $record) {
+                $request = $record->signatureRequests()
+                    ->whereIn('statut', SignatureRequestStatut::enCours())
+                    ->latest()
+                    ->first();
+
+                if ($request === null) {
+                    return;
+                }
+
+                app(SignatureService::class)->simulerSignatureComplete($request);
+
+                Notification::make()
+                    ->title('Contrat signé (simulation)')
+                    ->body('Toutes les parties ont signé. Preuve archivée dans la GED.')
+                    ->success()
                     ->send();
             });
     }

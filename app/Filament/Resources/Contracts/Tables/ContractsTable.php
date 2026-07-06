@@ -68,6 +68,8 @@ class ContractsTable
             ])
             ->recordActions([
                 ContractActions::signer(),
+                ContractActions::envoyerSignature(),
+                ContractActions::simulerSignature(),
                 ContractActions::changerStatut(),
                 ContractActions::ouvrirRupture(),
                 ContractActions::genererLivrables(),
