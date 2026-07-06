@@ -57,6 +57,7 @@ class CandidateForm
                             ->label('Rechercher une adresse')
                             ->placeholder('Tapez une adresse…')
                             ->searchable()
+                            ->live()
                             ->dehydrated(false)
                             ->getSearchResultsUsing(fn (string $search): array => app(AdresseBan::class)->options($search))
                             ->getOptionLabelUsing(fn ($value): ?string => AdresseBan::decode($value)['label'] ?? null)
