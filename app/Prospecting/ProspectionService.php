@@ -22,7 +22,7 @@ class ProspectionService
     /**
      * @return array{found:int, imported:int, linked:int, skipped:int}
      */
-    public function prospectForFormation(Formation $formation, float $latitude, float $longitude, ?int $radius = null): array
+    public function prospectForFormation(Formation $formation, float $latitude, float $longitude, ?int $radius = null, ?string $dateDebut = null): array
     {
         $prospects = $this->client->searchForFormation($formation, $latitude, $longitude, $radius);
 
@@ -41,7 +41,7 @@ class ProspectionService
             [$company, $estNouvelle] = $this->trouverOuCreerEntreprise($prospect);
             $estNouvelle ? $imported++ : $linked++;
 
-            $this->rattacherBesoin($company, $formation, $prospect);
+            $this->rattacherBesoin($company, $formation, $prospect, $dateDebut);
         }
 
         return [
@@ -78,7 +78,7 @@ class ProspectionService
      * Crée un besoin « à qualifier » pour la formation ciblée, sauf si un besoin
      * pour cette même formation existe déjà chez l'entreprise (pas de doublon).
      */
-    private function rattacherBesoin(Company $company, Formation $formation, RecruitingCompany $prospect): void
+    private function rattacherBesoin(Company $company, Formation $formation, RecruitingCompany $prospect, ?string $dateDebut = null): void
     {
         if ($company->needs()->where('formation_id', $formation->id)->exists()) {
             return;
@@ -90,6 +90,7 @@ class ProspectionService
             'statut' => NeedStatut::Cree,
             'nb_postes' => 1,
             'localisation' => $prospect->adresse,
+            'date_demarrage' => $dateDebut,
         ]);
     }
 }

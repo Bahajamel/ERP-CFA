@@ -4,10 +4,15 @@ use App\Enums\CompanyStatut;
 use App\Enums\NeedStatut;
 use App\Models\Company;
 use App\Models\Formation;
+use App\Models\Need;
 use App\Prospecting\LaBonneAlternanceClient;
 use App\Prospecting\ProspectionService;
+use App\Filament\Resources\Needs\Pages\ListNeeds;
+use App\Models\User;
+use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
 
@@ -88,6 +93,17 @@ it('importe les prospects comme entreprises (statut Prospect) + besoins à quali
         ->and($acme->needs()->where('formation_id', $formation->id)->where('statut', NeedStatut::Cree->value)->exists())->toBeTrue();
 });
 
+it('reporte la date de début souhaitée sur les besoins créés', function () {
+    Http::fake(['lba.test/*' => Http::response(['jobs' => [recruteur('Acme SAS', '12345678900011')]])]);
+    $formation = Formation::factory()->create(['code_rncp' => 'RNCP34029']);
+
+    app(ProspectionService::class)->prospectForFormation($formation, 48.85, 2.35, 30, '2026-09-01');
+
+    $need = Need::where('formation_id', $formation->id)->first();
+    expect($need)->not->toBeNull()
+        ->and($need->date_demarrage->format('Y-m-d'))->toBe('2026-09-01');
+});
+
 it('ne recrée pas une entreprise au SIRET déjà connu (dédoublonnage)', function () {
     $existante = Company::factory()->create(['siret' => '12345678900011', 'statut' => CompanyStatut::Partenaire]);
     Http::fake(['lba.test/*' => Http::response(['jobs' => [recruteur('Acme SAS', '12345678900011')]])]);
@@ -119,6 +135,17 @@ it('n\'appelle pas l\'API pour une formation sans code RNCP', function () {
 
     expect($resultats)->toBeEmpty();
     Http::assertNothingSent();
+});
+
+it('monte le formulaire de prospection (carte + calendrier + lieu) sans erreur', function () {
+    $this->seed(RolePermissionSeeder::class);
+    $user = User::factory()->create();
+    $user->syncRoles(['Commercial']);
+    $this->actingAs($user);
+
+    Livewire::test(ListNeeds::class)
+        ->mountAction('prospecterLba')
+        ->assertActionMounted('prospecterLba');
 });
 
 it('signale une clé API absente', function () {
