@@ -29,6 +29,9 @@ class ContratsSignesParMoisChart extends ChartWidget
 
     protected ?string $maxHeight = '280px';
 
+    /** Comparaison N-1 activée par défaut. */
+    public ?string $filter = 'comparer';
+
     /** Statuts témoignant d'un contrat signé (ou au-delà). */
     private const STATUTS_SIGNES = [
         ContractStatut::Signe->value,
@@ -46,18 +49,24 @@ class ContratsSignesParMoisChart extends ChartWidget
         return 'line';
     }
 
-    /** Buckets [Y-m => nombre] des 12 derniers mois (mois courant inclus). */
-    private function buckets(): array
+    protected function getFilters(): ?array
     {
-        $debut = now()->startOfMonth()->subMonths(11);
+        return [
+            'simple' => 'Cette année',
+            'comparer' => 'Comparer à N-1',
+        ];
+    }
 
+    /** Nombre de contrats signés par mois sur les 12 mois à partir de $debut. */
+    private function buckets(Carbon $debut): array
+    {
         $buckets = [];
         for ($i = 0; $i < 12; $i++) {
             $buckets[$debut->copy()->addMonths($i)->format('Y-m')] = 0;
         }
 
         Contract::whereIn('statut_contrat', self::STATUTS_SIGNES)
-            ->where('created_at', '>=', $debut)
+            ->whereBetween('created_at', [$debut, $debut->copy()->addMonths(12)])
             ->pluck('created_at')
             ->each(function (Carbon $date) use (&$buckets): void {
                 $cle = $date->format('Y-m');
@@ -71,25 +80,42 @@ class ContratsSignesParMoisChart extends ChartWidget
 
     protected function getData(): array
     {
-        $buckets = $this->buckets();
+        $debut = now()->startOfMonth()->subMonths(11);
+        $current = $this->buckets($debut);
 
         $labels = array_map(
             fn (string $ym): string => Carbon::createFromFormat('Y-m', $ym)
                 ->locale('fr')->translatedFormat('M Y'),
-            array_keys($buckets),
+            array_keys($current),
         );
 
-        return [
-            'datasets' => [
-                [
-                    'label' => 'Contrats signés',
-                    'data' => array_values($buckets),
-                    'borderColor' => 'rgb(16, 185, 129)',
-                    'backgroundColor' => 'rgba(16, 185, 129, 0.15)',
-                    'fill' => true,
-                    'tension' => 0.3,
-                ],
+        $datasets = [
+            [
+                'label' => 'Cette année',
+                'data' => array_values($current),
+                'borderColor' => 'rgb(16, 185, 129)',
+                'backgroundColor' => 'rgba(16, 185, 129, 0.15)',
+                'fill' => true,
+                'tension' => 0.3,
             ],
+        ];
+
+        // Comparaison N-1 : mêmes mois, un an plus tôt (ligne pointillée grise).
+        if ($this->filter === 'comparer') {
+            $previous = $this->buckets($debut->copy()->subYear());
+            $datasets[] = [
+                'label' => 'Année précédente (N-1)',
+                'data' => array_values($previous),
+                'borderColor' => 'rgb(148, 163, 184)',
+                'backgroundColor' => 'rgba(148, 163, 184, 0)',
+                'borderDash' => [6, 4],
+                'fill' => false,
+                'tension' => 0.3,
+            ];
+        }
+
+        return [
+            'datasets' => $datasets,
             'labels' => $labels,
         ];
     }
@@ -99,7 +125,7 @@ class ContratsSignesParMoisChart extends ChartWidget
         // Chaque point renvoie vers la liste des contrats signés (pas de filtre
         // mensuel sur la ressource Contrats — on ne la modifie pas ici).
         $url = ContractResource::getUrl('index', [
-            'tableFilters' => ['statut_contrat' => ['value' => ContractStatut::Signe->value]],
+            'filters' => ['statut_contrat' => ['value' => ContractStatut::Signe->value]],
         ]);
 
         return array_fill(0, 12, $url);
@@ -109,7 +135,10 @@ class ContratsSignesParMoisChart extends ChartWidget
     {
         return $this->clickableOptions([
             'plugins' => [
-                'legend' => ['display' => false],
+                'legend' => [
+                    'display' => $this->filter === 'comparer',
+                    'position' => 'bottom',
+                ],
             ],
             'scales' => [
                 'y' => [

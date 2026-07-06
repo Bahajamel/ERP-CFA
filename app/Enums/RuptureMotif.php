@@ -2,6 +2,7 @@
 
 namespace App\Enums;
 
+<<<<<<< HEAD
 use Filament\Support\Contracts\HasColor;
 use Filament\Support\Contracts\HasLabel;
 
@@ -21,11 +22,24 @@ enum RuptureMotif: string implements HasLabel, HasColor
     case ExclusionCfa = 'exclusion_cfa';
     case LiquidationEntreprise = 'liquidation_entreprise';
     case ForceMajeureInaptitude = 'force_majeure_inaptitude';
+=======
+use Filament\Support\Contracts\HasLabel;
+
+enum RuptureMotif: string implements HasLabel
+{
+    case Demission = 'demission';
+    case Licenciement = 'licenciement';
+    case CommunAccord = 'commun_accord';
+    case Abandon = 'abandon';
+    case Inaptitude = 'inaptitude';
+    case EchecPeriodeEssai = 'echec_periode_essai';
+>>>>>>> a2c0d03f96d990843d553f1798403e8b8d5fb951
     case Autre = 'autre';
 
     public function getLabel(): string
     {
         return match ($this) {
+<<<<<<< HEAD
             self::PeriodeEssai => "Rupture pendant les 45 premiers jours",
             self::CommunAccord => "Résiliation d'un commun accord",
             self::InitiativeApprenti => "À l'initiative de l'apprenti (démission)",
@@ -48,6 +62,15 @@ enum RuptureMotif: string implements HasLabel, HasColor
             self::InitiativeApprenti, self::InitiativeEmployeur => 'warning',
             self::Abandon, self::ExclusionCfa, self::LiquidationEntreprise, self::ForceMajeureInaptitude => 'danger',
             self::Autre => 'gray',
+=======
+            self::Demission => 'Démission de l\'apprenti',
+            self::Licenciement => 'Licenciement',
+            self::CommunAccord => 'Rupture d\'un commun accord',
+            self::Abandon => 'Abandon',
+            self::Inaptitude => 'Inaptitude',
+            self::EchecPeriodeEssai => 'Échec en période d\'essai',
+            self::Autre => 'Autre',
+>>>>>>> a2c0d03f96d990843d553f1798403e8b8d5fb951
         };
     }
 }

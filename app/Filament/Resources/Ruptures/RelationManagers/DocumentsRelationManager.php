@@ -20,14 +20,23 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 
 /**
+<<<<<<< HEAD
  * Preuves du dossier de rupture (courrier de rupture, accusé, convention de
  * reclassement…) — rattachées via la GED polymorphe, sans duplication.
+=======
+ * Pièces justificatives de la rupture (convention, courriers…), conservées
+ * comme preuves du dossier.
+>>>>>>> a2c0d03f96d990843d553f1798403e8b8d5fb951
  */
 class DocumentsRelationManager extends RelationManager
 {
     protected static string $relationship = 'documents';
 
+<<<<<<< HEAD
     protected static ?string $title = 'Preuves';
+=======
+    protected static ?string $title = 'Documents';
+>>>>>>> a2c0d03f96d990843d553f1798403e8b8d5fb951
 
     public function form(Schema $schema): Schema
     {
@@ -76,7 +85,11 @@ class DocumentsRelationManager extends RelationManager
             ])
             ->headerActions([
                 CreateAction::make()
+<<<<<<< HEAD
                     ->label('Ajouter une preuve')
+=======
+                    ->label('Ajouter un document')
+>>>>>>> a2c0d03f96d990843d553f1798403e8b8d5fb951
                     ->mutateFormDataUsing(function (array $data) {
                         $data['uploaded_by'] = auth()->id();
 
