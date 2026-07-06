@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Collection;
 
 class Company extends Model
 {
@@ -44,6 +45,25 @@ class Company extends Model
     public function needs(): HasMany
     {
         return $this->hasMany(Need::class);
+    }
+
+    /**
+     * Formations pour lesquelles l'entreprise recherche activement des alternants,
+     * déduites de ses besoins ouverts (libellés distincts). Une entreprise peut
+     * recruter sur plusieurs formations à la fois (un besoin par formation).
+     *
+     * @return Collection<int, string>
+     */
+    public function formationsRecherchees(): Collection
+    {
+        return $this->needs()
+            ->ouverts()
+            ->with('formation')
+            ->get()
+            ->pluck('formation.libelle')
+            ->filter()
+            ->unique()
+            ->values();
     }
 
     public function contracts(): HasMany

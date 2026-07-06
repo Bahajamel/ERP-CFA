@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Companies\Tables;
 
 use App\Enums\CompanyStatut;
+use App\Models\Formation;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -54,6 +55,17 @@ class CompaniesTable
                 SelectFilter::make('statut')
                     ->label('Statut')
                     ->options(CompanyStatut::class),
+                SelectFilter::make('formation_recherchee')
+                    ->label('Formation recherchée')
+                    ->options(fn (): array => Formation::query()->orderBy('libelle')->pluck('libelle', 'id')->all())
+                    ->searchable()
+                    ->query(fn (Builder $query, array $data): Builder => $query->when(
+                        $data['value'],
+                        fn (Builder $q, $formationId): Builder => $q->whereHas(
+                            'needs',
+                            fn (Builder $n): Builder => $n->ouverts()->where('formation_id', $formationId),
+                        ),
+                    )),
                 Filter::make('relance_a_faire')
                     ->label('Relance à faire')
                     ->query(fn (Builder $query): Builder => $query->whereHas(
