@@ -73,4 +73,14 @@ return [
         ],
     ],
 
+    /*
+    | Géocodage d'une ville / code postal via l'API Adresse (BAN), publique et
+    | gratuite (sans clé). Sert à centrer la prospection sur un lieu saisi.
+    | Réutilise le même toggle SSL dev que La Bonne Alternance (cURL error 60).
+    */
+    'geocoder' => [
+        'base_url' => env('GEOCODER_BASE_URL', 'https://api-adresse.data.gouv.fr'),
+        'verify_ssl' => filter_var(env('LBA_VERIFY_SSL', true), FILTER_VALIDATE_BOOLEAN),
+    ],
+
 ];

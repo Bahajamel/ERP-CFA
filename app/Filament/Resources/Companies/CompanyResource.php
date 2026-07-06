@@ -39,7 +39,7 @@ class CompanyResource extends Resource
 
     protected static ?int $navigationSort = 2;
 
-    protected static ?string $navigationLabel = 'Entreprises';
+    protected static ?string $navigationLabel = 'Entreprises partenaires';
 
     protected static ?string $modelLabel = 'entreprise';
 

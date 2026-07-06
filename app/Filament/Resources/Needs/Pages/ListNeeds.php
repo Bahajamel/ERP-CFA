@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Needs\Pages;
 use App\Filament\Exports\NeedExporter;
 use App\Filament\Resources\Needs\NeedResource;
 use App\Models\Formation;
+use App\Prospecting\AddressGeocoder;
 use App\Prospecting\LaBonneAlternanceClient;
 use App\Prospecting\ProspectionService;
 use Filament\Actions\Action;
@@ -69,6 +70,10 @@ class ListNeeds extends ListRecords
                     ->searchable()
                     ->required()
                     ->helperText('La recherche cible le métier via le code RNCP de la formation. Un besoin est créé pour chaque entreprise trouvée.'),
+                TextInput::make('lieu')
+                    ->label('Lieu')
+                    ->placeholder('Ville ou code postal (ex. Lyon, 69003)')
+                    ->helperText('Laisser vide pour rechercher autour du CFA.'),
                 TextInput::make('radius')
                     ->label('Rayon de recherche (km)')
                     ->numeric()
@@ -101,19 +106,42 @@ class ListNeeds extends ListRecords
                     return;
                 }
 
+                // Lieu saisi → géocodage (ville/CP) ; sinon on centre sur le CFA.
+                $lieu = trim((string) ($data['lieu'] ?? ''));
                 $center = config('services.labonnealternance.center');
+                $latitude = (float) $center['lat'];
+                $longitude = (float) $center['lon'];
+                $lieuLabel = 'autour du CFA';
+
+                if ($lieu !== '') {
+                    $geo = app(AddressGeocoder::class)->geocode($lieu);
+
+                    if ($geo === null) {
+                        Notification::make()
+                            ->warning()
+                            ->title('Lieu introuvable')
+                            ->body("Impossible de localiser « {$lieu} ». Vérifiez la ville ou le code postal.")
+                            ->send();
+
+                        return;
+                    }
+
+                    $latitude = $geo['lat'];
+                    $longitude = $geo['lon'];
+                    $lieuLabel = $geo['label'];
+                }
 
                 try {
                     $r = app(ProspectionService::class)->prospectForFormation(
                         $formation,
-                        (float) $center['lat'],
-                        (float) $center['lon'],
+                        $latitude,
+                        $longitude,
                         (int) ($data['radius'] ?? config('services.labonnealternance.default_radius')),
                     );
 
                     Notification::make()
                         ->success()
-                        ->title('Prospection terminée')
+                        ->title("Prospection terminée ({$lieuLabel})")
                         ->body("{$r['found']} entreprise(s) trouvée(s) · {$r['imported']} importée(s) · {$r['linked']} déjà connue(s) · {$r['skipped']} sans SIRET")
                         ->send();
                 } catch (Throwable $e) {
