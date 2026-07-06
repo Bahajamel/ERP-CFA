@@ -85,22 +85,30 @@ class Admission extends Model
             ->get();
     }
 
-    /** Toutes les pièces obligatoires sont-elles présentes ? */
+    /**
+     * Le CV du candidat est-il manquant ? À l'étape de pré-admission, le CV est
+     * le seul document requis (porté par le candidat). Détection centralisée.
+     */
+    public function cvManquant(): bool
+    {
+        return ! ($this->candidate?->hasCv() ?? false);
+    }
+
+    /** Le dossier de pré-admission est complet dès lors que le CV est fourni. */
     public function estComplet(): bool
     {
-        return $this->piecesObligatoiresManquantes()->isEmpty();
+        return ! $this->cvManquant();
     }
 
     /**
-     * Règle métier (CDC P0-07-4) : impossible de valider tant qu'une pièce
-     * obligatoire manque ou est non conforme.
+     * Règle métier (pré-admission) : impossible de valider (« présenter ») le
+     * dossier tant que le CV du candidat n'est pas fourni. Contrôle backend —
+     * indépendant de l'UI.
      */
     public function guardTransition(BackedEnum $from, BackedEnum $to): ?string
     {
-        if ($to === AdmissionStatut::Valide && ! $this->estComplet()) {
-            $nb = $this->piecesObligatoiresManquantes()->count();
-
-            return "Validation impossible : {$nb} pièce(s) obligatoire(s) manquante(s) ou non conforme(s).";
+        if ($to === AdmissionStatut::Valide && $this->cvManquant()) {
+            return 'Impossible de valider ce dossier : le CV du candidat est manquant.';
         }
 
         return null;

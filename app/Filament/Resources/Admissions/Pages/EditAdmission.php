@@ -13,10 +13,10 @@ class EditAdmission extends EditRecord
 
     protected function getHeaderActions(): array
     {
+        // « Valider le dossier » est volontairement placé en bas du dossier
+        // (après les infos candidat et le CV), pas ici. Voir AdmissionForm.
         return [
-            AdmissionActions::valider(),
             AdmissionActions::changerStatut(),
-            AdmissionActions::genererChecklist(),
             DeleteAction::make(),
         ];
     }
