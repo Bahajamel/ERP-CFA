@@ -17,6 +17,8 @@ class EditContract extends EditRecord
     {
         return [
             ContractActions::signer(),
+            ContractActions::envoyerSignature(),
+            ContractActions::simulerSignature(),
             ContractActions::changerStatut(),
             ContractActions::ouvrirRupture(),
             DeleteAction::make(),

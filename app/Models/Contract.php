@@ -86,6 +86,12 @@ class Contract extends Model
         return $this->hasOne(RuptureCase::class);
     }
 
+    /** Demandes de signature électronique multi-parties (EPIC-08). */
+    public function signatureRequests(): HasMany
+    {
+        return $this->hasMany(SignatureRequest::class);
+    }
+
     public function financeLines(): HasMany
     {
         return $this->hasMany(FinanceLine::class);

@@ -17,6 +17,10 @@ return Application::configure(basePath: dirname(__DIR__))
         // schéma (https) et le bon hôte via les en-têtes X-Forwarded-* — sans
         // quoi les assets partent en http (page cassée) et le CSRF échoue (419).
         $middleware->trustProxies(at: '*');
+
+        // Les webhooks (callbacks des prestataires de signature eIDAS) sont
+        // authentifiés par secret partagé, pas par jeton CSRF de session.
+        $middleware->validateCsrfTokens(except: ['webhooks/*']);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
