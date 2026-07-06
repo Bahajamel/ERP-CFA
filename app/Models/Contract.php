@@ -17,13 +17,22 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
 
-class Contract extends Model
+class Contract extends Model implements HasMedia
 {
     use HasFactory;
-    use SoftDeletes;
+    use InteractsWithMedia;
     use LogsActivity;
     use ManagesState;
+    use SoftDeletes;
+
+    /** Le CERFA (contrat d'apprentissage) signé, rattaché directement au contrat. */
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection('cerfa')->singleFile();
+    }
 
     protected $guarded = [];
 
