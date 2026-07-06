@@ -15,6 +15,13 @@ class ListCandidates extends ListRecords
 {
     protected static string $resource = CandidateResource::class;
 
+    public function getSubheading(): ?string
+    {
+        return 'Le point de départ du cycle apprenant : chaque futur apprenti entre ici. '
+            .'Créez une fiche, suivez son statut (prospect → dossier complet), puis ouvrez son '
+            .'admission. La « Vue Pipeline » montre l\'avancement de tous les candidats en colonnes.';
+    }
+
     protected function getHeaderActions(): array
     {
         return [

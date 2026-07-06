@@ -10,6 +10,13 @@ class ListDocuments extends ListRecords
 {
     protected static string $resource = DocumentResource::class;
 
+    public function getSubheading(): ?string
+    {
+        return 'La GED unique du CFA : tous les documents (pièces candidat, contrats, CERFA, preuves '
+            .'Qualiopi, livrables LivretRS…) rattachés à leur dossier. Classez par type et statut, '
+            .'et taguez les livrables aux missions CFA qu\'ils prouvent.';
+    }
+
     protected function getHeaderActions(): array
     {
         return [

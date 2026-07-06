@@ -36,7 +36,7 @@ class GuideDemarrageWidget extends Widget
             [3, 'Entreprise', 'Les entreprises partenaires qui accueillent les apprentis.', CompanyResource::class, 'heroicon-o-building-office-2'],
             [4, 'Besoin', 'Les postes en alternance que les entreprises veulent pourvoir.', NeedResource::class, 'heroicon-o-briefcase'],
             [5, 'Matching', 'Rapprocher un candidat du bon besoin d\'entreprise.', MatchingResource::class, 'heroicon-o-sparkles'],
-            [6, 'Contrat', 'Établir le contrat d\'apprentissage (CERFA) et le faire signer.', ContractResource::class, 'heroicon-o-document-text'],
+            [6, 'Contrat', 'Établir le contrat d\'apprentissage (CERFA) et le faire signer électroniquement.', ContractResource::class, 'heroicon-o-document-text'],
             [7, 'Dossier OPCO', 'Faire financer le contrat par l\'OPCO et suivre les versements.', OpcoFileResource::class, 'heroicon-o-banknotes'],
         ];
 

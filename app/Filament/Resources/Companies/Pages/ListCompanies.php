@@ -13,6 +13,13 @@ class ListCompanies extends ListRecords
 {
     protected static string $resource = CompanyResource::class;
 
+    public function getSubheading(): ?string
+    {
+        return 'Les entreprises partenaires qui accueillent vos apprentis. Enregistrez l\'entreprise, '
+            .'ses contacts et ses tuteurs (maîtres d\'apprentissage), puis exprimez ses besoins de '
+            .'recrutement pour lancer le matching avec vos candidats.';
+    }
+
     protected function getHeaderActions(): array
     {
         return [
