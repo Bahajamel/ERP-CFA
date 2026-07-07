@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Candidates\Schemas;
 
+use App\Models\Candidate;
 use App\Support\AdresseBan;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
@@ -9,6 +10,7 @@ use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 
@@ -50,7 +52,10 @@ class CandidateForm
                             DatePicker::make('date_naissance')
                                 ->label('Date de naissance')
                                 ->placeholder('ex : 15/03/2004')
-                                ->displayFormat('d/m/Y'),
+                                ->displayFormat('d/m/Y')
+                                // Pilote l'affichage conditionnel de l'attestation
+                                // de création de projet (candidats de plus de 30 ans).
+                                ->live(onBlur: true),
                         ]),
                     Section::make('Formation & suivi')
                         ->icon('heroicon-o-academic-cap')
@@ -150,9 +155,9 @@ class CandidateForm
                                 ->label('Pays')
                                 ->default('France'),
                         ]),
-                    Section::make('CV du candidat')
+                    Section::make('Pièces du candidat')
                         ->icon('heroicon-o-document-arrow-up')
-                        ->description('Le CV est le seul document demandé à cette étape. Il sera automatiquement disponible côté pré-admission.')
+                        ->description('Le CV reste la pièce requise pour valider la pré-admission. Les justificatifs complètent le dossier dès la création.')
                         ->schema([
                             SpatieMediaLibraryFileUpload::make('cv')
                                 ->label('CV (PDF, DOC ou DOCX)')
@@ -165,7 +170,41 @@ class CandidateForm
                                 ->maxSize(5120)
                                 ->downloadable()
                                 ->openable()
-                                ->helperText('Taille maximale : 5 Mo.')
+                                ->helperText('Taille maximale : 5 Mo. Automatiquement disponible côté pré-admission.')
+                                ->columnSpanFull(),
+                            SpatieMediaLibraryFileUpload::make('piece_identite')
+                                ->label('Pièce d\'identité')
+                                ->collection('piece_identite')
+                                ->acceptedFileTypes(['application/pdf', 'image/jpeg', 'image/png'])
+                                ->maxSize(5120)
+                                ->downloadable()
+                                ->openable()
+                                ->helperText('Carte d\'identité, titre de séjour, passeport ou document équivalent (PDF/JPG/PNG, 5 Mo max).')
+                                ->columnSpanFull(),
+                            SpatieMediaLibraryFileUpload::make('carte_vitale')
+                                ->label('Carte Vitale ou attestation de sécurité sociale')
+                                ->collection('carte_vitale')
+                                ->acceptedFileTypes(['application/pdf', 'image/jpeg', 'image/png'])
+                                ->maxSize(5120)
+                                ->downloadable()
+                                ->openable()
+                                ->helperText('PDF, JPG ou PNG — 5 Mo max.')
+                                ->columnSpanFull(),
+                            SpatieMediaLibraryFileUpload::make('attestation_projet')
+                                ->label('Attestation de création de projet')
+                                ->collection('attestation_projet')
+                                ->acceptedFileTypes(['application/pdf', 'image/jpeg', 'image/png'])
+                                ->maxSize(5120)
+                                ->downloadable()
+                                ->openable()
+                                // Visible et exigée uniquement pour les candidats
+                                // de plus de 30 ans (dérogation d'âge apprentissage).
+                                ->visible(fn (Get $get): bool => Candidate::dateNaissancePlusDe30Ans($get('date_naissance')))
+                                ->required(fn (Get $get): bool => Candidate::dateNaissancePlusDe30Ans($get('date_naissance')))
+                                ->validationMessages([
+                                    'required' => 'L\'attestation de création de projet est obligatoire pour les candidats de plus de 30 ans.',
+                                ])
+                                ->helperText('Obligatoire uniquement pour les candidats de plus de 30 ans (PDF/JPG/PNG, 5 Mo max).')
                                 ->columnSpanFull(),
                         ]),
                 ])->columnSpan(1),

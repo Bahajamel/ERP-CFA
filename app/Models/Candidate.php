@@ -46,10 +46,17 @@ class Candidate extends Model implements HasMedia
         ];
     }
 
+    /** Types MIME acceptés pour les pièces justificatives (PDF ou image). */
+    private const MIMES_JUSTIFICATIFS = ['application/pdf', 'image/jpeg', 'image/png'];
+
     /**
-     * CV du candidat : un seul fichier (PDF / DOC / DOCX), attaché dès la
-     * pré-candidature. C'est l'unique document demandé à cette étape ; il est
-     * ensuite réutilisé tel quel côté pré-admission (aucune duplication).
+     * Pièces du candidat, chacune dans sa collection média à fichier unique :
+     * - `cv` : seul document requis pour valider la pré-admission ;
+     * - `piece_identite` : carte d'identité, titre de séjour, passeport… ;
+     * - `carte_vitale` : Carte Vitale ou attestation de sécurité sociale ;
+     * - `attestation_projet` : attestation de création de projet, exigée
+     *   uniquement pour les candidats de plus de 30 ans (dérogation d'âge
+     *   du contrat d'apprentissage).
      */
     public function registerMediaCollections(): void
     {
@@ -60,6 +67,30 @@ class Candidate extends Model implements HasMedia
                 'application/msword',
                 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
             ]);
+
+        $this->addMediaCollection('piece_identite')->singleFile()->acceptsMimeTypes(self::MIMES_JUSTIFICATIFS);
+        $this->addMediaCollection('carte_vitale')->singleFile()->acceptsMimeTypes(self::MIMES_JUSTIFICATIFS);
+        $this->addMediaCollection('attestation_projet')->singleFile()->acceptsMimeTypes(self::MIMES_JUSTIFICATIFS);
+    }
+
+    /** Le candidat a-t-il plus de 30 ans (règle attestation de création de projet) ? */
+    public function plusDe30Ans(): bool
+    {
+        return self::dateNaissancePlusDe30Ans($this->date_naissance);
+    }
+
+    /** Même règle, applicable à une valeur brute de formulaire (état non persisté). */
+    public static function dateNaissancePlusDe30Ans(mixed $dateNaissance): bool
+    {
+        if (blank($dateNaissance)) {
+            return false;
+        }
+
+        try {
+            return Carbon::parse($dateNaissance)->age > 30;
+        } catch (\Throwable) {
+            return false;
+        }
     }
 
     /**
