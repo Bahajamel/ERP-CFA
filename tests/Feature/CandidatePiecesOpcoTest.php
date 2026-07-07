@@ -209,6 +209,8 @@ it('recherche une entreprise par nom et encode sa fiche complète', function () 
             'results' => [[
                 'nom_raison_sociale' => 'MIVA',
                 'nom_complet' => 'MIVA',
+                'activite_principale' => '56.10C',
+                'section_activite_principale' => 'I',
                 'siege' => [
                     'siret' => '48953331500011',
                     'numero_voie' => '43',
@@ -231,6 +233,8 @@ it('recherche une entreprise par nom et encode sa fiche complète', function () 
 
     expect($fiche['raison_sociale'])->toBe('MIVA')
         ->and($fiche['siret'])->toBe('48953331500011')
+        // Secteur = libellé de la section NAF de l'activité principale.
+        ->and($fiche['secteur'])->toBe('Hébergement et restauration')
         ->and($fiche['adresse'])->toBe('43 AVENUE GABRIELLE')
         ->and($fiche['code_postal'])->toBe('17390')
         ->and($fiche['ville'])->toBe('LA TREMBLADE')

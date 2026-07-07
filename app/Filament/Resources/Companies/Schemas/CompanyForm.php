@@ -90,6 +90,7 @@ class CompanyForm
 
                                     $set('raison_sociale', $fiche['raison_sociale']);
                                     $set('siret', $fiche['siret']);
+                                    $set('secteur', $fiche['secteur'] ?? null);
                                     $set('adresse', $fiche['adresse']);
                                     $set('code_postal', $fiche['code_postal']);
                                     $set('ville', $fiche['ville']);

@@ -17,6 +17,31 @@ class EntrepriseAnnuaire
 {
     private const ENDPOINT = 'https://recherche-entreprises.api.gouv.fr/search';
 
+    /** Sections NAF rév. 2 (INSEE) : lettre → libellé du secteur d'activité. */
+    private const SECTIONS_NAF = [
+        'A' => 'Agriculture, sylviculture et pêche',
+        'B' => 'Industries extractives',
+        'C' => 'Industrie manufacturière',
+        'D' => 'Production et distribution d\'électricité, de gaz, de vapeur',
+        'E' => 'Eau, assainissement, gestion des déchets et dépollution',
+        'F' => 'Construction',
+        'G' => 'Commerce ; réparation d\'automobiles et de motocycles',
+        'H' => 'Transports et entreposage',
+        'I' => 'Hébergement et restauration',
+        'J' => 'Information et communication',
+        'K' => 'Activités financières et d\'assurance',
+        'L' => 'Activités immobilières',
+        'M' => 'Activités spécialisées, scientifiques et techniques',
+        'N' => 'Services administratifs et de soutien',
+        'O' => 'Administration publique',
+        'P' => 'Enseignement',
+        'Q' => 'Santé humaine et action sociale',
+        'R' => 'Arts, spectacles et activités récréatives',
+        'S' => 'Autres activités de services',
+        'T' => 'Activités des ménages en tant qu\'employeurs',
+        'U' => 'Activités extra-territoriales',
+    ];
+
     /**
      * Résultats pour un Select Filament : clé = fiche encodée (JSON),
      * valeur = libellé affiché.
@@ -50,9 +75,15 @@ class EntrepriseAnnuaire
 
             $ville = $siege['libelle_commune'] ?? null;
 
+            // Secteur = libellé de la section NAF (activité principale),
+            // repli sur le code NAF brut si la section est inconnue.
+            $secteur = self::SECTIONS_NAF[$resultat['section_activite_principale'] ?? '']
+                ?? ($resultat['activite_principale'] ?? null);
+
             $cle = json_encode([
                 'raison_sociale' => $nom,
                 'siret' => $siret,
+                'secteur' => $secteur,
                 'adresse' => $this->voie($siege),
                 'code_postal' => $siege['code_postal'] ?? null,
                 'ville' => $ville,
@@ -71,7 +102,7 @@ class EntrepriseAnnuaire
     /**
      * Décode la clé d'une option en fiche entreprise structurée.
      *
-     * @return array{raison_sociale:?string, siret:?string, adresse:?string, code_postal:?string, ville:?string, pays:?string, latitude:?float, longitude:?float, label:?string}|null
+     * @return array{raison_sociale:?string, siret:?string, secteur:?string, adresse:?string, code_postal:?string, ville:?string, pays:?string, latitude:?float, longitude:?float, label:?string}|null
      */
     public static function decode(?string $cle): ?array
     {
