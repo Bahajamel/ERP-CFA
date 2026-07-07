@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Companies\Schemas;
 
 use App\Enums\CompanyStatut;
 use App\Support\AdresseBan;
+use App\Support\EntrepriseAnnuaire;
 use App\Support\OpcoDetector;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Select;
@@ -17,6 +18,50 @@ use Filament\Schemas\Schema;
 
 class CompanyForm
 {
+    /**
+     * Détecte l'OPCO depuis un SIRET (France Compétences), pré-remplit le
+     * champ et notifie l'utilisateur. Partagé entre la recherche d'entreprise
+     * et la saisie directe du SIRET ; n'écrase jamais un choix manuel en cas
+     * d'échec et ne bloque jamais la création.
+     */
+    private static function detecterEtNotifierOpco(?string $siret, Set $set, Get $get): void
+    {
+        if (! OpcoDetector::siretValide($siret)) {
+            return;
+        }
+
+        $resultat = app(OpcoDetector::class)->detecter($siret);
+
+        if ($resultat['statut'] === 'ok') {
+            $set('opco_id', $resultat['opco']->id);
+            Notification::make()
+                ->success()
+                ->title('OPCO détecté automatiquement')
+                ->body("« {$resultat['nom']} » a été identifié à partir du SIRET (France Compétences).")
+                ->send();
+
+            return;
+        }
+
+        if ($resultat['statut'] === 'indisponible') {
+            Notification::make()
+                ->warning()
+                ->title('Détection OPCO indisponible')
+                ->body('La détection automatique de l\'OPCO est temporairement indisponible. Vous pouvez le sélectionner manuellement.')
+                ->send();
+
+            return;
+        }
+
+        if (blank($get('opco_id'))) {
+            Notification::make()
+                ->info()
+                ->title('Aucun OPCO détecté')
+                ->body('Aucun OPCO trouvé pour ce SIRET. Vous pouvez le sélectionner manuellement.')
+                ->send();
+        }
+    }
+
     public static function configure(Schema $schema): Schema
     {
         return $schema
@@ -28,6 +73,35 @@ class CompanyForm
                         ->icon('heroicon-o-building-office-2')
                         ->columns(2)
                         ->schema([
+                            Select::make('entreprise_recherche')
+                                ->label('Rechercher une entreprise')
+                                ->placeholder('Tapez la raison sociale ou le SIRET…')
+                                ->searchable()
+                                ->live()
+                                ->dehydrated(false)
+                                ->getSearchResultsUsing(fn (string $search): array => app(EntrepriseAnnuaire::class)->options($search))
+                                ->getOptionLabelUsing(fn ($value): ?string => EntrepriseAnnuaire::decode($value)['label'] ?? null)
+                                ->afterStateUpdated(function ($state, Set $set, Get $get): void {
+                                    $fiche = EntrepriseAnnuaire::decode($state);
+
+                                    if ($fiche === null) {
+                                        return;
+                                    }
+
+                                    $set('raison_sociale', $fiche['raison_sociale']);
+                                    $set('siret', $fiche['siret']);
+                                    $set('adresse', $fiche['adresse']);
+                                    $set('code_postal', $fiche['code_postal']);
+                                    $set('ville', $fiche['ville']);
+                                    $set('pays', $fiche['pays'] ?? 'France');
+                                    $set('latitude', $fiche['latitude']);
+                                    $set('longitude', $fiche['longitude']);
+
+                                    // Enchaîne la détection de l'OPCO depuis le SIRET.
+                                    self::detecterEtNotifierOpco($fiche['siret'], $set, $get);
+                                })
+                                ->helperText('Annuaire officiel des Entreprises (État) : SIRET, adresse et OPCO remplis automatiquement. La saisie manuelle reste possible.')
+                                ->columnSpanFull(),
                             TextInput::make('raison_sociale')
                                 ->label('Raison sociale')
                                 ->placeholder('ex : Boulangerie Martin SARL')
@@ -50,42 +124,7 @@ class CompanyForm
                                 })
                                 ->unique(ignoreRecord: true)
                                 // Détection automatique de l'OPCO dès qu'un SIRET valide est saisi.
-                                ->afterStateUpdated(function (?string $state, Set $set, Get $get): void {
-                                    if (! OpcoDetector::siretValide($state)) {
-                                        return;
-                                    }
-
-                                    $resultat = app(OpcoDetector::class)->detecter($state);
-
-                                    if ($resultat['statut'] === 'ok') {
-                                        $set('opco_id', $resultat['opco']->id);
-                                        Notification::make()
-                                            ->success()
-                                            ->title('OPCO détecté automatiquement')
-                                            ->body("« {$resultat['nom']} » a été identifié à partir du SIRET (France Compétences).")
-                                            ->send();
-
-                                        return;
-                                    }
-
-                                    if ($resultat['statut'] === 'indisponible') {
-                                        Notification::make()
-                                            ->warning()
-                                            ->title('Détection OPCO indisponible')
-                                            ->body('La détection automatique de l\'OPCO est temporairement indisponible. Vous pouvez le sélectionner manuellement.')
-                                            ->send();
-
-                                        return;
-                                    }
-
-                                    if (blank($get('opco_id'))) {
-                                        Notification::make()
-                                            ->info()
-                                            ->title('Aucun OPCO détecté')
-                                            ->body('Aucun OPCO trouvé pour ce SIRET. Vous pouvez le sélectionner manuellement.')
-                                            ->send();
-                                    }
-                                }),
+                                ->afterStateUpdated(fn (?string $state, Set $set, Get $get) => self::detecterEtNotifierOpco($state, $set, $get)),
                             TextInput::make('secteur')
                                 ->label("Secteur d'activité")
                                 ->placeholder('ex : Restauration, BTP, Informatique'),
