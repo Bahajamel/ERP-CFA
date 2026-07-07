@@ -83,4 +83,17 @@ return [
         'verify_ssl' => filter_var(env('LBA_VERIFY_SSL', true), FILTER_VALIDATE_BOOLEAN),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | France Compétences — API SIRO (« Quel est mon OPCO »)
+    |--------------------------------------------------------------------------
+    | Détection de l'OPCO d'une entreprise à partir de son SIRET. Backend du
+    | service public quel-est-mon-opco.francecompetences.fr ; la clé par défaut
+    | est la clé publique embarquée dans ce site officiel.
+    */
+    'francecompetences' => [
+        'siro_url' => env('FC_SIRO_URL', 'https://api.francecompetences.fr/siro/v1'),
+        'siro_key' => env('FC_SIRO_KEY', 'e238f8a5-cc05-480e-b8f8-a5cc05180e10'),
+    ],
+
 ];

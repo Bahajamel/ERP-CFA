@@ -9,13 +9,14 @@ use Throwable;
 
 /**
  * Détection automatique de l'OPCO d'une entreprise à partir de son SIRET,
- * via l'API publique CFA Dock (France Compétences) — gratuite, sans clé.
- * En cas d'indisponibilité, la sélection manuelle reste toujours possible
- * (la détection ne bloque jamais la création de l'entreprise).
+ * via l'API officielle France Compétences (SIRO — le backend du service
+ * public « Quel est mon OPCO », quel-est-mon-opco.francecompetences.fr).
+ * Clé d'API publique (embarquée dans le site officiel), configurable via
+ * services.francecompetences. En cas d'indisponibilité, la sélection
+ * manuelle reste possible : la détection ne bloque jamais la création.
  */
 class OpcoDetector
 {
-    private const ENDPOINT = 'https://www.cfadock.fr/api/opcos';
 
     /** Supprime tout ce qui n'est pas un chiffre (espaces, points…). */
     public static function normaliserSiret(?string $siret): string
@@ -44,13 +45,16 @@ class OpcoDetector
 
         $reponse = $this->appel($siret);
 
-        if ($reponse === null) {
+        if ($reponse === null || $reponse->serverError()) {
             return ['statut' => 'indisponible', 'opco' => null, 'nom' => null];
         }
 
-        $nom = trim((string) $reponse->json('opcoName', ''));
+        // Réponse SIRO : { etat, siret, idcc, opcoDsn: {code, nom}, opcoGestion: {code, nom} }.
+        // L'OPCO de gestion prime s'il est renseigné, sinon l'OPCO déclaré en DSN.
+        $nom = $this->nomValide($reponse->json('opcoGestion.nom'))
+            ?? $this->nomValide($reponse->json('opcoDsn.nom'));
 
-        if (! $reponse->successful() || strtoupper((string) $reponse->json('searchStatus')) !== 'OK' || $nom === '') {
+        if (! $reponse->successful() || $nom === null) {
             return ['statut' => 'introuvable', 'opco' => null, 'nom' => null];
         }
 
@@ -114,15 +118,29 @@ class OpcoDetector
         return trim(preg_replace('/\s+/', ' ', $sansAccents) ?? $sansAccents);
     }
 
+    /** « N/C » (non communiqué) et vides ne comptent pas comme un OPCO. */
+    private function nomValide(mixed $nom): ?string
+    {
+        $nom = trim((string) $nom);
+
+        return ($nom === '' || strtoupper($nom) === 'N/C') ? null : $nom;
+    }
+
     /** Appel HTTP, avec repli sans vérification SSL en local (poste sans bundle CA). */
     private function appel(string $siret): ?Response
     {
+        $url = rtrim(config('services.francecompetences.siro_url'), '/')."/nico/siret/{$siret}";
+        $headers = [
+            'Accept' => 'application/json',
+            'X-Gravitee-Api-Key' => config('services.francecompetences.siro_key'),
+        ];
+
         try {
-            return Http::timeout(6)->get(self::ENDPOINT, ['siret' => $siret]);
+            return Http::timeout(8)->withHeaders($headers)->get($url);
         } catch (Throwable $e) {
             if (app()->environment('local')) {
                 try {
-                    return Http::timeout(6)->withoutVerifying()->get(self::ENDPOINT, ['siret' => $siret]);
+                    return Http::timeout(8)->withHeaders($headers)->withoutVerifying()->get($url);
                 } catch (Throwable) {
                     return null;
                 }

@@ -38,7 +38,7 @@ class CompanyForm
                             TextInput::make('siret')
                                 ->label('SIRET')
                                 ->placeholder('ex : 123 456 789 00012')
-                                ->helperText('14 chiffres — l\'OPCO est détecté automatiquement (CFA Dock).')
+                                ->helperText('14 chiffres — l\'OPCO est détecté automatiquement (France Compétences).')
                                 ->required()
                                 ->live(onBlur: true)
                                 // Normalisation : le SIRET est stocké sans espaces.
@@ -62,7 +62,7 @@ class CompanyForm
                                         Notification::make()
                                             ->success()
                                             ->title('OPCO détecté automatiquement')
-                                            ->body("« {$resultat['nom']} » a été identifié à partir du SIRET (CFA Dock).")
+                                            ->body("« {$resultat['nom']} » a été identifié à partir du SIRET (France Compétences).")
                                             ->send();
 
                                         return;

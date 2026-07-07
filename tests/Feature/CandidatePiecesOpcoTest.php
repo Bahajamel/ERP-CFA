@@ -108,7 +108,7 @@ it('crée un candidat de 30 ans ou moins sans attestation de projet', function (
 
 /*
 |--------------------------------------------------------------------------
-| Détection OPCO par SIRET (CFA Dock)
+| Détection OPCO par SIRET (API France Compétences — SIRO)
 |--------------------------------------------------------------------------
 */
 
@@ -119,11 +119,11 @@ it('normalise et valide le SIRET', function () {
         ->and(OpcoDetector::siretValide(null))->toBeFalse();
 });
 
-it('détecte l\'OPCO via CFA Dock et le rattache au référentiel existant', function () {
+it('détecte l\'OPCO via France Compétences et le rattache au référentiel existant', function () {
     Opco::query()->create(['nom' => 'AKTO']);
 
     Http::fake([
-        'www.cfadock.fr/*' => Http::response(['searchStatus' => 'OK', 'opcoName' => 'Akto']),
+        'api.francecompetences.fr/*' => Http::response(['etat' => 'DSN', 'opcoDsn' => ['code' => '07', 'nom' => 'Akto'], 'opcoGestion' => ['code' => 'N/C', 'nom' => 'N/C']]),
     ]);
 
     $resultat = app(OpcoDetector::class)->detecter('123 456 789 00012');
@@ -145,13 +145,14 @@ it('seede le référentiel officiel des 11 OPCO', function () {
     expect(Opco::query()->count())->toBe(11);
 });
 
-it('rattache les libellés longs de CFA Dock à l\'OPCO canonique', function () {
+it('rattache les libellés longs de France Compétences à l\'OPCO canonique', function () {
     $this->seed(Database\Seeders\OpcoSeeder::class);
 
     Http::fake([
-        'www.cfadock.fr/*' => Http::response([
-            'searchStatus' => 'OK',
-            'opcoName' => 'Opco entreprises et salariés des services à forte intensité de main-d\'œuvre',
+        'api.francecompetences.fr/*' => Http::response([
+            'etat' => 'DSN',
+            'opcoDsn' => ['code' => '07', 'nom' => 'Opco entreprises et salariés des services à forte intensité de main-d\'œuvre'],
+            'opcoGestion' => ['code' => 'N/C', 'nom' => 'N/C'],
         ]),
     ]);
 
@@ -167,9 +168,10 @@ it('rattache « Uniformation, l\'Opco de la Cohésion sociale » au canonique', 
     $this->seed(Database\Seeders\OpcoSeeder::class);
 
     Http::fake([
-        'www.cfadock.fr/*' => Http::response([
-            'searchStatus' => 'OK',
-            'opcoName' => 'Uniformation, l\'Opco de la Cohésion sociale',
+        'api.francecompetences.fr/*' => Http::response([
+            'etat' => 'DSN',
+            'opcoDsn' => ['code' => '10', 'nom' => 'Uniformation, l\'Opco de la Cohésion sociale'],
+            'opcoGestion' => ['code' => 'N/C', 'nom' => 'N/C'],
         ]),
     ]);
 
@@ -178,7 +180,7 @@ it('rattache « Uniformation, l\'Opco de la Cohésion sociale » au canonique', 
 
 it('crée l\'OPCO au référentiel s\'il est totalement inconnu', function () {
     Http::fake([
-        'www.cfadock.fr/*' => Http::response(['searchStatus' => 'OK', 'opcoName' => 'Opérateur Fictif XYZ']),
+        'api.francecompetences.fr/*' => Http::response(['etat' => 'DSN', 'opcoDsn' => ['code' => '99', 'nom' => 'Opérateur Fictif XYZ'], 'opcoGestion' => ['code' => 'N/C', 'nom' => 'N/C']]),
     ]);
 
     $resultat = app(OpcoDetector::class)->detecter('12345678900012');
@@ -189,7 +191,7 @@ it('crée l\'OPCO au référentiel s\'il est totalement inconnu', function () {
 
 it('signale un OPCO introuvable sans bloquer', function () {
     Http::fake([
-        'www.cfadock.fr/*' => Http::response(['searchStatus' => 'NOT_FOUND']),
+        'api.francecompetences.fr/*' => Http::response(['etat' => 'INCONNU', 'opcoDsn' => ['code' => 'N/C', 'nom' => 'N/C'], 'opcoGestion' => ['code' => 'N/C', 'nom' => 'N/C']]),
     ]);
 
     expect(app(OpcoDetector::class)->detecter('12345678900012')['statut'])->toBe('introuvable');
