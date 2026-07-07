@@ -197,6 +197,51 @@ it('signale un OPCO introuvable sans bloquer', function () {
     expect(app(OpcoDetector::class)->detecter('12345678900012')['statut'])->toBe('introuvable');
 });
 
+/*
+|--------------------------------------------------------------------------
+| Recherche d'entreprise par raison sociale (Annuaire des Entreprises)
+|--------------------------------------------------------------------------
+*/
+
+it('recherche une entreprise par nom et encode sa fiche complète', function () {
+    Http::fake([
+        'recherche-entreprises.api.gouv.fr/*' => Http::response([
+            'results' => [[
+                'nom_raison_sociale' => 'MIVA',
+                'nom_complet' => 'MIVA',
+                'siege' => [
+                    'siret' => '48953331500011',
+                    'numero_voie' => '43',
+                    'type_voie' => 'AVENUE',
+                    'libelle_voie' => 'GABRIELLE',
+                    'adresse' => 'RONCE LES BAINS 43 AVENUE GABRIELLE 17390 LA TREMBLADE',
+                    'code_postal' => '17390',
+                    'libelle_commune' => 'LA TREMBLADE',
+                    'latitude' => '45.798502815',
+                    'longitude' => '-1.163885491',
+                ],
+            ]],
+        ]),
+    ]);
+
+    $options = app(App\Support\EntrepriseAnnuaire::class)->options('MIVA');
+    expect($options)->toHaveCount(1);
+
+    $fiche = App\Support\EntrepriseAnnuaire::decode(array_key_first($options));
+
+    expect($fiche['raison_sociale'])->toBe('MIVA')
+        ->and($fiche['siret'])->toBe('48953331500011')
+        ->and($fiche['adresse'])->toBe('43 AVENUE GABRIELLE')
+        ->and($fiche['code_postal'])->toBe('17390')
+        ->and($fiche['ville'])->toBe('LA TREMBLADE')
+        ->and($fiche['latitude'])->toBe(45.798502815);
+});
+
+it('renvoie une liste vide pour une recherche d\'entreprise trop courte', function () {
+    expect(app(App\Support\EntrepriseAnnuaire::class)->options('ab'))->toBe([])
+        ->and(App\Support\EntrepriseAnnuaire::decode(null))->toBeNull();
+});
+
 it('ne lance pas de détection sur un SIRET invalide', function () {
     Http::fake();
 
