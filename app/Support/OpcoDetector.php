@@ -54,13 +54,64 @@ class OpcoDetector
             return ['statut' => 'introuvable', 'opco' => null, 'nom' => null];
         }
 
-        // Rattachement au référentiel local : correspondance insensible à la
-        // casse d'abord (« AKTO » ↔ « Akto »), création sinon (référentiel
-        // simple à un champ, enrichi au fil des détections).
-        $opco = Opco::query()->whereRaw('LOWER(nom) = ?', [mb_strtolower($nom)])->first()
-            ?? Opco::query()->create(['nom' => $nom]);
+        $opco = $this->rattacher($nom);
 
-        return ['statut' => 'ok', 'opco' => $opco, 'nom' => $nom];
+        return ['statut' => 'ok', 'opco' => $opco, 'nom' => $opco->nom];
+    }
+
+    /**
+     * Rattache le libellé renvoyé par CFA Dock au référentiel local des
+     * 11 OPCO. CFA Dock renvoie souvent des libellés longs (« Opco
+     * entreprises et salariés des services à forte intensité de
+     * main-d'œuvre » = AKTO) : on passe par des mots-clés discriminants,
+     * puis par une correspondance exacte insensible à la casse, et en
+     * dernier recours on crée l'entrée (référentiel enrichi, jamais bloqué).
+     */
+    private function rattacher(string $nom): Opco
+    {
+        $normalise = $this->normaliserLibelle($nom);
+
+        // Mots-clés discriminants → libellé canonique du référentiel
+        // (les plus spécifiques d'abord).
+        $alias = [
+            'afdas' => 'AFDAS',
+            'akto' => 'AKTO',
+            'forte intensite' => 'AKTO',
+            'atlas' => 'OPCO Atlas',
+            'constructys' => 'Constructys',
+            'opcommerce' => 'L\'Opcommerce',
+            'commerce' => 'L\'Opcommerce',
+            'ocapiat' => 'OCAPIAT',
+            '2i' => 'OPCO 2i',
+            'interindustriel' => 'OPCO 2i',
+            'proximite' => 'OPCO EP',
+            'mobilite' => 'OPCO Mobilités',
+            'sante' => 'OPCO Santé',
+            'uniformation' => 'Uniformation',
+            'cohesion sociale' => 'Uniformation',
+        ];
+
+        foreach ($alias as $motCle => $canonique) {
+            if (str_contains($normalise, $motCle)) {
+                return Opco::query()->firstOrCreate(['nom' => $canonique]);
+            }
+        }
+
+        return Opco::query()->whereRaw('LOWER(nom) = ?', [mb_strtolower($nom)])->first()
+            ?? Opco::query()->create(['nom' => $nom]);
+    }
+
+    /** Minuscules sans accents ni ponctuation, pour la recherche de mots-clés. */
+    private function normaliserLibelle(string $nom): string
+    {
+        $sansAccents = strtr(mb_strtolower($nom), [
+            'é' => 'e', 'è' => 'e', 'ê' => 'e', 'ë' => 'e',
+            'à' => 'a', 'â' => 'a', 'î' => 'i', 'ï' => 'i',
+            'ô' => 'o', 'ö' => 'o', 'ù' => 'u', 'û' => 'u', 'ü' => 'u',
+            'ç' => 'c', '’' => ' ', "'" => ' ', '-' => ' ',
+        ]);
+
+        return trim(preg_replace('/\s+/', ' ', $sansAccents) ?? $sansAccents);
     }
 
     /** Appel HTTP, avec repli sans vérification SSL en local (poste sans bundle CA). */

@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
             AdminUserSeeder::class,
             QualiopiIndicatorSeeder::class,
             CfaMissionSeeder::class,
+            OpcoSeeder::class,
             DemoSeeder::class,
             DemoAccountsSeeder::class,
         ]);
