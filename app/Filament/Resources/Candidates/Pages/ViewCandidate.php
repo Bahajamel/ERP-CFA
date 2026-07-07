@@ -136,7 +136,7 @@ class ViewCandidate extends ViewRecord
                         ->color(fn (string $state) => $state === 'Fournie' ? 'success' : 'gray')
                         ->url(fn (Candidate $record) => $record->getFirstMediaUrl('carte_vitale') ?: null, shouldOpenInNewTab: true),
                     TextEntry::make('attestation_projet')
-                        ->label('Attestation de projet (+30 ans)')
+                        ->label('Attestation de projet (30 ans et plus)')
                         ->state(fn (Candidate $record) => $record->getFirstMedia('attestation_projet')
                             ? 'Fournie'
                             : ($record->plusDe30Ans() ? 'Manquante — requise' : 'Non requise'))

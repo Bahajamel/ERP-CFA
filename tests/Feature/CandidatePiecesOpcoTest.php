@@ -44,11 +44,30 @@ it('attache et détecte les pièces justificatives du candidat', function () {
         ->and($fresh->hasCv())->toBeFalse();
 });
 
-it('calcule la règle des plus de 30 ans depuis la date de naissance', function () {
+it('calcule la règle des 30 ans ou plus depuis la date de naissance', function () {
     expect(Candidate::dateNaissancePlusDe30Ans(now()->subYears(31)->format('Y-m-d')))->toBeTrue()
+        // 30 ans révolus le jour même : la dérogation s'applique déjà.
+        ->and(Candidate::dateNaissancePlusDe30Ans(now()->subYears(30)->format('Y-m-d')))->toBeTrue()
+        ->and(Candidate::dateNaissancePlusDe30Ans(now()->subYears(29)->format('Y-m-d')))->toBeFalse()
         ->and(Candidate::dateNaissancePlusDe30Ans(now()->subYears(25)->format('Y-m-d')))->toBeFalse()
         ->and(Candidate::dateNaissancePlusDe30Ans(null))->toBeFalse()
         ->and(Candidate::dateNaissancePlusDe30Ans('pas-une-date'))->toBeFalse();
+});
+
+it('exige l\'attestation de création de projet dès 30 ans révolus', function () {
+    $this->seed(RolePermissionSeeder::class);
+    $this->actingAs(piecesUser());
+    Storage::fake('public');
+
+    Livewire::test(CreateCandidate::class)
+        ->fillForm([
+            'nom' => 'Trentenaire',
+            'prenom' => 'Jour',
+            'email' => 'trente.pile@exemple.fr',
+            'date_naissance' => now()->subYears(30)->format('Y-m-d'),
+        ])
+        ->call('create')
+        ->assertHasFormErrors(['attestation_projet']);
 });
 
 it('exige l\'attestation de création de projet pour un candidat de plus de 30 ans', function () {
