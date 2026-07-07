@@ -120,6 +120,36 @@ class ViewCandidate extends ViewRecord
                         ->placeholder('—'),
                 ]),
 
+            Section::make('Pièces justificatives')
+                ->columns(3)
+                ->schema([
+                    TextEntry::make('piece_identite')
+                        ->label('Pièce d\'identité')
+                        ->state(fn (Candidate $record) => $record->getFirstMedia('piece_identite') ? 'Fournie' : 'Manquante')
+                        ->badge()
+                        ->color(fn (string $state) => $state === 'Fournie' ? 'success' : 'gray')
+                        ->url(fn (Candidate $record) => $record->getFirstMediaUrl('piece_identite') ?: null, shouldOpenInNewTab: true),
+                    TextEntry::make('carte_vitale')
+                        ->label('Carte Vitale / sécu')
+                        ->state(fn (Candidate $record) => $record->getFirstMedia('carte_vitale') ? 'Fournie' : 'Manquante')
+                        ->badge()
+                        ->color(fn (string $state) => $state === 'Fournie' ? 'success' : 'gray')
+                        ->url(fn (Candidate $record) => $record->getFirstMediaUrl('carte_vitale') ?: null, shouldOpenInNewTab: true),
+                    TextEntry::make('attestation_projet')
+                        ->label('Attestation de projet (+30 ans)')
+                        ->state(fn (Candidate $record) => $record->getFirstMedia('attestation_projet')
+                            ? 'Fournie'
+                            : ($record->plusDe30Ans() ? 'Manquante — requise' : 'Non requise'))
+                        ->badge()
+                        ->color(fn (string $state) => match (true) {
+                            $state === 'Fournie' => 'success',
+                            str_starts_with($state, 'Manquante') => 'danger',
+                            default => 'gray',
+                        })
+                        ->url(fn (Candidate $record) => $record->getFirstMediaUrl('attestation_projet') ?: null, shouldOpenInNewTab: true)
+                        ->visible(fn (Candidate $record) => $record->plusDe30Ans() || $record->getFirstMedia('attestation_projet')),
+                ]),
+
             Section::make('Documents & notes')
                 ->columns(2)
                 ->schema([
