@@ -7,6 +7,7 @@ use App\Filament\Resources\Candidates\CandidateResource;
 use Filament\Actions\Action;
 use Filament\Actions\CreateAction;
 use Filament\Actions\ExportAction;
+use Filament\Forms\Components\Placeholder;
 use Filament\Resources\Pages\ListRecords;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Facades\Auth;
@@ -31,6 +32,19 @@ class ListCandidates extends ListRecords
                 ->color('gray')
                 ->url(CandidateResource::getUrl('kanban')),
             CreateAction::make(),
+            Action::make('lienCandidature')
+                ->label('Lien de candidature')
+                ->icon('heroicon-o-link')
+                ->color('gray')
+                ->modalHeading('Lien du formulaire de candidature')
+                ->modalDescription('Envoyez ce lien à un candidat : il dépose son dossier et ses pièces sans accès à l\'ERP.')
+                ->modalSubmitAction(false)
+                ->modalCancelActionLabel('Fermer')
+                ->schema([
+                    Placeholder::make('outil')
+                        ->hiddenLabel()
+                        ->content(fn () => view('filament.candidature-lien', ['lien' => route('candidature.create')])),
+                ]),
             ExportAction::make()
                 ->label('Exporter')
                 ->icon('heroicon-o-arrow-down-tray')
