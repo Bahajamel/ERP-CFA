@@ -28,7 +28,8 @@ class SeanceForm
                     ->maxLength(255),
                 DatePicker::make('date')
                     ->label('Date')
-                    ->default(now())
+                    // Pré-remplie quand on arrive du « + » de l'emploi du temps.
+                    ->default(fn () => request('date') ?? now())
                     ->displayFormat('d/m/Y')
                     ->required(),
                 TimePicker::make('heure_debut')
