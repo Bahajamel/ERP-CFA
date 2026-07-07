@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Companies\Schemas;
 
 use App\Enums\CompanyStatut;
 use App\Support\AdresseBan;
+use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Group;
@@ -99,14 +100,10 @@ class CompanyForm
                         TextInput::make('pays')
                             ->label('Pays')
                             ->default('France'),
-                        TextInput::make('latitude')
-                            ->label('Latitude')
-                            ->numeric()
-                            ->helperText('Renseignée automatiquement par la recherche d\'adresse.'),
-                        TextInput::make('longitude')
-                            ->label('Longitude')
-                            ->numeric()
-                            ->helperText('Renseignée automatiquement par la recherche d\'adresse.'),
+                        // Coordonnées GPS : renseignées silencieusement par la
+                        // recherche d'adresse (pas de saisie manuelle demandée).
+                        Hidden::make('latitude'),
+                        Hidden::make('longitude'),
                     ]),
                 ])->columnSpan(1),
             ]);
