@@ -115,15 +115,57 @@ it('détecte l\'OPCO via CFA Dock et le rattache au référentiel existant', fun
         ->and(Opco::query()->count())->toBe(1);
 });
 
-it('crée l\'OPCO au référentiel s\'il est inconnu', function () {
+it('seede le référentiel officiel des 11 OPCO', function () {
+    $this->seed(Database\Seeders\OpcoSeeder::class);
+
+    expect(Opco::query()->count())->toBe(11)
+        ->and(Opco::query()->where('nom', 'OPCO Mobilités')->exists())->toBeTrue();
+
+    // Idempotent : relancer ne crée pas de doublon.
+    $this->seed(Database\Seeders\OpcoSeeder::class);
+    expect(Opco::query()->count())->toBe(11);
+});
+
+it('rattache les libellés longs de CFA Dock à l\'OPCO canonique', function () {
+    $this->seed(Database\Seeders\OpcoSeeder::class);
+
     Http::fake([
-        'www.cfadock.fr/*' => Http::response(['searchStatus' => 'OK', 'opcoName' => 'OPCO Santé']),
+        'www.cfadock.fr/*' => Http::response([
+            'searchStatus' => 'OK',
+            'opcoName' => 'Opco entreprises et salariés des services à forte intensité de main-d\'œuvre',
+        ]),
     ]);
 
     $resultat = app(OpcoDetector::class)->detecter('12345678900012');
 
     expect($resultat['statut'])->toBe('ok')
-        ->and(Opco::query()->where('nom', 'OPCO Santé')->exists())->toBeTrue();
+        ->and($resultat['opco']->nom)->toBe('AKTO')
+        // Rattaché au référentiel : aucun doublon créé.
+        ->and(Opco::query()->count())->toBe(11);
+});
+
+it('rattache « Uniformation, l\'Opco de la Cohésion sociale » au canonique', function () {
+    $this->seed(Database\Seeders\OpcoSeeder::class);
+
+    Http::fake([
+        'www.cfadock.fr/*' => Http::response([
+            'searchStatus' => 'OK',
+            'opcoName' => 'Uniformation, l\'Opco de la Cohésion sociale',
+        ]),
+    ]);
+
+    expect(app(OpcoDetector::class)->detecter('12345678900012')['opco']->nom)->toBe('Uniformation');
+});
+
+it('crée l\'OPCO au référentiel s\'il est totalement inconnu', function () {
+    Http::fake([
+        'www.cfadock.fr/*' => Http::response(['searchStatus' => 'OK', 'opcoName' => 'Opérateur Fictif XYZ']),
+    ]);
+
+    $resultat = app(OpcoDetector::class)->detecter('12345678900012');
+
+    expect($resultat['statut'])->toBe('ok')
+        ->and(Opco::query()->where('nom', 'Opérateur Fictif XYZ')->exists())->toBeTrue();
 });
 
 it('signale un OPCO introuvable sans bloquer', function () {
