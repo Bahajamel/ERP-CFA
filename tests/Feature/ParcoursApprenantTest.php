@@ -25,10 +25,10 @@ it('crée une classe/promotion reliée à une formation', function () {
 
 it('rattache des apprentis à une classe', function () {
     $promotion = Promotion::factory()->create();
-    Candidate::factory()->count(3)->create(['promotion_id' => $promotion->id]);
+    Candidate::factory()->count(3)->dansClasse($promotion)->create();
 
     expect($promotion->apprentis()->count())->toBe(3)
-        ->and(Candidate::first()->promotion->is($promotion))->toBeTrue();
+        ->and(Candidate::first()->promotions->contains($promotion))->toBeTrue();
 });
 
 it('réserve la gestion des classes aux rôles du référentiel', function () {

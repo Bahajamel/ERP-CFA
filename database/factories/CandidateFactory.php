@@ -5,6 +5,7 @@ namespace Database\Factories;
 use App\Enums\CandidateStatut;
 use App\Models\Candidate;
 use App\Models\Formation;
+use App\Models\Promotion;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -38,5 +39,13 @@ class CandidateFactory extends Factory
     public function sansContact(): static
     {
         return $this->state(fn () => ['email' => null, 'telephone' => null]);
+    }
+
+    /** Apprenant rattaché à une classe (pivot), avec la formation cohérente. */
+    public function dansClasse(Promotion $classe): static
+    {
+        return $this
+            ->state(fn () => ['formation_visee_id' => $classe->formation_id])
+            ->afterCreating(fn (Candidate $candidate) => $candidate->promotions()->attach($classe->id));
     }
 }

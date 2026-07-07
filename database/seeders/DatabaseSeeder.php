@@ -23,6 +23,7 @@ class DatabaseSeeder extends Seeder
             OpcoSeeder::class,
             DemoSeeder::class,
             DemoAccountsSeeder::class,
+            ClasseDemoSeeder::class,
         ]);
     }
 }

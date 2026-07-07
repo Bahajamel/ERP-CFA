@@ -21,7 +21,7 @@ function emarger(Seance $seance, Candidate $c, PresenceStatut $statut): void
 
 it('calcule l\'assiduité d\'un apprenti (présents / renseignés)', function () {
     $promo = Promotion::factory()->create();
-    $c = Candidate::factory()->create(['promotion_id' => $promo->id]);
+    $c = Candidate::factory()->dansClasse($promo)->create();
 
     $s1 = Seance::factory()->create(['promotion_id' => $promo->id, 'date' => '2026-09-01']);
     $s2 = Seance::factory()->create(['promotion_id' => $promo->id, 'date' => '2026-09-08']);
@@ -39,7 +39,7 @@ it('calcule l\'assiduité d\'un apprenti (présents / renseignés)', function ()
 
 it('restreint le calcul d\'assiduité à la période', function () {
     $promo = Promotion::factory()->create();
-    $c = Candidate::factory()->create(['promotion_id' => $promo->id]);
+    $c = Candidate::factory()->dansClasse($promo)->create();
 
     $s1 = Seance::factory()->create(['promotion_id' => $promo->id, 'date' => '2026-09-01']);
     $s2 = Seance::factory()->create(['promotion_id' => $promo->id, 'date' => '2026-10-01']);
@@ -59,7 +59,7 @@ it('affiche la page assiduité aux rôles scolarité', function () {
     $this->actingAs($user);
 
     $promo = Promotion::factory()->create();
-    Candidate::factory()->create(['promotion_id' => $promo->id, 'nom' => 'Traore', 'prenom' => 'Salif']);
+    Candidate::factory()->dansClasse($promo)->create(['nom' => 'Traore', 'prenom' => 'Salif']);
 
     Livewire::test(Assiduite::class)
         ->assertSuccessful()

@@ -6,6 +6,7 @@ use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Grouping\Group;
 use Filament\Tables\Table;
 
 class PromotionsTable
@@ -18,6 +19,10 @@ class PromotionsTable
                     ->label('Classe')
                     ->searchable()
                     ->sortable(),
+                TextColumn::make('matiere')
+                    ->label('Matière')
+                    ->searchable()
+                    ->placeholder('—'),
                 TextColumn::make('formation.libelle')
                     ->label('Formation')
                     ->badge()
@@ -49,6 +54,22 @@ class PromotionsTable
                     DeleteBulkAction::make(),
                 ]),
             ])
-            ->defaultSort('annee_scolaire', 'desc');
+            // Classes regroupées par formation, puis triées par année (1ère, 2ème…).
+            ->defaultGroup(
+                Group::make('formation.libelle')
+                    ->label('Formation')
+                    ->titlePrefixedWithLabel(false)
+                    ->collapsible(),
+            )
+            ->groups([
+                Group::make('formation.libelle')
+                    ->label('Formation')
+                    ->titlePrefixedWithLabel(false)
+                    ->collapsible(),
+                Group::make('annee_scolaire')
+                    ->label('Année scolaire')
+                    ->collapsible(),
+            ])
+            ->defaultSort('libelle');
     }
 }

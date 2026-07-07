@@ -65,35 +65,25 @@ class CandidateForm
                                 ->label('Formation visée')
                                 ->relationship('formationVisee', 'libelle')
                                 ->searchable()
-                                ->preload(),
-                            Select::make('promotion_id')
-                                ->label('Classe / Promotion')
-                                ->placeholder('Rechercher ou créer une promotion…')
-                                ->relationship('promotion', 'libelle')
-                                ->getOptionLabelFromRecordUsing(fn ($record) => trim($record->libelle.' — '.($record->annee_scolaire ?? '')))
+                                ->preload()
+                                ->live(),
+                            // Un apprenant suit plusieurs classes (matières), toutes de SA formation.
+                            Select::make('promotions')
+                                ->label('Classes (matières)')
+                                ->multiple()
+                                ->relationship(
+                                    name: 'promotions',
+                                    titleAttribute: 'libelle',
+                                    modifyQueryUsing: fn ($query, Get $get) => $query
+                                        ->with('formation')
+                                        ->when($get('formation_visee_id'), fn ($q, $id) => $q->where('formation_id', $id)),
+                                )
+                                ->getOptionLabelFromRecordUsing(fn ($record) => $record->nom_complet)
                                 ->searchable()
                                 ->preload()
-                                ->createOptionForm([
-                                    Select::make('formation_id')
-                                        ->label('Formation')
-                                        ->relationship('formation', 'libelle')
-                                        ->searchable()
-                                        ->preload(),
-                                    TextInput::make('libelle')
-                                        ->label('Libellé de la promotion')
-                                        ->placeholder('ex : Promo 2025-2026')
-                                        ->required(),
-                                    TextInput::make('annee_scolaire')
-                                        ->label('Année scolaire')
-                                        ->placeholder('ex : 2025-2026'),
-                                    DatePicker::make('date_debut')
-                                        ->label('Début')
-                                        ->displayFormat('d/m/Y'),
-                                    DatePicker::make('date_fin')
-                                        ->label('Fin')
-                                        ->displayFormat('d/m/Y'),
-                                ])
-                                ->createOptionModalHeading('Nouvelle promotion'),
+                                ->helperText(fn (Get $get): string => $get('formation_visee_id')
+                                    ? 'Seules les classes de la formation visée sont proposées.'
+                                    : 'Choisissez d\'abord la formation visée.'),
                             TextInput::make('niveau_actuel')
                                 ->label('Niveau actuel')
                                 ->placeholder('ex : Terminale, Bac, Bac+2'),

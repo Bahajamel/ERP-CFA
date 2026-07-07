@@ -38,7 +38,7 @@ class ListServiceFaits extends ListRecords
                 ->schema([
                     Select::make('promotion_id')
                         ->label('Classe')
-                        ->options(Promotion::query()->orderBy('libelle')->pluck('libelle', 'id'))
+                        ->options(Promotion::query()->with('formation')->orderBy('libelle')->get()->pluck('nom_complet', 'id'))
                         ->searchable()
                         ->required(),
                     Select::make('mois')

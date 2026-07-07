@@ -17,7 +17,8 @@ class SeanceForm
             ->components([
                 Select::make('promotion_id')
                     ->label('Classe / Promotion')
-                    ->relationship('promotion', 'libelle')
+                    ->relationship('promotion', 'libelle', fn ($query) => $query->with('formation'))
+                    ->getOptionLabelFromRecordUsing(fn ($record) => $record->nom_complet)
                     ->searchable()
                     ->preload()
                     ->required()

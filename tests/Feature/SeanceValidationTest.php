@@ -14,7 +14,7 @@ uses(RefreshDatabase::class);
 
 it('empêche de valider une séance dont des présences ne sont pas renseignées', function () {
     $promo = Promotion::factory()->create();
-    Candidate::factory()->count(2)->create(['promotion_id' => $promo->id]);
+    Candidate::factory()->count(2)->dansClasse($promo)->create();
     $seance = Seance::factory()->create(['promotion_id' => $promo->id]);
 
     expect(fn () => $seance->update(['statut' => SeanceStatut::Validee]))
@@ -25,7 +25,7 @@ it('empêche de valider une séance dont des présences ne sont pas renseignées
 
 it('autorise la validation une fois toutes les présences renseignées', function () {
     $promo = Promotion::factory()->create();
-    Candidate::factory()->count(2)->create(['promotion_id' => $promo->id]);
+    Candidate::factory()->count(2)->dansClasse($promo)->create();
     $seance = Seance::factory()->create(['promotion_id' => $promo->id]);
     $seance->presences()->update(['statut' => PresenceStatut::Present]);
 
@@ -37,7 +37,7 @@ it('autorise la validation une fois toutes les présences renseignées', functio
 it('crée une tâche de suivi quand une absence injustifiée est saisie', function () {
     $commercial = User::factory()->create();
     $promo = Promotion::factory()->create();
-    $c = Candidate::factory()->create(['promotion_id' => $promo->id, 'commercial_id' => $commercial->id]);
+    $c = Candidate::factory()->dansClasse($promo)->create(['commercial_id' => $commercial->id]);
     $seance = Seance::factory()->create(['promotion_id' => $promo->id]);
     $presence = $seance->presences()->where('candidate_id', $c->id)->first();
 

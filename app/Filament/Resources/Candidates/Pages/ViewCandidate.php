@@ -40,11 +40,9 @@ class ViewCandidate extends ViewRecord
                     TextEntry::make('formationVisee.libelle')
                         ->label('Formation visée')
                         ->placeholder('—'),
-                    TextEntry::make('promotion')
-                        ->label('Classe / Promotion')
-                        ->state(fn (Candidate $record) => $record->promotion
-                            ? trim($record->promotion->libelle.' — '.$record->promotion->annee_scolaire)
-                            : null)
+                    TextEntry::make('promotions')
+                        ->label('Classes (matières)')
+                        ->state(fn (Candidate $record) => $record->promotions->map->nom_complet->all() ?: null)
                         ->badge()
                         ->color('info')
                         ->placeholder('Non affecté'),

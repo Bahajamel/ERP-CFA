@@ -70,15 +70,15 @@ class Assiduite extends Page implements HasTable
     public function table(Table $table): Table
     {
         return $table
-            ->query(Candidate::query()->whereNotNull('promotion_id')->with('promotion'))
+            ->query(Candidate::query()->whereHas('promotions')->with('promotions'))
             ->columns([
                 TextColumn::make('nom_complet')
                     ->label('Apprenti')
                     ->getStateUsing(fn (Candidate $record): string => $record->nom_complet)
                     ->searchable(['nom', 'prenom'])
                     ->sortable(['nom']),
-                TextColumn::make('promotion.libelle')
-                    ->label('Classe')
+                TextColumn::make('promotions.libelle')
+                    ->label('Classes')
                     ->badge()
                     ->color('gray')
                     ->placeholder('—'),
@@ -105,9 +105,10 @@ class Assiduite extends Page implements HasTable
                     ->alignCenter(),
             ])
             ->filters([
-                SelectFilter::make('promotion_id')
+                SelectFilter::make('promotions')
                     ->label('Classe')
-                    ->relationship('promotion', 'libelle')
+                    ->relationship('promotions', 'libelle', fn ($query) => $query->with('formation'))
+                    ->getOptionLabelFromRecordUsing(fn ($record) => $record->nom_complet)
                     ->searchable()
                     ->preload(),
                 Filter::make('periode')

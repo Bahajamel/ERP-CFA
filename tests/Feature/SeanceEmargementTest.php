@@ -18,7 +18,7 @@ uses(RefreshDatabase::class);
 function promotionAvecApprentis(int $n = 3): Promotion
 {
     $promo = Promotion::factory()->create();
-    Candidate::factory()->count($n)->create(['promotion_id' => $promo->id]);
+    Candidate::factory()->count($n)->dansClasse($promo)->create();
 
     return $promo;
 }
@@ -81,7 +81,7 @@ it('affiche l\'émargement de la séance', function () {
     $this->actingAs($user);
 
     $promo = promotionAvecApprentis(1);
-    $candidate = Candidate::where('promotion_id', $promo->id)->first();
+    $candidate = $promo->apprentis()->first();
     $candidate->update(['nom' => 'Ouedraogo', 'prenom' => 'Awa']);
     $seance = Seance::factory()->create(['promotion_id' => $promo->id]);
 

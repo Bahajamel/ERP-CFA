@@ -79,7 +79,7 @@ it('rend la courbe des contrats signés et compte le mois courant', function () 
 
 it('rend l\'assiduité par promotion, cliquable vers la page filtrée', function () {
     $promo = Promotion::factory()->create();
-    Candidate::factory()->create(['promotion_id' => $promo->id]);
+    Candidate::factory()->dansClasse($promo)->create();
     $seance = Seance::factory()->create(['promotion_id' => $promo->id]);
     $seance->presences()->update(['statut' => PresenceStatut::Present]);
 
@@ -115,7 +115,7 @@ it('embarque l\'entonnoir en tête de la liste des admissions', function () {
 
 it('embarque le graphique d\'assiduité en tête de la page Assiduité', function () {
     $promo = Promotion::factory()->create();
-    Candidate::factory()->create(['promotion_id' => $promo->id]);
+    Candidate::factory()->dansClasse($promo)->create();
     $seance = Seance::factory()->create(['promotion_id' => $promo->id]);
     $seance->presences()->update(['statut' => PresenceStatut::Present]);
 
@@ -142,7 +142,7 @@ it('le clic mène à la liste des séances filtrée sur la classe (deep-link)', 
 
 it('calcule le taux de présence par promotion', function () {
     $promo = Promotion::factory()->create();
-    Candidate::factory()->create(['promotion_id' => $promo->id]);
+    Candidate::factory()->dansClasse($promo)->create();
     $seance = Seance::factory()->create(['promotion_id' => $promo->id]);
     $seance->presences()->update(['statut' => PresenceStatut::Present]);
 

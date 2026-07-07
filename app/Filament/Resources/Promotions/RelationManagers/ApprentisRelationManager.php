@@ -2,10 +2,10 @@
 
 namespace App\Filament\Resources\Promotions\RelationManagers;
 
-use Filament\Actions\AssociateAction;
+use Filament\Actions\AttachAction;
 use Filament\Actions\BulkActionGroup;
-use Filament\Actions\DissociateAction;
-use Filament\Actions\DissociateBulkAction;
+use Filament\Actions\DetachAction;
+use Filament\Actions\DetachBulkAction;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
@@ -35,17 +35,17 @@ class ApprentisRelationManager extends RelationManager
                     ->badge(),
             ])
             ->headerActions([
-                AssociateAction::make()
+                AttachAction::make()
                     ->label('Rattacher un apprenti')
                     ->recordSelectSearchColumns(['nom', 'prenom', 'email']),
             ])
             ->recordActions([
-                DissociateAction::make()
+                DetachAction::make()
                     ->label('Retirer'),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
-                    DissociateBulkAction::make(),
+                    DetachBulkAction::make(),
                 ]),
             ]);
     }

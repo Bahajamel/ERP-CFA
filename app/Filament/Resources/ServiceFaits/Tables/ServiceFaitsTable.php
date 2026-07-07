@@ -58,7 +58,8 @@ class ServiceFaitsTable
             ->filters([
                 SelectFilter::make('promotion_id')
                     ->label('Classe')
-                    ->relationship('promotion', 'libelle')
+                    ->relationship('promotion', 'libelle', fn ($query) => $query->with('formation'))
+                    ->getOptionLabelFromRecordUsing(fn ($record) => $record->nom_complet)
                     ->searchable()
                     ->preload(),
             ])

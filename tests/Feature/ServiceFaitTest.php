@@ -30,7 +30,7 @@ function seanceValidee(Promotion $promo, string $date): Seance
 
 it('valide le service fait d\'un mois et fige les totaux', function () {
     $promo = Promotion::factory()->create();
-    Candidate::factory()->count(3)->create(['promotion_id' => $promo->id]);
+    Candidate::factory()->count(3)->dansClasse($promo)->create();
     seanceValidee($promo, '2026-09-03');
     seanceValidee($promo, '2026-09-10');
 
@@ -44,7 +44,7 @@ it('valide le service fait d\'un mois et fige les totaux', function () {
 
 it('refuse la validation si une séance du mois n\'est pas validée', function () {
     $promo = Promotion::factory()->create();
-    Candidate::factory()->count(2)->create(['promotion_id' => $promo->id]);
+    Candidate::factory()->count(2)->dansClasse($promo)->create();
     seanceValidee($promo, '2026-09-03');
     Seance::factory()->create(['promotion_id' => $promo->id, 'date' => '2026-09-12']); // Planifiée
 
@@ -61,7 +61,7 @@ it('refuse la validation sans séance sur le mois', function () {
 
 it('empêche de valider deux fois le même mois', function () {
     $promo = Promotion::factory()->create();
-    Candidate::factory()->create(['promotion_id' => $promo->id]);
+    Candidate::factory()->dansClasse($promo)->create();
     seanceValidee($promo, '2026-09-03');
 
     app(ServiceFaitValidator::class)->valider($promo, 2026, 9);
@@ -74,7 +74,7 @@ it('génère une preuve PDF de service fait archivée dans la GED', function () 
     Storage::fake('public');
 
     $promo = Promotion::factory()->create();
-    Candidate::factory()->create(['promotion_id' => $promo->id]);
+    Candidate::factory()->dansClasse($promo)->create();
     seanceValidee($promo, '2026-09-03');
     $sf = app(ServiceFaitValidator::class)->valider($promo, 2026, 9);
 
