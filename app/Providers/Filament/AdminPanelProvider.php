@@ -32,6 +32,10 @@ class AdminPanelProvider extends PanelProvider
             ->path('admin')
             ->viteTheme('resources/css/filament/admin/theme.css')
             ->brandName('ERP CFA')
+            ->brandLogo(fn () => view('filament.brand'))
+            ->font('Instrument Sans')
+            ->sidebarCollapsibleOnDesktop()
+            ->globalSearchKeyBindings(['mod+k'])
             ->login()
             // Page profil : l'utilisateur y active/désactive sa double authentification.
             ->profile(isSimple: false)
@@ -44,8 +48,15 @@ class AdminPanelProvider extends PanelProvider
             )
             ->databaseNotifications()
             ->databaseNotificationsPolling('30s')
+            // Palette « cockpit » : indigo profond (actions), cyan (information),
+            // slate (neutres) — statuts sémantiques inchangés (succès/attente/danger).
             ->colors([
-                'primary' => Color::Emerald,
+                'primary' => Color::Indigo,
+                'gray' => Color::Slate,
+                'info' => Color::Cyan,
+                'success' => Color::Emerald,
+                'warning' => Color::Amber,
+                'danger' => Color::Rose,
             ])
             // Ordre des groupes du menu = cycle de vie de l'apprenant, par département.
             ->navigationGroups([
@@ -53,6 +64,7 @@ class AdminPanelProvider extends PanelProvider
                 'Commercial',
                 'Admission',
                 'Contrats & OPCO',
+                'Finance & Facturation',
                 'Formation & Scolarité',
                 'Qualité',
                 'Documents',
@@ -69,6 +81,11 @@ class AdminPanelProvider extends PanelProvider
                 AccountWidget::class,
                 FilamentInfoWidget::class,
             ])
+            // Topbar : badge d'environnement + menu de création rapide (gated par permissions).
+            ->renderHook(
+                PanelsRenderHook::GLOBAL_SEARCH_BEFORE,
+                fn (): string => auth()->check() ? view('filament.topbar-tools')->render() : '',
+            )
             // Bouton d'accès rapide (démo) sous le formulaire de connexion — hors production uniquement.
             ->renderHook(
                 PanelsRenderHook::AUTH_LOGIN_FORM_AFTER,

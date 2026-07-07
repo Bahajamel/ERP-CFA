@@ -3,20 +3,30 @@
 namespace App\Filament\Resources\Needs\Schemas;
 
 use App\Enums\NeedStatut;
+use App\Support\AdresseBan;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
+use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
+use Illuminate\Contracts\View\View;
 
 class NeedForm
 {
     public static function configure(Schema $schema): Schema
     {
         return $schema
+            // Deux colonnes équilibrées (pas de trous entre cartes).
+            ->columns(2)
             ->components([
+                Group::make([
                 Section::make('Poste recherché')
+                    ->icon('heroicon-o-briefcase')
                     ->columns(2)
                     ->schema([
                         Select::make('company_id')
@@ -33,9 +43,6 @@ class NeedForm
                             ->relationship('formation', 'libelle')
                             ->searchable()
                             ->preload(),
-                        TextInput::make('localisation')
-                            ->label('Localisation')
-                            ->placeholder('ex : Lyon 3e, télétravail partiel'),
                         DatePicker::make('date_demarrage')
                             ->label('Date de démarrage souhaitée')
                             ->displayFormat('d/m/Y'),
@@ -58,6 +65,7 @@ class NeedForm
                             ->columnSpanFull(),
                     ]),
                 Section::make('Interlocuteurs entreprise')
+                    ->icon('heroicon-o-user-circle')
                     ->columns(2)
                     ->schema([
                         Select::make('contact_id')
@@ -69,6 +77,67 @@ class NeedForm
                             ->relationship('tuteur', 'nom')
                             ->searchable(),
                     ]),
+                ])->columnSpan(1),
+                Group::make([
+                Section::make('Localisation & rayon de recherche')
+                    ->icon('heroicon-o-map-pin')
+                    ->description('Géolocalisez le lieu du poste et définissez le rayon de recherche (km) : un cercle s\'affiche sur la carte.')
+                    ->columns(2)
+                    ->schema([
+                        Select::make('adresse_recherche')
+                            ->label('Rechercher une adresse')
+                            ->placeholder('Tapez une adresse ou une ville…')
+                            ->searchable()
+                            ->live()
+                            ->dehydrated(false)
+                            ->getSearchResultsUsing(fn (string $search): array => app(AdresseBan::class)->options($search))
+                            ->getOptionLabelUsing(fn ($value): ?string => AdresseBan::decode($value)['label'] ?? null)
+                            ->afterStateUpdated(function ($state, Set $set): void {
+                                $data = AdresseBan::decode($state);
+
+                                if ($data === null) {
+                                    return;
+                                }
+
+                                $set('localisation', $data['label'] ?? $data['adresse']);
+                                $set('latitude', $data['latitude']);
+                                $set('longitude', $data['longitude']);
+                            })
+                            ->helperText('Autocomplétion Base Adresse Nationale (France). Saisie manuelle possible ci-dessous.')
+                            ->columnSpanFull(),
+                        TextInput::make('localisation')
+                            ->label('Localisation')
+                            ->placeholder('ex : Lyon 3e, télétravail partiel')
+                            ->columnSpanFull(),
+                        TextInput::make('latitude')
+                            ->label('Latitude')
+                            ->numeric()
+                            ->live(onBlur: true)
+                            ->helperText('Renseignée par la recherche d\'adresse.'),
+                        TextInput::make('longitude')
+                            ->label('Longitude')
+                            ->numeric()
+                            ->live(onBlur: true)
+                            ->helperText('Renseignée par la recherche d\'adresse.'),
+                        TextInput::make('rayon_km')
+                            ->label('Rayon de recherche')
+                            ->numeric()
+                            ->minValue(1)
+                            ->maxValue(300)
+                            ->suffix('km')
+                            ->live(onBlur: true)
+                            ->helperText('Distance autour du point de référence.')
+                            ->columnSpanFull(),
+                        Placeholder::make('carte_rayon')
+                            ->label('Carte')
+                            ->columnSpanFull()
+                            ->content(fn (Get $get): View => view('filament.needs.rayon-map', [
+                                'lat' => $get('latitude'),
+                                'lon' => $get('longitude'),
+                                'rayonKm' => $get('rayon_km'),
+                            ])),
+                    ]),
+                ])->columnSpan(1),
             ]);
     }
 }

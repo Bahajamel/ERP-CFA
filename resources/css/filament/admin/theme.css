@@ -2,3 +2,487 @@
 
 @source '../../../../app/Filament/**/*';
 @source '../../../../resources/views/filament/**/*';
+
+/* ============================================================
+   ERP CFA — Design system « cockpit premium »
+   Direction artistique : SaaS nouvelle génération, sobre et
+   orienté data. Indigo profond + cyan subtil, sidebar bleu nuit,
+   cartes à profondeur légère, micro-interactions discrètes.
+   ============================================================ */
+
+:root {
+  --cfa-radius-card: 14px;
+  --cfa-radius-control: 10px;
+  --cfa-bg: #f3f5fa;
+  --cfa-card: #ffffff;
+  --cfa-card-border: #e4e9f2;
+  --cfa-ink-soft: #64748b;
+  --cfa-sidebar: #10162b;
+  --cfa-sidebar-line: rgba(148, 163, 214, 0.14);
+  --cfa-sidebar-text: rgba(219, 228, 255, 0.72);
+  --cfa-sidebar-muted: rgba(148, 163, 199, 0.85);
+  --cfa-accent: #4f46e5;
+  --cfa-accent-2: #06b6d4;
+  --cfa-grad: linear-gradient(135deg, #4f46e5 0%, #6366f1 55%, #0ea5e9 130%);
+  --cfa-shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04), 0 10px 30px -18px rgba(30, 41, 99, 0.18);
+  --cfa-shadow-pop: 0 2px 4px rgba(15, 23, 42, 0.06), 0 18px 40px -20px rgba(49, 46, 129, 0.35);
+}
+
+.dark {
+  --cfa-bg: #0b0f1c;
+  --cfa-card: #121a2e;
+  --cfa-card-border: #212c48;
+  --cfa-ink-soft: #8b9ab5;
+  --cfa-sidebar: #0b101f;
+  --cfa-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35), 0 12px 32px -18px rgba(0, 0, 0, 0.55);
+  --cfa-shadow-pop: 0 2px 4px rgba(0, 0, 0, 0.4), 0 18px 40px -20px rgba(0, 0, 0, 0.6);
+}
+
+/* ---------- Fond général ---------- */
+.fi-body {
+  background-color: var(--cfa-bg);
+}
+.fi-main {
+  padding-bottom: 3rem;
+}
+
+/* ---------- Typographie ---------- */
+.fi-header-heading {
+  letter-spacing: -0.02em;
+  font-weight: 750;
+}
+.fi-header-subheading {
+  color: var(--cfa-ink-soft);
+}
+
+/* ============================================================
+   SIDEBAR — bleu nuit premium
+   ============================================================ */
+.fi-sidebar {
+  background-color: var(--cfa-sidebar) !important;
+  border-inline-end: 1px solid var(--cfa-sidebar-line);
+}
+.fi-sidebar-header {
+  background-color: transparent !important;
+  border-bottom: 1px solid var(--cfa-sidebar-line);
+  box-shadow: none !important;
+}
+.fi-sidebar-nav {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 214, 0.28) transparent;
+}
+/* Scrollbar de la sidebar : fine et fondue dans le bleu nuit (pas de piste
+   claire disgracieuse sous Chrome/Edge). */
+.fi-sidebar-nav::-webkit-scrollbar {
+  width: 6px;
+}
+.fi-sidebar-nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+.fi-sidebar-nav::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 214, 0.28);
+  border-radius: 99px;
+}
+.fi-sidebar-nav::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 214, 0.45);
+}
+
+/* Libellés de groupes : petites capitales espacées */
+.fi-sidebar-group-label {
+  color: var(--cfa-sidebar-muted) !important;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.fi-sidebar-group-collapse-button {
+  color: var(--cfa-sidebar-muted) !important;
+}
+
+/* Items — Filament v5 : le bouton est .fi-sidebar-item-btn */
+.fi-sidebar-item-btn {
+  border-radius: 9px;
+  background-color: transparent !important;
+  transition: background-color 140ms ease, color 140ms ease;
+}
+.fi-sidebar-item-btn:hover {
+  background-color: rgba(129, 140, 248, 0.14) !important;
+}
+.fi-sidebar-item-label {
+  color: var(--cfa-sidebar-text) !important;
+  font-weight: 500;
+  font-size: 0.83rem;
+}
+.fi-sidebar-item-icon {
+  color: var(--cfa-sidebar-muted) !important;
+}
+.fi-sidebar-item-btn:hover .fi-sidebar-item-label,
+.fi-sidebar-item-btn:hover .fi-sidebar-item-icon {
+  color: #fff !important;
+}
+
+/* Item actif : pill dégradée + rail lumineux (écrase le fond clair par défaut
+   de Filament, qui rendait le libellé blanc illisible en thème clair) */
+.fi-sidebar-item.fi-active > .fi-sidebar-item-btn,
+.fi-sidebar-item.fi-sidebar-item-has-active-child-items > .fi-sidebar-item-btn {
+  background: linear-gradient(90deg, rgba(99, 102, 241, 0.30), rgba(14, 165, 233, 0.12)) !important;
+  box-shadow: inset 3px 0 0 0 #818cf8;
+}
+.fi-sidebar-item.fi-active .fi-sidebar-item-label {
+  color: #fff !important;
+  font-weight: 650;
+}
+.fi-sidebar-item.fi-active .fi-sidebar-item-icon {
+  color: #a5b4fc !important;
+}
+
+/* Badges de navigation (compteurs) lisibles sur fond nuit */
+.fi-sidebar .fi-badge {
+  box-shadow: none;
+}
+
+/* ============================================================
+   TOPBAR — verre dépoli
+   ============================================================ */
+/* Filament v5 : le fond de la barre est porté par .fi-topbar-ctn (conteneur
+   sticky). Fond opaque : le contenu scrollé ne doit JAMAIS transparaître. */
+.fi-topbar-ctn,
+.fi-topbar-ctn > .fi-topbar,
+.fi-topbar {
+  background-color: var(--cfa-card) !important;
+  border-bottom: 1px solid var(--cfa-card-border);
+  box-shadow: none !important;
+}
+
+/* Badge environnement + bouton Créer (render hooks) */
+.cfa-topbar-tools {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+.cfa-env-badge {
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 0.28rem 0.65rem;
+  border-radius: 999px;
+  color: #b45309;
+  background: rgba(245, 158, 11, 0.14);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  white-space: nowrap;
+}
+.dark .cfa-env-badge {
+  color: #fbbf24;
+}
+.cfa-create-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  font-weight: 650;
+  color: #fff;
+  padding: 0.44rem 0.9rem;
+  border-radius: 9px;
+  background-image: var(--cfa-grad);
+  box-shadow: 0 4px 14px -6px rgba(79, 70, 229, 0.55);
+  transition: transform 140ms ease, box-shadow 140ms ease, filter 140ms ease;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.cfa-create-btn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.06);
+  box-shadow: 0 8px 20px -8px rgba(79, 70, 229, 0.65);
+}
+.cfa-create-btn svg {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+/* ============================================================
+   CARTES / SECTIONS / WIDGETS
+   ============================================================ */
+.fi-section,
+.fi-wi-stats-overview-stat,
+.fi-ta-ctn,
+.fi-wi-chart,
+.fi-wi-widget .fi-section {
+  border-radius: var(--cfa-radius-card);
+  border: 1px solid var(--cfa-card-border);
+  background-color: var(--cfa-card);
+  box-shadow: var(--cfa-shadow-card);
+}
+.fi-section-header-heading {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.fi-section-header-description {
+  color: var(--cfa-ink-soft);
+}
+
+/* Cartes KPI : filet dégradé + chiffres tabulaires, léger lift au survol */
+.fi-wi-stats-overview-stat {
+  position: relative;
+  overflow: hidden;
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+.fi-wi-stats-overview-stat::before {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: 3px;
+  background-image: var(--cfa-grad);
+  opacity: 0.85;
+}
+.fi-wi-stats-overview-stat:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--cfa-shadow-pop);
+}
+.fi-wi-stats-overview-stat-value {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+  font-weight: 800;
+}
+.fi-wi-stats-overview-stat-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--cfa-ink-soft);
+}
+
+/* ============================================================
+   TABLEAUX — lisibilité data premium
+   ============================================================ */
+.fi-ta-header-cell {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--cfa-ink-soft);
+}
+.fi-ta-row {
+  transition: background-color 120ms ease;
+}
+.fi-ta-row:hover {
+  background-color: color-mix(in srgb, var(--cfa-accent) 4%, transparent) !important;
+}
+.fi-ta-cell {
+  padding-top: 0.9rem;
+  padding-bottom: 0.9rem;
+}
+.fi-ta-text {
+  font-size: 0.855rem;
+}
+
+/* État vide : accueillant, orienté action */
+.fi-ta-empty-state {
+  padding: 3.5rem 1.5rem;
+}
+.fi-ta-empty-state-icon-ctn,
+.fi-ta-empty-state-icon-bg {
+  background-image: linear-gradient(135deg, rgba(99, 102, 241, 0.14), rgba(14, 165, 233, 0.10));
+  border-radius: 18px;
+}
+.fi-ta-empty-state-heading {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.fi-ta-empty-state-description {
+  color: var(--cfa-ink-soft);
+  max-width: 40ch;
+  margin-inline: auto;
+}
+
+/* ============================================================
+   BADGES — langage visuel des statuts
+   ============================================================ */
+.fi-badge {
+  border-radius: 999px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+}
+
+/* ============================================================
+   BOUTONS — hiérarchie claire
+   ============================================================ */
+.fi-btn {
+  border-radius: var(--cfa-radius-control);
+  transition: transform 130ms ease, box-shadow 130ms ease, filter 130ms ease;
+  font-weight: 650;
+}
+.fi-btn:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+.fi-btn:not(:disabled):active {
+  transform: translateY(0);
+}
+.fi-btn-color-primary {
+  background-image: var(--cfa-grad);
+  box-shadow: 0 4px 14px -6px rgba(79, 70, 229, 0.5);
+}
+.fi-btn-color-primary:not(:disabled):hover {
+  box-shadow: 0 8px 22px -8px rgba(79, 70, 229, 0.62);
+  filter: brightness(1.05);
+}
+
+/* ============================================================
+   FORMULAIRES — champs nets, focus indigo
+   ============================================================ */
+.fi-input-wrp,
+.fi-select-input,
+.fi-fo-file-upload .filepond--panel-root {
+  border-radius: var(--cfa-radius-control);
+  transition: box-shadow 130ms ease, border-color 130ms ease;
+}
+.fi-input-wrp:focus-within {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--cfa-accent) 22%, transparent);
+}
+.fi-fo-field-wrp-label .fi-fo-field-wrp-label-text,
+.fi-fo-field-label {
+  font-weight: 600;
+}
+.fi-fo-field-wrp-helper-text,
+.fi-fo-field-wrp-hint {
+  color: var(--cfa-ink-soft);
+}
+
+/* ============================================================
+   MODALES & DROPDOWNS
+   ============================================================ */
+.fi-modal-window {
+  border-radius: 18px;
+  box-shadow: var(--cfa-shadow-pop);
+}
+.fi-dropdown-panel {
+  border-radius: 12px;
+  border: 1px solid var(--cfa-card-border);
+  box-shadow: var(--cfa-shadow-pop);
+}
+
+/* ============================================================
+   WIDGET « Priorités du jour » (cockpit)
+   ============================================================ */
+.cfa-prio {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(215px, 1fr));
+  gap: 0.75rem;
+}
+.cfa-prio-card {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem;
+  border-radius: 12px;
+  border: 1px solid var(--cfa-card-border);
+  background-color: var(--cfa-card);
+  box-shadow: var(--cfa-shadow-card);
+  transition: transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease;
+  text-decoration: none;
+}
+a.cfa-prio-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--cfa-shadow-pop);
+  border-color: color-mix(in srgb, var(--cfa-accent) 35%, var(--cfa-card-border));
+}
+.cfa-prio-icon {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: 10px;
+}
+.cfa-prio-icon svg {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+.cfa-prio-count {
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+.cfa-prio-label {
+  font-size: 0.78rem;
+  font-weight: 650;
+  line-height: 1.25;
+}
+.cfa-prio-hint {
+  font-size: 0.7rem;
+  color: var(--cfa-ink-soft);
+  margin-top: 0.1rem;
+  line-height: 1.35;
+}
+.cfa-prio-danger .cfa-prio-icon { background: rgba(225, 29, 72, 0.12); color: #e11d48; }
+.cfa-prio-warning .cfa-prio-icon { background: rgba(217, 119, 6, 0.13); color: #d97706; }
+.cfa-prio-info .cfa-prio-icon { background: rgba(8, 145, 178, 0.13); color: #0891b2; }
+.cfa-prio-ok .cfa-prio-icon { background: rgba(5, 150, 105, 0.13); color: #059669; }
+.dark .cfa-prio-danger .cfa-prio-icon { color: #fb7185; }
+.dark .cfa-prio-warning .cfa-prio-icon { color: #fbbf24; }
+.dark .cfa-prio-info .cfa-prio-icon { color: #22d3ee; }
+.dark .cfa-prio-ok .cfa-prio-icon { color: #34d399; }
+.cfa-prio-danger .cfa-prio-count { color: #e11d48; }
+.dark .cfa-prio-danger .cfa-prio-count { color: #fb7185; }
+
+/* ============================================================
+   Entrée en scène douce des widgets (désactivée si reduced motion)
+   ============================================================ */
+@media (prefers-reduced-motion: no-preference) {
+  .fi-wi > *,
+  .fi-wi-widget {
+    animation: cfa-rise 340ms cubic-bezier(0.22, 0.8, 0.36, 1) both;
+  }
+  @keyframes cfa-rise {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+}
+
+/* ============================================================
+   Marque (logo sidebar / login)
+   ============================================================ */
+.cfa-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.cfa-brand-mark {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9px;
+  background-image: var(--cfa-grad);
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-weight: 900;
+  font-size: 0.95rem;
+  letter-spacing: -0.02em;
+  box-shadow: 0 4px 12px -4px rgba(79, 70, 229, 0.55);
+}
+.cfa-brand-name {
+  font-weight: 800;
+  font-size: 1rem;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+.cfa-brand-sub {
+  display: block;
+  font-size: 0.6rem;
+  font-weight: 650;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--cfa-ink-soft);
+  margin-top: 0.2rem;
+}
+.fi-sidebar .cfa-brand-name { color: #fff; }
+.fi-sidebar .cfa-brand-sub { color: rgba(148, 163, 199, 0.85); }
+
+/* Scrollbars fines et discrètes */
+* {
+  scrollbar-width: thin;
+}

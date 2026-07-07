@@ -55,6 +55,10 @@ class ViewCandidate extends ViewRecord
                         ->label('Contact')
                         ->state(fn (Candidate $record) => $record->email ?: $record->telephone)
                         ->placeholder('—'),
+                    TextEntry::make('date_disponibilite')
+                        ->label('Disponible à partir du')
+                        ->date('d/m/Y')
+                        ->placeholder('—'),
                 ]),
 
             Section::make('1 · Admission')

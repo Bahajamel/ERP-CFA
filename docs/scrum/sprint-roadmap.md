@@ -18,9 +18,7 @@
 
 ## 🔑 Comment les modules deviennent indépendants
 
-On ne supprime pas les dépendances **fonctionnelles** (le matching utilisera
-toujours les données candidat). On supprime les dépendances **de
-développement** : personne n'attend l'écran d'un autre pour coder. Trois leviers :
+On ne supprime pas les dépendances **fonctionnelles** (le matching utilisera toujours les données candidat). On supprime les dépendances **de développement** : personne n'attend l'écran d'un autre pour coder. Trois leviers :
 
 1. **Socle de données posé une seule fois** — toutes les tables, colonnes,
    relations et statuts du [modèle de données](../architecture/modele-de-donnees.md)

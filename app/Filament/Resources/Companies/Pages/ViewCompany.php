@@ -51,9 +51,13 @@ class ViewCompany extends ViewRecord
                         ->badge()
                         ->color('gray')
                         ->placeholder('—'),
-                    TextEntry::make('adresse')
+                    TextEntry::make('adresse_complete')
                         ->label('Adresse')
-                        ->placeholder('—'),
+                        ->state(fn (Company $record): string => trim(implode(' ', array_filter([
+                            $record->adresse,
+                            $record->code_postal,
+                            $record->ville,
+                        ]))) ?: '—'),
                     TextEntry::make('opco.nom')
                         ->label('OPCO')
                         ->placeholder('—'),
