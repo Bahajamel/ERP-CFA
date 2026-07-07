@@ -85,17 +85,17 @@ it('rend les référentiels visibles aux bons départements', function () {
     // Formations : catalogue consulté par le commercial, la pédagogie, l'admission, la scolarité
     $this->actingAs(makeUser(['Commercial']));
     expect(\App\Filament\Resources\Formations\FormationResource::canAccess())->toBeTrue()
-        ->and(\App\Filament\Resources\Opcos\OpcoResource::canAccess())->toBeFalse();
+        ->and(\App\Filament\Resources\OpcoFiles\OpcoFileResource::canAccess())->toBeFalse();
 
     $this->actingAs(makeUser(['Pédagogie']));
     expect(\App\Filament\Resources\Formations\FormationResource::canAccess())->toBeTrue();
 
-    // Référentiel OPCO : administratif & finance
+    // Dossiers OPCO (access_opco) : administratif & finance
     $this->actingAs(makeUser(['Administratif']));
-    expect(\App\Filament\Resources\Opcos\OpcoResource::canAccess())->toBeTrue();
+    expect(\App\Filament\Resources\OpcoFiles\OpcoFileResource::canAccess())->toBeTrue();
 
     $this->actingAs(makeUser(['Finance']));
-    expect(\App\Filament\Resources\Opcos\OpcoResource::canAccess())->toBeTrue()
+    expect(\App\Filament\Resources\OpcoFiles\OpcoFileResource::canAccess())->toBeTrue()
         ->and(\App\Filament\Resources\Formations\FormationResource::canAccess())->toBeFalse();
 });
 
