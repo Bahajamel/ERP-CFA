@@ -53,9 +53,9 @@ class CandidateForm
                                 ->label('Date de naissance')
                                 ->placeholder('ex : 15/03/2004')
                                 ->displayFormat('d/m/Y')
-                                // Pilote l'affichage conditionnel de l'attestation
-                                // de création de projet (candidats de plus de 30 ans).
-                                ->live(onBlur: true),
+                                // Pilote l'affichage immédiat de l'attestation de
+                                // création de projet (candidats de 30 ans ou plus).
+                                ->live(),
                         ]),
                     Section::make('Formation & suivi')
                         ->icon('heroicon-o-academic-cap')
@@ -198,13 +198,13 @@ class CandidateForm
                                 ->downloadable()
                                 ->openable()
                                 // Visible et exigée uniquement pour les candidats
-                                // de plus de 30 ans (dérogation d'âge apprentissage).
+                                // de 30 ans ou plus (dérogation d'âge apprentissage).
                                 ->visible(fn (Get $get): bool => Candidate::dateNaissancePlusDe30Ans($get('date_naissance')))
                                 ->required(fn (Get $get): bool => Candidate::dateNaissancePlusDe30Ans($get('date_naissance')))
                                 ->validationMessages([
-                                    'required' => 'L\'attestation de création de projet est obligatoire pour les candidats de plus de 30 ans.',
+                                    'required' => 'L\'attestation de création de projet est obligatoire pour les candidats de 30 ans ou plus.',
                                 ])
-                                ->helperText('Obligatoire uniquement pour les candidats de plus de 30 ans (PDF/JPG/PNG, 5 Mo max).')
+                                ->helperText('Obligatoire uniquement pour les candidats de 30 ans ou plus (PDF/JPG/PNG, 5 Mo max).')
                                 ->columnSpanFull(),
                         ]),
                 ])->columnSpan(1),

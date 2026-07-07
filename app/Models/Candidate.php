@@ -73,13 +73,17 @@ class Candidate extends Model implements HasMedia
         $this->addMediaCollection('attestation_projet')->singleFile()->acceptsMimeTypes(self::MIMES_JUSTIFICATIFS);
     }
 
-    /** Le candidat a-t-il plus de 30 ans (règle attestation de création de projet) ? */
+    /**
+     * Le candidat a-t-il 30 ans ou plus ? Au-delà de 29 ans révolus, l'entrée
+     * en apprentissage relève d'une dérogation : l'attestation de création de
+     * projet est alors exigée au dossier.
+     */
     public function plusDe30Ans(): bool
     {
         return self::dateNaissancePlusDe30Ans($this->date_naissance);
     }
 
-    /** Même règle, applicable à une valeur brute de formulaire (état non persisté). */
+    /** Même règle (≥ 30 ans), applicable à une valeur brute de formulaire. */
     public static function dateNaissancePlusDe30Ans(mixed $dateNaissance): bool
     {
         if (blank($dateNaissance)) {
@@ -87,7 +91,7 @@ class Candidate extends Model implements HasMedia
         }
 
         try {
-            return Carbon::parse($dateNaissance)->age > 30;
+            return Carbon::parse($dateNaissance)->age >= 30;
         } catch (\Throwable) {
             return false;
         }
