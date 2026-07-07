@@ -52,9 +52,11 @@ it('affiche les indicateurs commerciaux du commercial connecté', function () {
 
     Livewire::test(CommercialStatsOverview::class)
         ->assertSuccessful()
-        ->assertSee('Mes candidats')
-        ->assertSee('À placer')
-        ->assertSee('Relances à faire');
+        ->assertSee('Candidats actifs')
+        ->assertSee('Dossiers incomplets')
+        ->assertSee('CV envoyés')
+        ->assertSee('Contrats signés')
+        ->assertSee('À rappeler');
 });
 
 it('liste les relances échues du commercial dans son tableau', function () {

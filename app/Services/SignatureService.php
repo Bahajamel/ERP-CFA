@@ -167,14 +167,32 @@ class SignatureService
         $contract = $request->contract;
         $contract->forceFill(['statut_signature' => ContractSignatureStatut::Signe->value])->saveQuietly();
 
-        // Passe le contrat à « Signé » si la machine à états l'autorise (la garde
-        // métier est satisfaite : la signature est désormais « signée »).
-        if ($contract->fresh()->statut_contrat->canTransitionTo(ContractStatut::Signe)) {
+        // Toutes les parties ont signé → le contrat est signé. On l'amène à « Signé »
+        // par la machine à états quand l'état de départ le permet (effets de bord
+        // inclus, dont l'ouverture du dossier OPCO). Sinon (contrat resté en amont,
+        // ex. jamais passé par « Envoyé pour signature »), on force la cohérence
+        // depuis un état pré-signature et on ouvre le dossier OPCO explicitement,
+        // pour que le suivi du financement démarre systématiquement (P0-08-4/09).
+        if ($contract->statut_contrat->canTransitionTo(ContractStatut::Signe)) {
             try {
                 $contract->transitionTo(ContractStatut::Signe, 'Signature électronique de toutes les parties.');
             } catch (\Throwable) {
-                // La cohérence statut_signature est déjà posée ci-dessus.
+                // Cohérence forcée ci-dessous.
             }
+
+            $contract->refresh();
+        }
+
+        $preSignature = [
+            ContractStatut::Brouillon,
+            ContractStatut::InfosManquantes,
+            ContractStatut::PretAVerifier,
+            ContractStatut::EnvoyeSignature,
+        ];
+
+        if (in_array($contract->statut_contrat, $preSignature, true)) {
+            $contract->forceFill(['statut_contrat' => ContractStatut::Signe->value])->saveQuietly();
+            $contract->ouvrirDossierOpco();
         }
 
         $this->archiverPreuve($request);

@@ -66,6 +66,15 @@ class Contract extends Model implements HasMedia
             ], true);
     }
 
+    /**
+     * Ouvre le dossier OPCO du contrat s'il n'existe pas encore, pour lancer le
+     * suivi du financement et des paiements. Idempotent (firstOrCreate).
+     */
+    public function ouvrirDossierOpco(): void
+    {
+        $this->opcoFile()->firstOrCreate([], ['statut' => OpcoStatut::APreparer->value]);
+    }
+
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
@@ -169,7 +178,7 @@ class Contract extends Model implements HasMedia
         // Dès la signature (et à la transmission), on ouvre automatiquement le
         // dossier OPCO pour lancer le suivi du financement et des paiements.
         if (in_array($to, [ContractStatut::Signe, ContractStatut::TransmisOpco], true)) {
-            $this->opcoFile()->firstOrCreate([], ['statut' => OpcoStatut::APreparer->value]);
+            $this->ouvrirDossierOpco();
         }
 
         if (filled($comment)) {
