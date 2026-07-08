@@ -52,7 +52,10 @@ class EntretienForm
                             ->searchable(['nom', 'prenom'])
                             ->preload()
                             ->required()
-                            ->default(fn (): ?int => request()->integer('candidate') ?: null)
+                            // Le candidat est fixé à la création (depuis sa fiche) ;
+                            // il n'est pas réassignable en gestion d'entretien.
+                            ->disabled()
+                            ->dehydrated()
                             ->live(),
                         Select::make('responsable_id')
                             ->label('Responsable de l\'entretien')

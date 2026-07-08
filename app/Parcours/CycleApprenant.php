@@ -69,6 +69,8 @@ class CycleApprenant
 
     public const MSG_ACCEPTATION_SANS_ENTRETIEN = 'Impossible d\'accepter ce candidat : aucun entretien réalisé. (Un administrateur peut passer outre.)';
 
+    public const MSG_ENTRETIEN_EN_COURS = 'Un entretien est déjà en cours pour ce candidat. Gérez-le depuis la section Entretiens (reprogrammer, réaliser, annuler).';
+
     /** Origines d'un matching : proposé par le CFA ou entreprise trouvée par le candidat. */
     public const ORIGINE_CFA = 'cfa';
 

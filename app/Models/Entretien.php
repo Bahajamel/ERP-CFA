@@ -62,8 +62,33 @@ class Entretien extends Model
      * La synchronisation du statut candidat se fait après enregistrement
      * (`saved`) : le service central applique les règles du cycle.
      */
+    /** Statuts d'un entretien « en cours » (un seul actif par candidat). */
+    public const ACTIFS = [
+        EntretienStatut::APlanifier,
+        EntretienStatut::Planifie,
+        EntretienStatut::AReprogrammer,
+        EntretienStatut::Absent,
+    ];
+
     protected static function booted(): void
     {
+        // Anti-doublon : un candidat ne peut avoir qu'un seul entretien actif à
+        // la fois. On reprogramme l'entretien existant plutôt que d'en créer un
+        // second (relation intelligente Candidats ↔ Entretiens). Invariant
+        // backend, quel que soit le chemin d'écriture.
+        static::creating(function (self $entretien): void {
+            $dejaActif = static::query()
+                ->where('candidate_id', $entretien->candidate_id)
+                ->whereIn('statut', array_map(fn (EntretienStatut $s) => $s->value, self::ACTIFS))
+                ->exists();
+
+            if ($dejaActif) {
+                throw ValidationException::withMessages([
+                    'candidate_id' => CycleApprenant::MSG_ENTRETIEN_EN_COURS,
+                ]);
+            }
+        });
+
         static::saving(function (self $entretien): void {
             if ($entretien->statut === EntretienStatut::Planifie && ! $entretien->creneauComplet()) {
                 throw ValidationException::withMessages([

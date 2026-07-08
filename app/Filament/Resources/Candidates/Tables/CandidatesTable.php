@@ -100,13 +100,18 @@ class CandidatesTable
                             Notification::make()->danger()->title('Transition refusée')->body($e->getMessage())->send();
                         }
                     }),
+                // Point de création UNIQUE d'un entretien (la section Entretiens
+                // ne fait que les afficher / gérer). Masqué s'il existe déjà un
+                // entretien actif → on propose alors « Gérer l'entretien ».
                 Action::make('planifierEntretien')
                     ->label('Planifier un entretien')
                     ->icon('heroicon-o-calendar-days')
                     ->color('info')
-                    // Avant décision finale uniquement : l'entretien pilote le statut.
-                    ->visible(fn (Candidate $record): bool => ! $record->statut->estFinal())
+                    ->visible(fn (Candidate $record): bool => ! $record->statut->estFinal()
+                        && $record->entretienActif() === null)
                     ->modalHeading(fn (Candidate $record): string => "Planifier un entretien — {$record->nom_complet}")
+                    ->modalDescription('L\'entretien apparaîtra dans la section Entretiens et le candidat passera '
+                        .'automatiquement à « Entretien prévu ».')
                     ->schema([
                         \Filament\Forms\Components\DatePicker::make('date_entretien')
                             ->label('Date')->displayFormat('d/m/Y')->native(false)->required(),
@@ -138,6 +143,18 @@ class CandidatesTable
                             ->body($entretien->creneauLisible().' — le candidat passe à « Entretien prévu ».')
                             ->send();
                     }),
+                // Un entretien est déjà en cours : on renvoie vers la section
+                // Entretiens pour le gérer (reprogrammer, réaliser, décider).
+                Action::make('gererEntretien')
+                    ->label('Gérer l\'entretien')
+                    ->icon('heroicon-o-calendar-days')
+                    ->color('warning')
+                    ->visible(fn (Candidate $record): bool => ! $record->statut->estFinal()
+                        && $record->entretienActif() !== null)
+                    ->url(fn (Candidate $record): string => \App\Filament\Resources\Entretiens\EntretienResource::getUrl(
+                        'edit',
+                        ['record' => $record->entretienActif()],
+                    )),
                 Action::make('envoyerMatching')
                     ->label('Envoyer vers Matching')
                     ->icon('heroicon-o-paper-airplane')

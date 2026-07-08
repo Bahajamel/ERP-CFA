@@ -83,9 +83,6 @@
             <div class="ent-jour {{ $jour->isToday() ? 'ent-jour--today' : '' }}">
                 <div class="ent-jour-titre">
                     <span>{{ $jour->translatedFormat('l j/m') }}</span>
-                    <a class="ent-ajouter"
-                       href="{{ \App\Filament\Resources\Entretiens\EntretienResource::getUrl('create') }}"
-                       title="Planifier un entretien">+</a>
                 </div>
                 <div class="ent-cartes">
                     @forelse ($entretiensDuJour as $entretien)

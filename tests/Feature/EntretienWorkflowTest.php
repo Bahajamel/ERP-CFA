@@ -87,14 +87,27 @@ it('repasse le candidat à « Entretien à planifier » quand l\'entretien est a
     expect($candidat->fresh()->statut)->toBe(CandidateStatut::EntretienAPlanifier);
 });
 
-it('garde « Entretien prévu » si un autre entretien reste planifié après une annulation', function () {
+it('interdit un second entretien actif pour le même candidat (anti-doublon)', function () {
     $candidat = candidatAPlanifier();
-    $premier = Entretien::factory()->planifie()->create(['candidate_id' => $candidat->id]);
     Entretien::factory()->planifie()->create(['candidate_id' => $candidat->id]);
 
+    // Un seul entretien actif à la fois : on reprogramme l'existant.
+    expect(fn () => Entretien::factory()->planifie()->create(['candidate_id' => $candidat->id]))
+        ->toThrow(ValidationException::class, CycleApprenant::MSG_ENTRETIEN_EN_COURS);
+
+    expect($candidat->entretiens()->count())->toBe(1);
+});
+
+it('autorise un nouvel entretien après clôture du précédent (annulé)', function () {
+    $candidat = candidatAPlanifier();
+    $premier = Entretien::factory()->planifie()->create(['candidate_id' => $candidat->id]);
     $premier->transitionTo(EntretienStatut::Annule);
 
-    expect($candidat->fresh()->statut)->toBe(CandidateStatut::EntretienPrevu);
+    // L'ancien n'est plus actif : on peut en reposer un.
+    $second = Entretien::factory()->planifie()->create(['candidate_id' => $candidat->id]);
+
+    expect($second->exists)->toBeTrue()
+        ->and($candidat->fresh()->statut)->toBe(CandidateStatut::EntretienPrevu);
 });
 
 it('repasse le candidat à « Entretien à planifier » quand il est marqué absent', function () {
