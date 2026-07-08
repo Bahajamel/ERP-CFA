@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Filament\Actions\FicheApprenant;
 use App\Filament\Widgets\AssiduiteParPromotionChart;
 use App\Models\Candidate;
 use App\Models\User;
@@ -76,7 +77,11 @@ class Assiduite extends Page implements HasTable
                     ->label('Apprenti')
                     ->getStateUsing(fn (Candidate $record): string => $record->nom_complet)
                     ->searchable(['nom', 'prenom'])
-                    ->sortable(['nom']),
+                    ->sortable(['nom'])
+                    ->weight('bold')
+                    ->color('primary')
+                    ->tooltip('Voir la fiche apprenant')
+                    ->action(FicheApprenant::action()),
                 TextColumn::make('promotions.libelle')
                     ->label('Classes')
                     ->badge()

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Promotions\RelationManagers;
 
+use App\Filament\Actions\FicheApprenant;
 use Filament\Actions\AttachAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DetachAction;
@@ -24,7 +25,11 @@ class ApprentisRelationManager extends RelationManager
                 TextColumn::make('nom_complet')
                     ->label('Apprenti')
                     ->getStateUsing(fn ($record) => $record->nom_complet)
-                    ->searchable(['nom', 'prenom']),
+                    ->searchable(['nom', 'prenom'])
+                    ->weight('bold')
+                    ->color('primary')
+                    ->tooltip('Voir la fiche apprenant')
+                    ->action(FicheApprenant::action()),
                 TextColumn::make('formationVisee.libelle')
                     ->label('Formation visée')
                     ->badge()

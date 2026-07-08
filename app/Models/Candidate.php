@@ -72,6 +72,11 @@ class Candidate extends Model implements HasMedia
         $this->addMediaCollection('piece_identite')->singleFile()->acceptsMimeTypes(self::MIMES_JUSTIFICATIFS);
         $this->addMediaCollection('carte_vitale')->singleFile()->acceptsMimeTypes(self::MIMES_JUSTIFICATIFS);
         $this->addMediaCollection('attestation_projet')->singleFile()->acceptsMimeTypes(self::MIMES_JUSTIFICATIFS);
+
+        // Photo de profil de l'apprenant (fiche apprenant, trombinoscope).
+        $this->addMediaCollection('photo')
+            ->singleFile()
+            ->acceptsMimeTypes(['image/jpeg', 'image/png', 'image/webp']);
     }
 
     /**
