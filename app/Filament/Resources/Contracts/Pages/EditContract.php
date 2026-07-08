@@ -21,6 +21,7 @@ class EditContract extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
+            ContractActions::telechargerCerfa(),
             ContractActions::signer(),
             ContractActions::envoyerSignature(),
             ContractActions::simulerSignature(),

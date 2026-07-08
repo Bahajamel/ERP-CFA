@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Contracts;
 
+use App\Cerfa\CerfaApprentissage;
 use App\Enums\ContractSignatureStatut;
 use App\Enums\ContractStatut;
 use App\Enums\SignatureRequestStatut;
@@ -12,6 +13,7 @@ use App\Models\Contract;
 use App\Services\SignatureService;
 use App\StateMachine\InvalidTransitionException;
 use Filament\Actions\Action;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -190,6 +192,29 @@ class ContractActions
                     ->body('Toutes les parties ont signé. Preuve archivée dans la GED.')
                     ->success()
                     ->send();
+            });
+    }
+
+    /**
+     * Télécharger le CERFA 10103*14 pré-rempli automatiquement à partir des
+     * données du contrat (employeur, apprenti, maître d'apprentissage,
+     * formation, rémunération légale). Le document officiel est prêt à
+     * imprimer et à signer.
+     */
+    public static function telechargerCerfa(): Action
+    {
+        return Action::make('telechargerCerfa')
+            ->label('CERFA pré-rempli')
+            ->icon(Heroicon::OutlinedDocumentArrowDown)
+            ->color('primary')
+            ->visible(fn () => auth()->user()?->can('access_contracts') ?? false)
+            ->action(function (Contract $record): StreamedResponse {
+                $pdf = app(CerfaApprentissage::class)->pour($record);
+                $nom = 'CERFA_'.str($record->candidate?->nom_complet ?? 'contrat_'.$record->id)->slug().'.pdf';
+
+                return response()->streamDownload(fn () => print($pdf), $nom, [
+                    'Content-Type' => 'application/pdf',
+                ]);
             });
     }
 
