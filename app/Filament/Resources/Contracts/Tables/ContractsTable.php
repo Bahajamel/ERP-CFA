@@ -55,6 +55,7 @@ class ContractsTable
                 TrashedFilter::make(),
             ])
             ->recordActions([
+                ContractActions::telechargerCerfa(),
                 ContractActions::signer(),
                 ContractActions::envoyerSignature(),
                 ContractActions::simulerSignature(),
