@@ -12,85 +12,99 @@ use App\Models\User;
 use Illuminate\Database\Seeder;
 
 /**
- * Données de démonstration « scolarité » : pour CHAQUE formation, des classes
- * (1ère année, + 2ème année si formation longue) composées d'apprenants visant
- * cette formation, et deux séances par classe (une passée émargée + validée,
- * une à venir) pour rendre l'émargement démontrable. Idempotent (firstOrCreate).
+ * Données de démonstration « scolarité » : pour CHAQUE formation, une cohorte
+ * par année composée d'apprenants, et un emploi du temps hebdomadaire garni
+ * (plusieurs matières réparties du lundi au vendredi, matin et après-midi),
+ * décliné sur trois semaines — passée (émargée + validée), courante et
+ * prochaine (planifiées). Idempotent (nettoyage de la fenêtre + firstOrCreate).
  */
 class ClasseDemoSeeder extends Seeder
 {
     /** Nombre d'apprenants visé par classe. */
-    private const EFFECTIF = 5;
+    private const EFFECTIF = 6;
+
+    /** Matières par formation (le programme de la cohorte). */
+    private const MATIERES = [
+        'Concepteur Développeur d\'Applications' => [
+            'Développement web', 'Développement back-end', 'Bases de données',
+            'Cybersécurité', 'Gestion de projet', 'Anglais professionnel',
+        ],
+        'Administrateur Systèmes & Réseaux' => [
+            'Administration réseaux', 'Systèmes Linux', 'Virtualisation & Cloud',
+            'Cybersécurité', 'Supervision', 'Anglais professionnel',
+        ],
+        'Négociation et Digitalisation de la Relation Client' => [
+            'Relation client', 'Techniques de vente', 'Négociation commerciale',
+            'Marketing digital', 'Communication professionnelle', 'Anglais professionnel',
+        ],
+        'Responsable Marketing Digital' => [
+            'Marketing digital', 'Référencement SEO / SEA', 'Community management',
+            'Web analytics', 'Stratégie de contenu', 'Anglais professionnel',
+        ],
+        'Gestionnaire Comptable et Fiscal' => [
+            'Comptabilité générale', 'Fiscalité', 'Gestion de la paie',
+            'Analyse financière', 'Droit social', 'Anglais professionnel',
+        ],
+    ];
+
+    /** Créneaux hebdomadaires : [jour (0 = lundi … 4 = vendredi), début, fin]. */
+    private const CRENEAUX = [
+        [0, '09:00', '12:30'],
+        [0, '14:00', '17:30'],
+        [1, '09:00', '12:30'],
+        [1, '14:00', '17:30'],
+        [2, '09:00', '12:30'],
+        [3, '09:00', '12:30'],
+        [3, '14:00', '17:30'],
+        [4, '09:00', '12:30'],
+    ];
 
     public function run(): void
     {
         $formateur = User::where('email', 'formateur@cfa-v2s.fr')->first();
         $commercial = User::query()->first();
 
-        $matieres = [
-            'Concepteur Développeur d\'Applications' => 'Développement web',
-            'Administrateur Systèmes & Réseaux' => 'Administration réseaux',
-            'Négociation et Digitalisation de la Relation Client' => 'Relation client',
-            'Responsable Marketing Digital' => 'Marketing digital',
-            'Gestionnaire Comptable et Fiscal' => 'Comptabilité',
-        ];
+        // Toutes les matières connues (pour nettoyer nos anciennes séances sans
+        // toucher aux séances saisies à la main, dont le libellé diffère).
+        $matieresConnues = collect(self::MATIERES)->flatten()->unique()->all();
 
         foreach (Formation::all() as $formation) {
+            $matieres = self::MATIERES[$formation->libelle] ?? ['Cours magistral', 'Travaux pratiques', 'Anglais professionnel'];
+
             $libelles = ['1ère année'];
             if (($formation->duree_mois ?? 12) > 12) {
                 $libelles[] = '2ème année';
             }
 
-            $creneau = 0; // répartit les classes de la formation sur la semaine
+            foreach ($libelles as $rang => $libelle) {
+                $classe = Promotion::firstOrCreate(
+                    [
+                        'formation_id' => $formation->id,
+                        'libelle' => $libelle,
+                        'annee_scolaire' => '2025-2026',
+                    ],
+                    [
+                        'date_debut' => '2025-09-01',
+                        'date_fin' => '2026-08-31',
+                    ],
+                );
 
-            foreach ($libelles as $libelle) {
-                // Une classe = une matière : chaque année a sa matière « cœur de
-                // métier » + l'anglais pro, suivies par les MÊMES apprenants.
-                foreach ([$matieres[$formation->libelle] ?? 'Tronc commun', 'Anglais professionnel'] as $matiere) {
-                    $classe = Promotion::firstOrCreate(
-                        [
-                            'formation_id' => $formation->id,
-                            'libelle' => $libelle,
-                            'annee_scolaire' => '2025-2026',
-                            'matiere' => $matiere,
-                        ],
-                        [
-                            'date_debut' => '2025-09-01',
-                            'date_fin' => '2026-08-31',
-                        ],
-                    );
+                $this->composerClasse($classe, $formation, $commercial);
 
-                    $this->composerClasse($classe, $formation, $commercial);
-                    $this->planifierSeances($classe, $formateur, $creneau++);
-                }
+                // La 2ème année démarre le programme décalé → emploi du temps distinct.
+                $this->planifierEmploiDuTemps($classe, $formateur, $matieres, $rang, $matieresConnues);
             }
         }
     }
 
     /**
-     * Complète la classe jusqu'à l'effectif cible : d'abord la cohorte du même
-     * niveau (les apprenants des autres matières de cette année), puis les
-     * candidats de la formation sans classe, enfin des apprentis générés.
+     * Complète la cohorte jusqu'à l'effectif cible : d'abord les candidats
+     * « contrat signé » de la formation sans classe, puis des apprentis générés.
      */
     private function composerClasse(Promotion $classe, Formation $formation, ?User $commercial): void
     {
-        // 1) La cohorte : mêmes apprenants que les autres matières de ce niveau.
         $manque = self::EFFECTIF - $classe->apprentis()->count();
 
-        if ($manque > 0) {
-            $ids = Candidate::where('formation_visee_id', $formation->id)
-                ->whereHas('promotions', fn ($q) => $q
-                    ->where('formation_id', $formation->id)
-                    ->where('libelle', $classe->libelle))
-                ->whereDoesntHave('promotions', fn ($q) => $q->whereKey($classe->id))
-                ->limit($manque)
-                ->pluck('id');
-
-            $classe->apprentis()->syncWithoutDetaching($ids->all());
-            $manque = self::EFFECTIF - $classe->apprentis()->count();
-        }
-
-        // 2) Les candidats « contrat signé » de la formation encore sans classe.
         if ($manque > 0) {
             $ids = Candidate::where('formation_visee_id', $formation->id)
                 ->where('statut', CandidateStatut::ContratSigne)
@@ -102,7 +116,6 @@ class ClasseDemoSeeder extends Seeder
             $manque = self::EFFECTIF - $classe->apprentis()->count();
         }
 
-        // 3) Complète avec de nouveaux apprentis générés (formation cohérente).
         if ($manque > 0) {
             Candidate::factory()->count($manque)->create([
                 'formation_visee_id' => $formation->id,
@@ -114,51 +127,64 @@ class ClasseDemoSeeder extends Seeder
     }
 
     /**
-     * Répartit la classe sur l'emploi du temps : un jour de semaine et un
-     * créneau (matin/après-midi) stables, déclinés sur trois semaines —
-     * passée (émargée puis validée), courante et prochaine (planifiées).
+     * Génère l'emploi du temps hebdomadaire de la cohorte sur trois semaines :
+     * chaque créneau reçoit une matière (assignation décalée pour la 2ème année),
+     * la semaine passée est émargée puis validée, les deux autres sont planifiées.
+     *
+     * @param  list<string>  $matieres
+     * @param  list<string>  $matieresConnues
      */
-    private function planifierSeances(Promotion $classe, ?User $formateur, int $creneau): void
+    private function planifierEmploiDuTemps(Promotion $classe, ?User $formateur, array $matieres, int $decalage, array $matieresConnues): void
     {
-        $jour = $creneau % 5; // lundi → vendredi
-        [$debut, $fin] = $creneau % 2 === 0 ? ['09:00', '12:30'] : ['14:00', '17:30'];
-
         $lundi = now()->startOfWeek();
-        $dates = [
-            'passee' => $lundi->copy()->subWeek()->addDays($jour)->toDateString(),
-            'courante' => $lundi->copy()->addDays($jour)->toDateString(),
-            'prochaine' => $lundi->copy()->addWeek()->addDays($jour)->toDateString(),
+        $semaines = [
+            'passee' => $lundi->copy()->subWeek(),
+            'courante' => $lundi->copy(),
+            'prochaine' => $lundi->copy()->addWeek(),
         ];
 
-        // Nettoie les séances d'anciennes exécutions du seeder (toutes empilées
-        // sur les mêmes dates) sans toucher aux séances créées à la main.
+        // Nettoie nos séances de la fenêtre (anciennes exécutions / anciens
+        // programmes), sans toucher aux séances saisies à la main.
         $classe->seances()
-            ->whereIn('libelle', array_filter([$classe->matiere, 'Atelier pratique', 'Gestion de projet']))
-            ->whereNotIn('date', array_values($dates))
+            ->whereIn('libelle', $matieresConnues)
+            ->whereBetween('date', [
+                $semaines['passee']->toDateString(),
+                $semaines['prochaine']->copy()->addDays(5)->toDateString(),
+            ])
             ->delete();
 
-        $passee = $classe->seances()->firstOrCreate(
-            ['date' => $dates['passee'], 'libelle' => $classe->matiere ?? 'Atelier pratique'],
-            ['heure_debut' => $debut, 'heure_fin' => $fin, 'formateur_id' => $formateur?->id],
-        );
+        foreach ($semaines as $quand => $debutSemaine) {
+            foreach (self::CRENEAUX as $i => [$jour, $heureDebut, $heureFin]) {
+                // Matière du créneau (décalée d'une année à l'autre).
+                $matiere = $matieres[($i + $decalage) % count($matieres)];
+                $date = $debutSemaine->copy()->addDays($jour)->toDateString();
 
-        if ($passee->statut !== SeanceStatut::Validee) {
-            // Émarge : tout le monde présent sauf le dernier (absent justifié).
-            $presences = $passee->presences()->orderBy('candidate_id')->get();
-            $presences->each(fn ($p, $i) => $p->update([
-                'statut' => $i === $presences->count() - 1
-                    ? PresenceStatut::AbsentJustifie
-                    : PresenceStatut::Present,
-            ]));
+                $seance = $classe->seances()->firstOrCreate(
+                    ['date' => $date, 'heure_debut' => $heureDebut, 'libelle' => $matiere],
+                    ['heure_fin' => $heureFin, 'formateur_id' => $formateur?->id],
+                );
 
-            $passee->update(['statut' => SeanceStatut::Validee]);
+                if ($quand === 'passee') {
+                    $this->emargerEtValider($seance);
+                }
+            }
+        }
+    }
+
+    /** Émarge la séance (tous présents sauf un absent justifié) puis la valide. */
+    private function emargerEtValider($seance): void
+    {
+        if ($seance->statut === SeanceStatut::Validee) {
+            return;
         }
 
-        foreach ([$dates['courante'], $dates['prochaine']] as $date) {
-            $classe->seances()->firstOrCreate(
-                ['date' => $date, 'libelle' => $classe->matiere ?? 'Gestion de projet'],
-                ['heure_debut' => $debut, 'heure_fin' => $fin, 'formateur_id' => $formateur?->id],
-            );
-        }
+        $presences = $seance->presences()->orderBy('candidate_id')->get();
+        $presences->each(fn ($p, $i) => $p->update([
+            'statut' => $i === $presences->count() - 1
+                ? PresenceStatut::AbsentJustifie
+                : PresenceStatut::Present,
+        ]));
+
+        $seance->update(['statut' => SeanceStatut::Validee]);
     }
 }

@@ -3,10 +3,14 @@
 namespace App\Filament\Resources\Seances\Schemas;
 
 use App\Enums\SeanceStatut;
+use App\Models\Candidate;
+use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\TimePicker;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 
 class SeanceForm
@@ -19,12 +23,22 @@ class SeanceForm
                     ->label('Classe / Promotion')
                     ->relationship('promotion', 'libelle', fn ($query) => $query->with('formation'))
                     ->getOptionLabelFromRecordUsing(fn ($record) => $record->nom_complet)
+                    // Pré-remplie quand on arrive du « + » de l'emploi du temps.
+                    ->default(fn () => request('promotion') ?: null)
                     ->searchable()
                     ->preload()
                     ->required()
-                    ->helperText('Les apprentis de la classe seront émargés automatiquement.'),
+                    ->live()
+                    // Par défaut, toute la cohorte est cochée — on décoche ensuite
+                    // les apprenants qui ne suivent pas cette matière (options).
+                    ->afterStateUpdated(fn ($state, Set $set) => $set(
+                        'participants_ids',
+                        $state ? static::apprenantsDe($state)->pluck('id')->all() : [],
+                    )),
                 TextInput::make('libelle')
-                    ->label('Intitulé / matière')
+                    ->label('Matière')
+                    ->placeholder('Ex. Développement web, Anglais professionnel')
+                    ->required()
                     ->maxLength(255),
                 DatePicker::make('date')
                     ->label('Date')
@@ -42,12 +56,35 @@ class SeanceForm
                     ->label('Formateur')
                     ->relationship('formateur', 'name')
                     ->searchable()
-                    ->preload(),
+                    ->preload()
+                    ->required(),
                 Select::make('statut')
                     ->label('Statut')
                     ->options(SeanceStatut::class)
                     ->default(SeanceStatut::Planifiee->value)
                     ->required(),
+                CheckboxList::make('participants_ids')
+                    ->label('Apprenants concernés par cette matière')
+                    ->helperText('Toute la classe est cochée par défaut — décochez ceux qui ne suivent pas cette matière (options différentes). L\'émargement ne portera que sur les apprenants cochés.')
+                    ->options(fn (Get $get): array => filled($get('promotion_id'))
+                        ? static::apprenantsDe($get('promotion_id'))->mapWithKeys(
+                            fn (Candidate $c): array => [$c->id => $c->nom_complet],
+                        )->all()
+                        : [])
+                    ->hint(fn (Get $get): ?string => filled($get('promotion_id')) ? null : 'Choisissez d\'abord la classe.')
+                    ->columns(2)
+                    ->bulkToggleable()
+                    ->columnSpanFull(),
             ]);
+    }
+
+    /** Les apprenants de la cohorte, par ordre alphabétique. */
+    protected static function apprenantsDe(mixed $promotionId): \Illuminate\Support\Collection
+    {
+        return Candidate::query()
+            ->whereHas('promotions', fn ($q) => $q->whereKey($promotionId))
+            ->orderBy('nom')
+            ->orderBy('prenom')
+            ->get();
     }
 }

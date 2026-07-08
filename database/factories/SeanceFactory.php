@@ -5,6 +5,7 @@ namespace Database\Factories;
 use App\Enums\SeanceStatut;
 use App\Models\Promotion;
 use App\Models\Seance;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -25,7 +26,8 @@ class SeanceFactory extends Factory
                 'Mathématiques', 'Communication professionnelle', 'Atelier pratique',
                 'Gestion de projet', 'Anglais', 'Culture générale',
             ]),
-            'formateur_id' => null,
+            // Le formateur est obligatoire sur une séance (règle métier).
+            'formateur_id' => User::factory(),
             'statut' => SeanceStatut::Planifiee,
         ];
     }

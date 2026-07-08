@@ -24,16 +24,22 @@ class Promotion extends Model
         ];
     }
 
+    /** Le libellé est toujours normalisé (pas d'espaces parasites → pas de cohortes fantômes). */
+    protected function libelle(): Attribute
+    {
+        return Attribute::set(fn (?string $value): ?string => $value === null ? null : trim($value));
+    }
+
     public function formation(): BelongsTo
     {
         return $this->belongsTo(Formation::class);
     }
 
-    /** Nom affichable : « Formation — 1ère année — Matière (2025-2026) ». */
+    /** Nom affichable : « Formation — 1ère année (2025-2026) ». */
     protected function nomComplet(): Attribute
     {
         return Attribute::get(fn (): string => trim(
-            implode(' — ', array_filter([$this->formation?->libelle, $this->libelle, $this->matiere]))
+            implode(' — ', array_filter([$this->formation?->libelle, $this->libelle]))
             .($this->annee_scolaire ? " ({$this->annee_scolaire})" : '')
         ));
     }
