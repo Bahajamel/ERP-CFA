@@ -2,6 +2,8 @@
 
 namespace Database\Factories;
 
+use App\Enums\ContractSignatureStatut;
+use App\Enums\ContractStatut;
 use App\Enums\OpcoStatut;
 use App\Models\Contract;
 use App\Models\Opco;
@@ -21,7 +23,12 @@ class OpcoFileFactory extends Factory
         $estRejete = $statut === OpcoStatut::Rejete;
 
         return [
-            'contract_id' => Contract::factory(),
+            // Cycle apprenant : un dossier OPCO n'existe qu'apres signature du
+            // contrat par les trois parties.
+            'contract_id' => Contract::factory()->state([
+                'statut_contrat' => ContractStatut::Signe,
+                'statut_signature' => ContractSignatureStatut::Signe,
+            ]),
             'opco_id' => Opco::factory(),
             'date_depot' => fake()->boolean(60) ? fake()->dateTimeBetween('-3 months', 'now')->format('Y-m-d') : null,
             'statut' => $statut,

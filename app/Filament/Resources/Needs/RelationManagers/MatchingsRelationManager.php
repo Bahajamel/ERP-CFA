@@ -38,7 +38,7 @@ class MatchingsRelationManager extends RelationManager
                 Select::make('statut')
                     ->label('Statut')
                     ->options(MatchingStatut::class)
-                    ->default(MatchingStatut::Propose->value)
+                    ->default(MatchingStatut::EnRecherche->value)
                     ->required()
                     ->live(),
                 Toggle::make('cv_envoye')
@@ -52,10 +52,7 @@ class MatchingsRelationManager extends RelationManager
                 Textarea::make('refusal_reason')
                     ->label('Motif de refus')
                     ->helperText('Obligatoire pour un statut « Refusé » (motif ou retour entreprise).')
-                    ->visible(fn (Get $get): bool => in_array($get('statut'), [
-                        MatchingStatut::RefuseEntreprise->value,
-                        MatchingStatut::RefuseCandidat->value,
-                    ], true))
+                    ->visible(fn (Get $get): bool => $get('statut') === MatchingStatut::Refuse->value)
                     ->columnSpanFull(),
                 Textarea::make('notes')
                     ->label('Notes internes')

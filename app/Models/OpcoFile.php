@@ -7,8 +7,10 @@ use App\Enums\OpcoStatut;
 use App\Enums\PaymentStatut;
 use App\Enums\TaskPriorite;
 use App\Enums\TaskStatut;
+use App\Parcours\CycleApprenant;
 use App\StateMachine\ManagesState;
 use BackedEnum;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -35,6 +37,32 @@ class OpcoFile extends Model
             'montant_accepte' => 'decimal:2',
             'statut' => OpcoStatut::class,
         ];
+    }
+
+    /**
+     * Invariants du cycle apprenant :
+     *  - un dossier OPCO n'existe qu'après signature du contrat par les trois
+     *    parties (apprenti, entreprise, CFA) — invariant backend ;
+     *  - dès qu'un dossier naît « créé / transmis » (imports, seeds…),
+     *    l'admission officielle correspondante est ouverte (idempotent).
+     */
+    protected static function booted(): void
+    {
+        static::creating(function (self $dossier): void {
+            $contract = Contract::query()->find($dossier->contract_id);
+
+            if ($contract === null || ! $contract->estSigne()) {
+                throw ValidationException::withMessages([
+                    'contract_id' => CycleApprenant::MSG_CONTRAT_NON_SIGNE,
+                ]);
+            }
+        });
+
+        static::created(function (self $dossier): void {
+            if (CycleApprenant::opcoOuvreAdmission($dossier->statut)) {
+                app(CycleApprenant::class)->ouvrirAdmission($dossier);
+            }
+        });
     }
 
     public function getActivitylogOptions(): LogOptions
@@ -177,6 +205,13 @@ class OpcoFile extends Model
         // Acceptation OPCO : on génère l'échéancier de versement (décret 2025-585).
         if ($to === OpcoStatut::Accepte) {
             $this->genererEcheancier();
+        }
+
+        // Cycle apprenant : dossier créé ou transmis pour validation → ouverture
+        // de l'admission officielle « À vérifier » (idempotent, jamais supprimée
+        // ensuite, même si l'OPCO rejette ou demande correction).
+        if (CycleApprenant::opcoOuvreAdmission($to)) {
+            app(CycleApprenant::class)->ouvrirAdmission($this);
         }
 
         if (filled($comment)) {

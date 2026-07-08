@@ -21,41 +21,41 @@ beforeEach(function () {
 });
 
 it('groupe les candidats par statut dans les colonnes', function () {
-    Candidate::factory()->create(['statut' => CandidateStatut::Incomplet]);
-    Candidate::factory()->count(2)->create(['statut' => CandidateStatut::EnRechercheEntreprise]);
+    Candidate::factory()->create(['statut' => CandidateStatut::EntretienPrevu]);
+    Candidate::factory()->count(2)->create(['statut' => CandidateStatut::Accepte]);
 
     $columns = Livewire::test(CandidatesKanban::class)->instance()->getColumns();
     $parStatut = collect($columns)->keyBy(fn (array $c): string => $c['statut']->value);
 
-    expect($parStatut[CandidateStatut::Incomplet->value]['candidates'])->toHaveCount(1)
-        ->and($parStatut[CandidateStatut::EnRechercheEntreprise->value]['candidates'])->toHaveCount(2);
+    expect($parStatut[CandidateStatut::EntretienPrevu->value]['candidates'])->toHaveCount(1)
+        ->and($parStatut[CandidateStatut::Accepte->value]['candidates'])->toHaveCount(2);
 });
 
 it('déplace une carte vers un statut autorisé (transition appliquée)', function () {
-    $candidate = Candidate::factory()->create(['statut' => CandidateStatut::Incomplet]);
+    $candidate = Candidate::factory()->create(['statut' => CandidateStatut::EntretienPrevu]);
 
     Livewire::test(CandidatesKanban::class)
-        ->call('moveCard', $candidate->id, CandidateStatut::EnRechercheEntreprise->value)
+        ->call('moveCard', $candidate->id, CandidateStatut::Accepte->value)
         ->assertNotified();
 
-    expect($candidate->fresh()->statut)->toBe(CandidateStatut::EnRechercheEntreprise);
+    expect($candidate->fresh()->statut)->toBe(CandidateStatut::Accepte);
 });
 
-it('refuse un déplacement interdit et conserve le statut', function () {
-    $candidate = Candidate::factory()->create(['statut' => CandidateStatut::Incomplet]);
+it('refuse un déplacement interdit (retour à Entretien prévu) et conserve le statut', function () {
+    $candidate = Candidate::factory()->create(['statut' => CandidateStatut::Accepte]);
 
     Livewire::test(CandidatesKanban::class)
-        ->call('moveCard', $candidate->id, CandidateStatut::ContratSigne->value)
+        ->call('moveCard', $candidate->id, CandidateStatut::EntretienPrevu->value)
         ->assertNotified();
 
-    expect($candidate->fresh()->statut)->toBe(CandidateStatut::Incomplet);
+    expect($candidate->fresh()->statut)->toBe(CandidateStatut::Accepte);
 });
 
 it('ignore un dépôt dans la même colonne (aucune transition tentée)', function () {
-    $candidate = Candidate::factory()->create(['statut' => CandidateStatut::Incomplet]);
+    $candidate = Candidate::factory()->create(['statut' => CandidateStatut::EntretienPrevu]);
 
     Livewire::test(CandidatesKanban::class)
-        ->call('moveCard', $candidate->id, CandidateStatut::Incomplet->value);
+        ->call('moveCard', $candidate->id, CandidateStatut::EntretienPrevu->value);
 
-    expect($candidate->fresh()->statut)->toBe(CandidateStatut::Incomplet);
+    expect($candidate->fresh()->statut)->toBe(CandidateStatut::EntretienPrevu);
 });

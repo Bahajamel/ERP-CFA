@@ -122,17 +122,19 @@ class DemoSeeder extends Seeder
 
         // -------- Candidats --------
         $commerciaux = [$sophie->id, $thomas->id];
+        // Cycle apprenant : Entretien prévu → Accepté / Refusé. Les candidats
+        // engagés dans le parcours aval (matching, contrat…) sont « Accepté ».
         $candidatesData = [
-            ['Lucas', 'Petit', $devWeb, CandidateStatut::ContratSigne, 'Bac+2'],
-            ['Emma', 'Roux', $cyber, CandidateStatut::EnRechercheEntreprise, 'Bac'],
-            ['Hugo', 'Fontaine', $commerce, CandidateStatut::Complet, 'Bac'],
-            ['Léa', 'Girard', $marketing, CandidateStatut::EnRechercheEntreprise, 'Bac+2'],
-            ['Nathan', 'Lambert', $compta, CandidateStatut::Incomplet, 'Bac'],
-            ['Chloé', 'Mercier', $devWeb, CandidateStatut::Complet, 'Bac+2'],
-            ['Maxime', 'Blanc', $cyber, CandidateStatut::EnRechercheEntreprise, 'Bac'],
-            ['Sarah', 'Faure', $commerce, CandidateStatut::ContratSigne, 'Bac'],
-            ['Théo', 'Garnier', $marketing, CandidateStatut::Incomplet, 'Bac+2'],
-            ['Inès', 'Chevalier', $compta, CandidateStatut::Rupture, 'Bac'],
+            ['Lucas', 'Petit', $devWeb, CandidateStatut::Accepte, 'Bac+2'],
+            ['Emma', 'Roux', $cyber, CandidateStatut::Accepte, 'Bac'],
+            ['Hugo', 'Fontaine', $commerce, CandidateStatut::Accepte, 'Bac'],
+            ['Léa', 'Girard', $marketing, CandidateStatut::Accepte, 'Bac+2'],
+            ['Nathan', 'Lambert', $compta, CandidateStatut::EntretienPrevu, 'Bac'],
+            ['Chloé', 'Mercier', $devWeb, CandidateStatut::Accepte, 'Bac+2'],
+            ['Maxime', 'Blanc', $cyber, CandidateStatut::Accepte, 'Bac'],
+            ['Sarah', 'Faure', $commerce, CandidateStatut::Accepte, 'Bac'],
+            ['Théo', 'Garnier', $marketing, CandidateStatut::Refuse, 'Bac+2'],
+            ['Inès', 'Chevalier', $compta, CandidateStatut::Accepte, 'Bac'],
         ];
         $candidates = [];
         foreach ($candidatesData as $i => [$prenom, $nom, $formation, $statut, $niveau]) {
@@ -154,39 +156,24 @@ class DemoSeeder extends Seeder
 
         // -------- Matching (propositions candidat ↔ besoin) --------
         Matching::create(['need_id' => $needs[0]->id, 'candidate_id' => $candidates[0]->id, 'statut' => MatchingStatut::Accepte, 'cv_envoye' => true, 'date_entretien' => now()->subDays(20), 'retour_entreprise' => 'Candidat retenu, profil parfait.', 'assigned_by' => $sophie->id]);
-        Matching::create(['need_id' => $needs[1]->id, 'candidate_id' => $candidates[1]->id, 'statut' => MatchingStatut::AttenteRetour, 'cv_envoye' => true, 'assigned_by' => $thomas->id]);
-        Matching::create(['need_id' => $needs[1]->id, 'candidate_id' => $candidates[6]->id, 'statut' => MatchingStatut::CvEnvoye, 'cv_envoye' => true, 'assigned_by' => $thomas->id]);
-        Matching::create(['need_id' => $needs[2]->id, 'candidate_id' => $candidates[2]->id, 'statut' => MatchingStatut::EntretienPrevu, 'cv_envoye' => true, 'date_entretien' => now()->addDays(5), 'assigned_by' => $sophie->id]);
-        Matching::create(['need_id' => $needs[3]->id, 'candidate_id' => $candidates[3]->id, 'statut' => MatchingStatut::Propose, 'cv_envoye' => false, 'assigned_by' => $sophie->id]);
+        Matching::create(['need_id' => $needs[1]->id, 'candidate_id' => $candidates[1]->id, 'statut' => MatchingStatut::PropositionEnvoyee, 'cv_envoye' => true, 'assigned_by' => $thomas->id]);
+        Matching::create(['need_id' => $needs[1]->id, 'candidate_id' => $candidates[6]->id, 'statut' => MatchingStatut::PropositionEnvoyee, 'cv_envoye' => true, 'assigned_by' => $thomas->id]);
+        Matching::create(['need_id' => $needs[2]->id, 'candidate_id' => $candidates[2]->id, 'statut' => MatchingStatut::EntretienEntreprise, 'cv_envoye' => true, 'date_entretien' => now()->addDays(5), 'assigned_by' => $sophie->id]);
+        Matching::create(['need_id' => $needs[3]->id, 'candidate_id' => $candidates[3]->id, 'statut' => MatchingStatut::EnRecherche, 'cv_envoye' => false, 'assigned_by' => $sophie->id]);
         Matching::create(['need_id' => $needs[5]->id, 'candidate_id' => $candidates[7]->id, 'statut' => MatchingStatut::Accepte, 'cv_envoye' => true, 'date_entretien' => now()->subDays(30), 'retour_entreprise' => 'Embauché.', 'assigned_by' => $thomas->id]);
-        Matching::create(['need_id' => $needs[1]->id, 'candidate_id' => $candidates[3]->id, 'statut' => MatchingStatut::RefuseEntreprise, 'cv_envoye' => true, 'retour_entreprise' => 'Profil non retenu.', 'assigned_by' => $thomas->id]);
+        Matching::create(['need_id' => $needs[1]->id, 'candidate_id' => $candidates[3]->id, 'statut' => MatchingStatut::Refuse, 'cv_envoye' => true, 'retour_entreprise' => 'Profil non retenu.', 'assigned_by' => $thomas->id]);
 
         // Le besoin « Vendeur en boulangerie » a un candidat accepté : on le clôture
         // proprement en « Pourvu » (date de clôture + cascade des pistes ouvertes).
         $needs[5]->transitionTo(NeedStatut::Pourvu);
 
-        // -------- Pré-admission (CV = seul document requis) --------
-        // Un dossier de pré-admission est créé automatiquement à la création de
-        // chaque candidat (observer). On y attache un CV pour la plupart, on met
-        // à jour les statuts, et on laisse volontairement 2 candidats sans CV.
+        // -------- CV des candidats (pièce portée par la fiche candidat) --------
+        // Les admissions officielles naissent plus bas, automatiquement, dès que
+        // le dossier OPCO d'un contrat signé est créé/transmis (cycle apprenant).
         $avecCv = [0, 1, 2, 3, 5, 6, 7, 9];
         foreach ($avecCv as $i) {
             $this->attacherCvDemo($candidates[$i]);
         }
-
-        // Statuts des dossiers de pré-admission (dossiers déjà créés par l'observer).
-        $candidates[0]->admission->forceFill([
-            'statut' => AdmissionStatut::Valide->value, 'validated_by' => $admission->id,
-            'validated_at' => now()->subDays(15), 'commentaire' => 'CV reçu, dossier validé.',
-        ])->save();
-        $candidates[7]->admission->forceFill([
-            'statut' => AdmissionStatut::Valide->value, 'validated_by' => $admission->id,
-            'validated_at' => now()->subDays(25),
-        ])->save();
-        // Candidat 2 : CV présent, prêt à valider (reste « À vérifier »).
-        // Candidats 4 et 8 : PAS de CV → dossier « Incomplet » (démo « CV manquant »).
-        $candidates[4]->admission->forceFill(['statut' => AdmissionStatut::Incomplet->value])->save();
-        $candidates[8]->admission->forceFill(['statut' => AdmissionStatut::Incomplet->value])->save();
 
         // Quelques disponibilités structurées (démo de la nouvelle fonctionnalité).
         $candidates[1]->availabilities()->create([
@@ -242,18 +229,23 @@ class DemoSeeder extends Seeder
             'contract_id' => $contrat1->id, 'opco_id' => $opcoEp->id, 'date_depot' => now()->subMonths(2),
             'statut' => OpcoStatut::Accepte, 'montant_prevu' => 8000, 'montant_accepte' => 8000,
         ]);
-        // Déposé, en attente de retour
-        OpcoFile::create([
-            'contract_id' => $contrat3->id, 'opco_id' => $opcoAtlas->id, 'date_depot' => now()->subDays(4),
-            'statut' => OpcoStatut::Depose, 'montant_prevu' => 9200,
-        ]);
+        // NB : pas de dossier OPCO pour le contrat 3 — il n'est pas encore signé
+        // par les trois parties (règle du cycle : signature avant dossier OPCO).
+
+        // -------- Admissions officielles --------
+        // Les dossiers OPCO ci-dessus (créés/transmis) ont ouvert automatiquement
+        // les admissions « À vérifier ». On valide celle du contrat actif.
+        $contrat1->refresh()->admission->forceFill([
+            'statut' => AdmissionStatut::Valide->value, 'validated_by' => $admission->id,
+            'validated_at' => now()->subDays(25), 'commentaire' => 'Dossier contrôlé, admission validée.',
+        ])->save();
 
         // -------- Tâches & alertes --------
         $tasksData = [
             ['Relancer l\'entreprise Webtech pour la signature', $sophie->id, TaskPriorite::Haute, TaskStatut::AFaire, now()->addDays(2), $contrat3],
             ['Corriger le CERFA (NIR erroné) – dossier OPCO Atlas', $administratif->id, TaskPriorite::Urgente, TaskStatut::EnCours, now()->subDay(), $contrat0],
             ['Compléter la pièce manquante (CERFA) – dossier Hugo Fontaine', $admission->id, TaskPriorite::Normale, TaskStatut::AFaire, now()->addDays(3), $candidates[2]],
-            ['Appeler Nathan Lambert – dossier incomplet', $thomas->id, TaskPriorite::Normale, TaskStatut::EnRetard, now()->subDays(2), $candidates[4]],
+            ['Appeler Nathan Lambert – planifier son entretien', $thomas->id, TaskPriorite::Normale, TaskStatut::EnRetard, now()->subDays(2), $candidates[4]],
             ['Préparer l\'entretien entreprise – Distri+', $sophie->id, TaskPriorite::Normale, TaskStatut::AFaire, now()->addDays(5), $needs[2]],
             ['Vérifier le dossier d\'admission de Chloé Mercier', $admission->id, TaskPriorite::Haute, TaskStatut::EnAttente, now()->addDay(), $candidates[5]],
             ['Suivre l\'accompagnement rupture – Inès Chevalier', $direction->id, TaskPriorite::Haute, TaskStatut::EnCours, now()->addDays(7), $candidates[9]],
@@ -307,13 +299,18 @@ class DemoSeeder extends Seeder
             'tuteur_id' => $companies[3]['tuteur']->id, 'rythme' => $compta->rythme_defaut, 'lieu_formation' => 'CFA - Site principal',
             'statut_signature' => ContractSignatureStatut::Signe, 'statut_contrat' => ContractStatut::Rompu,
         ]);
+        // Financement du contrat rompu (accepté avant la rupture) : ouvre aussi
+        // l'admission officielle, que la rupture basculera en « Rupture ».
+        OpcoFile::create([
+            'contract_id' => $contratRompu->id, 'opco_id' => $akto->id, 'date_depot' => now()->subMonths(3),
+            'statut' => OpcoStatut::Accepte, 'montant_prevu' => 7400, 'montant_accepte' => 7400,
+        ]);
         Rupture::create([
             'contract_id' => $contratRompu->id,
             'date_rupture' => now()->subDays(18),
             'motif' => RuptureMotif::Licenciement->value,
             'initiative' => 'Employeur',
-            'statut' => RuptureStatut::EnAccompagnement->value,
-            'accompagnement' => now()->subDays(15)->format('d/m/Y').' — Entretien réalisé, 2 pistes de reclassement identifiées.',
+            'statut' => RuptureStatut::ATraiter->value,
             'commentaire' => "Réorganisation de l'entreprise, poste supprimé.",
             'created_by' => $direction->id,
         ]);
@@ -337,7 +334,7 @@ class DemoSeeder extends Seeder
             'nom' => 'Moreau', 'prenom' => 'Yanis', 'email' => 'yanis.moreau@email.fr',
             'telephone' => fake()->phoneNumber(), 'date_naissance' => fake()->dateTimeBetween('-22 years', '-18 years'),
             'formation_visee_id' => $cyber->id, 'niveau_actuel' => 'Bac', 'disponibilite' => 'Immédiate',
-            'commercial_id' => $thomas->id, 'statut' => CandidateStatut::ContratSigne,
+            'commercial_id' => $thomas->id, 'statut' => CandidateStatut::Accepte,
         ]);
         $contratRisque = Contract::create([
             'candidate_id' => $yanis->id, 'company_id' => $companies[2]['model']->id, 'formation_id' => $cyber->id,

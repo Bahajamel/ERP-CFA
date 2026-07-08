@@ -1,7 +1,10 @@
 <?php
 
+use App\Enums\AdmissionStatut;
 use App\Enums\CandidateStatut;
+use App\Enums\ContractSignatureStatut;
 use App\Enums\ContractStatut;
+use App\Enums\OpcoStatut;
 use App\Enums\RuptureMotif;
 use App\Enums\RuptureStatut;
 use App\Filament\Resources\Ruptures\Pages\CreateRupture;
@@ -18,15 +21,17 @@ use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
 
-/** Contrat actif complet (candidat signé + OPCO + ligne financière) prêt à rompre. */
+/** Contrat actif complet (candidat accepté, signé, OPCO déposé, finance) prêt à rompre. */
 function contratActif(): Contract
 {
-    $candidate = Candidate::factory()->create(['statut' => CandidateStatut::ContratSigne]);
+    $candidate = Candidate::factory()->create(['statut' => CandidateStatut::Accepte]);
     $contract = Contract::factory()->create([
         'statut_contrat' => ContractStatut::Actif,
+        'statut_signature' => ContractSignatureStatut::Signe,
         'candidate_id' => $candidate->id,
     ]);
-    OpcoFile::factory()->create(['contract_id' => $contract->id]);
+    // Dossier OPCO déposé → l'admission officielle « À vérifier » s'ouvre.
+    OpcoFile::factory()->create(['contract_id' => $contract->id, 'statut' => OpcoStatut::Depose, 'motif_rejet' => null]);
     FinanceLine::factory()->create(['contract_id' => $contract->id]);
 
     return $contract;
@@ -40,12 +45,13 @@ it('bascule le contrat en Rompu à l\'ouverture de la rupture', function () {
     expect($contract->refresh()->statut_contrat)->toBe(ContractStatut::Rompu);
 });
 
-it('bascule le candidat en Rupture', function () {
+it('bascule l\'admission officielle en Rupture (le statut candidat reste acquis)', function () {
     $contract = contratActif();
 
     Rupture::factory()->create(['contract_id' => $contract->id]);
 
-    expect($contract->candidate->refresh()->statut)->toBe(CandidateStatut::Rupture);
+    expect($contract->admission()->first()->statut)->toBe(AdmissionStatut::Rupture)
+        ->and($contract->candidate->refresh()->statut)->toBe(CandidateStatut::Accepte);
 });
 
 it('crée les actions de suivi OPCO et finance (traces + preuves)', function () {
@@ -66,24 +72,34 @@ it('ne duplique pas les actions si la propagation est rejouée (idempotence)', f
     expect($contract->tasks()->where('cle', "rupture:finance:{$rupture->id}")->count())->toBe(1);
 });
 
-it('suit le cycle d\'accompagnement jusqu\'à la clôture', function () {
+it('ne crée qu\'un seul dossier de rupture par contrat (unicité)', function () {
+    $contract = contratActif();
+    Rupture::factory()->create(['contract_id' => $contract->id]);
+
+    expect(fn () => Rupture::factory()->create(['contract_id' => $contract->id]))
+        ->toThrow(Illuminate\Database\QueryException::class);
+});
+
+it('suit le traitement administratif : à traiter → documents générés → clôturée', function () {
     $contract = contratActif();
     $rupture = Rupture::factory()->create(['contract_id' => $contract->id]);
 
-    $rupture->transitionTo(RuptureStatut::EnAccompagnement);
-    $rupture->transitionTo(RuptureStatut::RechercheEmployeur);
-    $rupture->transitionTo(RuptureStatut::Reclasse);
+    expect($rupture->statut)->toBe(RuptureStatut::ATraiter);
+
+    $rupture->transitionTo(RuptureStatut::DocumentsGeneres);
     $rupture->transitionTo(RuptureStatut::Cloturee);
 
     expect($rupture->refresh()->statut)->toBe(RuptureStatut::Cloturee);
 });
 
-it('refuse une transition d\'accompagnement non autorisée', function () {
+it('refuse une transition de traitement non autorisée', function () {
     $contract = contratActif();
     $rupture = Rupture::factory()->create(['contract_id' => $contract->id]);
 
-    // Ouverte → Reclasse directement n'est pas permis.
-    expect(fn () => $rupture->transitionTo(RuptureStatut::Reclasse))
+    $rupture->transitionTo(RuptureStatut::Cloturee);
+
+    // Clôturée est terminale : aucun retour possible.
+    expect(fn () => $rupture->fresh()->transitionTo(RuptureStatut::ATraiter))
         ->toThrow(App\StateMachine\InvalidTransitionException::class);
 });
 

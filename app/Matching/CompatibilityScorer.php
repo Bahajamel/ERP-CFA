@@ -31,7 +31,7 @@ class CompatibilityScorer
         return [
             'formation' => $candidate->formation_visee_id !== null
                 && $candidate->formation_visee_id === $need->formation_id,
-            'disponibilite' => $candidate->statut === CandidateStatut::EnRechercheEntreprise,
+            'disponibilite' => $candidate->statut === CandidateStatut::Accepte,
             'mobilite' => filled($need->localisation) && filled($candidate->mobilite)
                 && str_contains(mb_strtolower($candidate->mobilite), mb_strtolower($need->localisation)),
             'niveau' => filled($candidate->niveau_actuel),

@@ -47,7 +47,7 @@ class AlerteService
         $n = 0;
 
         Admission::query()
-            ->whereNotIn('statut', [AdmissionStatut::Valide->value, AdmissionStatut::Refuse->value])
+            ->where('statut', AdmissionStatut::AVerifier->value)
             ->with('candidate.media')
             ->get()
             ->each(function (Admission $admission) use (&$n) {

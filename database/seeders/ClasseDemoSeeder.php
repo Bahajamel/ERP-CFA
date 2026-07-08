@@ -93,7 +93,7 @@ class ClasseDemoSeeder extends Seeder
         // 2) Les candidats « contrat signé » de la formation encore sans classe.
         if ($manque > 0) {
             $ids = Candidate::where('formation_visee_id', $formation->id)
-                ->where('statut', CandidateStatut::ContratSigne)
+                ->where('statut', CandidateStatut::Accepte)
                 ->doesntHave('promotions')
                 ->limit($manque)
                 ->pluck('id');
@@ -106,7 +106,7 @@ class ClasseDemoSeeder extends Seeder
         if ($manque > 0) {
             Candidate::factory()->count($manque)->create([
                 'formation_visee_id' => $formation->id,
-                'statut' => CandidateStatut::ContratSigne,
+                'statut' => CandidateStatut::Accepte,
                 'source' => 'Démo scolarité',
                 'commercial_id' => $commercial?->id,
             ])->each(fn (Candidate $c) => $classe->apprentis()->attach($c->id));

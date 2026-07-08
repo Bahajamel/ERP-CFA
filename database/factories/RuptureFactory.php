@@ -23,7 +23,7 @@ class RuptureFactory extends Factory
             'date_rupture' => fake()->dateTimeBetween('-3 months', 'now')->format('Y-m-d'),
             'motif' => fake()->randomElement(RuptureMotif::cases()),
             'initiative' => fake()->randomElement(['Employeur', 'Apprenti', 'Commun accord']),
-            'statut' => RuptureStatut::Ouverte,
+            'statut' => RuptureStatut::ATraiter,
             'accompagnement' => null,
             'nouvel_employeur' => null,
         ];

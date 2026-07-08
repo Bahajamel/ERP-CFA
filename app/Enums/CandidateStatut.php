@@ -8,57 +8,54 @@ use Filament\Support\Contracts\HasColor;
 use Filament\Support\Contracts\HasIcon;
 use Filament\Support\Contracts\HasLabel;
 
+/**
+ * Décision du CFA sur la candidature — première étape du cycle apprenant.
+ * Le parcours aval (matching, contrat, OPCO, admission, rupture) est porté
+ * par les modules dédiés : le statut candidat ne revient jamais en arrière
+ * après une décision finale (Accepté / Refusé).
+ */
 enum CandidateStatut: string implements HasLabel, HasColor, HasIcon, HasStateTransitions
 {
     use DefinesTransitions;
 
-    case Incomplet = 'incomplet';
-    case Complet = 'complet';
-    case EnRechercheEntreprise = 'en_recherche_entreprise';
-    case ContratSigne = 'contrat_signe';
-    case Rupture = 'rupture';
+    case EntretienPrevu = 'entretien_prevu';
+    case Accepte = 'accepte';
+    case Refuse = 'refuse';
 
     public function getLabel(): string
     {
         return match ($this) {
-            self::Incomplet => 'Dossier incomplet',
-            self::Complet => 'Dossier complet',
-            self::EnRechercheEntreprise => "En recherche d'entreprise",
-            self::ContratSigne => 'Contrat signé',
-            self::Rupture => 'Rupture',
+            self::EntretienPrevu => 'Entretien prévu',
+            self::Accepte => 'Accepté',
+            self::Refuse => 'Refusé',
         };
     }
 
     public function getColor(): string
     {
         return match ($this) {
-            self::Incomplet => 'gray',
-            self::Complet => 'info',
-            self::EnRechercheEntreprise => 'warning',
-            self::ContratSigne => 'success',
-            self::Rupture => 'danger',
+            self::EntretienPrevu => 'warning',
+            self::Accepte => 'success',
+            self::Refuse => 'danger',
         };
     }
 
     public function getIcon(): string
     {
         return match ($this) {
-            self::Incomplet => 'heroicon-o-document-minus',
-            self::Complet => 'heroicon-o-document-check',
-            self::EnRechercheEntreprise => 'heroicon-o-magnifying-glass',
-            self::ContratSigne => 'heroicon-o-check-badge',
-            self::Rupture => 'heroicon-o-x-circle',
+            self::EntretienPrevu => 'heroicon-o-calendar-days',
+            self::Accepte => 'heroicon-o-check-badge',
+            self::Refuse => 'heroicon-o-x-circle',
         };
     }
 
+    /** Les décisions finales sont terminales : aucun retour à « Entretien prévu ». */
     public function transitions(): array
     {
         return match ($this) {
-            self::Incomplet => [self::Complet, self::EnRechercheEntreprise],
-            self::Complet => [self::EnRechercheEntreprise, self::Incomplet],
-            self::EnRechercheEntreprise => [self::ContratSigne, self::Rupture],
-            self::ContratSigne => [self::Rupture],
-            self::Rupture => [],
+            self::EntretienPrevu => [self::Accepte, self::Refuse],
+            self::Accepte => [],
+            self::Refuse => [],
         };
     }
 

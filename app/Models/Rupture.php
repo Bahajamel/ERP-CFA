@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Enums\CandidateStatut;
+use App\Enums\AdmissionStatut;
 use App\Enums\ContractStatut;
 use App\Enums\RuptureMotif;
 use App\Enums\RuptureStatut;
@@ -18,9 +18,9 @@ use Spatie\Activitylog\Traits\LogsActivity;
 
 /**
  * Dossier de rupture d'un contrat (EPIC-18). À l'ouverture, la rupture propage
- * automatiquement une trace dans le contrat (→ Rompu), le candidat (→ Rupture)
- * et crée des actions de suivi côté OPCO et finance (P1-18-3), conservées comme
- * preuves.
+ * automatiquement une trace dans le contrat (→ Rompu), l'admission officielle
+ * (→ Rupture) et crée des actions de suivi côté OPCO et finance (P1-18-3),
+ * conservées comme preuves. Un seul dossier par contrat (unicité en base).
  */
 class Rupture extends Model
 {
@@ -91,10 +91,12 @@ class Rupture extends Model
             $contract->transitionTo(ContractStatut::Rompu, 'Rupture ouverte le '.$this->date_rupture?->format('d/m/Y'));
         }
 
-        // Candidat → Rupture.
-        $candidate = $contract->candidate;
-        if ($candidate && $candidate->canTransitionTo(CandidateStatut::Rupture)) {
-            $candidate->transitionTo(CandidateStatut::Rupture, 'Rupture du contrat #'.$contract->id);
+        // Admission officielle → Rupture (le statut candidat, lui, ne bouge
+        // plus : la décision d'entrée du CFA reste acquise).
+        $admission = $contract->admission;
+        if ($admission && $admission->statut !== AdmissionStatut::Rupture
+            && $admission->canTransitionTo(AdmissionStatut::Rupture)) {
+            $admission->transitionTo(AdmissionStatut::Rupture, 'Rupture du contrat #'.$contract->id);
         }
 
         // Trace OPCO : action de traitement du financement.

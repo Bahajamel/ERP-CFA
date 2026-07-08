@@ -7,24 +7,27 @@ use App\StateMachine\HasStateTransitions;
 use Filament\Support\Contracts\HasColor;
 use Filament\Support\Contracts\HasLabel;
 
+/**
+ * Admission officielle de l'apprenant — dernière étape du cycle d'entrée
+ * (et non une pré-admission). Une admission n'existe qu'après : candidat
+ * accepté, entreprise trouvée, contrat signé par les trois parties et
+ * dossier OPCO créé ou transmis pour validation. Elle démarre toujours
+ * « À vérifier » ; « Rupture » alimente le module Rupture (livrables).
+ */
 enum AdmissionStatut: string implements HasLabel, HasColor, HasStateTransitions
 {
     use DefinesTransitions;
 
     case AVerifier = 'a_verifier';
-    case Incomplet = 'incomplet';
-    case NonConforme = 'non_conforme';
     case Valide = 'valide';
-    case Refuse = 'refuse';
+    case Rupture = 'rupture';
 
     public function getLabel(): string
     {
         return match ($this) {
             self::AVerifier => 'À vérifier',
-            self::Incomplet => 'Incomplet',
-            self::NonConforme => 'Non conforme',
             self::Valide => 'Validé',
-            self::Refuse => 'Refusé',
+            self::Rupture => 'Rupture',
         };
     }
 
@@ -32,21 +35,17 @@ enum AdmissionStatut: string implements HasLabel, HasColor, HasStateTransitions
     {
         return match ($this) {
             self::AVerifier => 'info',
-            self::Incomplet => 'gray',
-            self::NonConforme => 'warning',
             self::Valide => 'success',
-            self::Refuse => 'danger',
+            self::Rupture => 'danger',
         };
     }
 
     public function transitions(): array
     {
         return match ($this) {
-            self::AVerifier => [self::Incomplet, self::NonConforme, self::Valide, self::Refuse],
-            self::Incomplet => [self::AVerifier, self::Refuse],
-            self::NonConforme => [self::AVerifier, self::Refuse],
-            self::Valide => [],
-            self::Refuse => [],
+            self::AVerifier => [self::Valide, self::Rupture],
+            self::Valide => [self::Rupture],
+            self::Rupture => [],
         };
     }
 }

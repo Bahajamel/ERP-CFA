@@ -138,7 +138,7 @@ class NeedsTable
                             if (! $record->matchings()->where('candidate_id', $candidateId)->exists()) {
                                 $record->matchings()->create([
                                     'candidate_id' => $candidateId,
-                                    'statut' => MatchingStatut::Propose,
+                                    'statut' => MatchingStatut::EnRecherche,
                                     'assigned_by' => auth()->id(),
                                 ]);
                                 $created++;

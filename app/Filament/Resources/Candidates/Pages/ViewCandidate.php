@@ -4,15 +4,18 @@ namespace App\Filament\Resources\Candidates\Pages;
 
 use App\Filament\Resources\Candidates\CandidateResource;
 use App\Models\Candidate;
+use App\Parcours\CycleApprenant;
 use Filament\Actions\EditAction;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Resources\Pages\ViewRecord;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
+use Illuminate\Support\HtmlString;
 
 /**
- * Vue 360° « Parcours de l'apprenant » : rassemble en un écran les 4 phases du
- * cycle de vie (admission → entreprise/contrat → OPCO → scolarité).
+ * Vue 360° « Parcours de l'apprenant » : timeline du cycle (Candidat →
+ * Matching → Contrat → OPCO → Admission → Rupture) puis le détail de
+ * chaque phase en un écran.
  */
 class ViewCandidate extends ViewRecord
 {
@@ -28,6 +31,18 @@ class ViewCandidate extends ViewRecord
     public function infolist(Schema $schema): Schema
     {
         return $schema->components([
+            // Où en est l'apprenant dans le cycle — visible d'un coup d'œil.
+            Section::make('Parcours de l\'apprenant')
+                ->schema([
+                    TextEntry::make('parcours')
+                        ->hiddenLabel()
+                        ->state(fn (Candidate $record): HtmlString => new HtmlString(
+                            view('filament.parcours.timeline', [
+                                'etapes' => app(CycleApprenant::class)->etapes($record),
+                            ])->render(),
+                        )),
+                ]),
+
             Section::make('Identité & scolarité')
                 ->columns(3)
                 ->schema([
@@ -59,13 +74,13 @@ class ViewCandidate extends ViewRecord
                         ->placeholder('—'),
                 ]),
 
-            Section::make('1 · Admission')
+            Section::make('3 · Admission officielle')
                 ->columns(3)
                 ->schema([
                     TextEntry::make('admission.statut')
-                        ->label('Dossier d\'admission')
+                        ->label('Admission')
                         ->badge()
-                        ->placeholder('Aucun dossier'),
+                        ->placeholder('Pas encore admis'),
                     TextEntry::make('cv')
                         ->label('CV')
                         ->state(fn (Candidate $record) => $record->hasCv() ? 'CV fourni' : 'CV manquant')
@@ -77,7 +92,7 @@ class ViewCandidate extends ViewRecord
                         ->placeholder('—'),
                 ]),
 
-            Section::make('2 · Entreprise & contrat')
+            Section::make('1 · Entreprise & contrat')
                 ->columns(3)
                 ->schema([
                     TextEntry::make('contrat_entreprise')
@@ -103,7 +118,7 @@ class ViewCandidate extends ViewRecord
                         ->placeholder('—'),
                 ]),
 
-            Section::make('3 · Financement OPCO')
+            Section::make('2 · Financement OPCO')
                 ->columns(3)
                 ->schema([
                     TextEntry::make('opco_statut')

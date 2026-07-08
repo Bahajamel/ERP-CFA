@@ -41,14 +41,14 @@ it('affiche le formulaire public de candidature (sans authentification)', functi
         ->assertSee('Déposez votre candidature');
 });
 
-it('crée un candidat « Dossier incomplet » avec ses pièces (collections média)', function () {
+it('crée un candidat « Entretien prévu » avec ses pièces (collections média)', function () {
     $this->post(route('candidature.store'), candidaturePayload())
         ->assertRedirect(route('candidature.merci'));
 
     $candidate = Candidate::where('email', 'lea.martin@example.test')->first();
 
     expect($candidate)->not->toBeNull()
-        ->and($candidate->statut)->toBe(CandidateStatut::Incomplet)
+        ->and($candidate->statut)->toBe(CandidateStatut::EntretienPrevu)
         ->and($candidate->source)->toBe('Candidature en ligne')
         ->and($candidate->getFirstMedia('cv'))->not->toBeNull()
         ->and($candidate->getFirstMedia('piece_identite'))->not->toBeNull()

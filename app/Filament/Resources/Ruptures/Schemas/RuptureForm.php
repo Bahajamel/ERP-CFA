@@ -7,7 +7,6 @@ use App\Models\Contract;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
-use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Schema;
 
 class RuptureForm
@@ -23,7 +22,8 @@ class RuptureForm
                     ->searchable()
                     ->preload()
                     ->required()
-                    ->helperText('L\'ouverture bascule le contrat en « Rompu » et le candidat en « Rupture ».')
+                    ->helperText('L\'ouverture bascule le contrat en « Rompu » et l\'admission officielle en « Rupture ». '
+                        .'Un seul dossier de rupture par contrat.')
                     ->columnSpanFull(),
                 DatePicker::make('date_rupture')
                     ->label('Date de rupture')
@@ -41,17 +41,8 @@ class RuptureForm
                         'Apprenti' => 'Apprenti',
                         'Commun accord' => 'Commun accord',
                     ]),
-                TextInput::make('nouvel_employeur')
-                    ->label('Nouvel employeur (reclassement)')
-                    ->placeholder('Piste ou entreprise trouvée')
-                    ->maxLength(255),
-                Textarea::make('accompagnement')
-                    ->label('Accompagnement')
-                    ->rows(3)
-                    ->placeholder('Suivi de l\'apprenant, recherche d\'un nouvel employeur…')
-                    ->columnSpanFull(),
                 Textarea::make('commentaire')
-                    ->label('Commentaire')
+                    ->label('Commentaire interne')
                     ->rows(2)
                     ->columnSpanFull(),
             ]);

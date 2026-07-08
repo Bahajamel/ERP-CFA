@@ -2,7 +2,9 @@
 
 namespace App\Models;
 
+use App\Enums\CandidateStatut;
 use App\Enums\MatchingStatut;
+use App\Parcours\CycleApprenant;
 use App\StateMachine\ManagesState;
 use BackedEnum;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -30,8 +32,8 @@ class Matching extends Model
         ];
     }
 
-    /** Statuts terminaux de refus (motif obligatoire à la transition). */
-    private const REFUS = [MatchingStatut::RefuseEntreprise, MatchingStatut::RefuseCandidat];
+    /** Statut terminal de refus (motif obligatoire à la transition). */
+    private const REFUS = [MatchingStatut::Refuse];
 
     /**
      * Journalise les évolutions du matching (activity log) — traçabilité commerciale
@@ -47,11 +49,13 @@ class Matching extends Model
     }
 
     /**
-     * Règles système (EPIC-05) appliquées à l'enregistrement, quel que soit le
-     * chemin (formulaire, transition d'état, écriture directe) :
+     * Règles système appliquées à l'enregistrement, quel que soit le chemin
+     * (formulaire, transition d'état, écriture directe) :
+     *  - cycle apprenant : seul un candidat **accepté par le CFA** entre au
+     *    Matching (un candidat refusé ne poursuit jamais le cycle) ;
      *  - P0-05-5 : pas d'« Accepté » sur un besoin clôturé ;
-     *  - CV envoyé exige que le CV soit marqué envoyé ;
-     *  - Entretien prévu exige une date d'entretien ;
+     *  - Proposition envoyée exige que le CV soit marqué envoyé ;
+     *  - Entretien entreprise exige une date d'entretien ;
      *  - Refusé exige un motif de refus ou un commentaire (retour entreprise).
      *
      * Les trois dernières encadrent une **transition** (mise à jour d'un matching
@@ -59,6 +63,16 @@ class Matching extends Model
      */
     protected static function booted(): void
     {
+        static::creating(function (self $matching): void {
+            $candidate = Candidate::query()->find($matching->candidate_id);
+
+            if ($candidate?->statut !== CandidateStatut::Accepte) {
+                throw ValidationException::withMessages([
+                    'candidate_id' => CycleApprenant::MSG_CANDIDAT_NON_ACCEPTE,
+                ]);
+            }
+        });
+
         static::saving(function (self $matching): void {
             if (! $matching->isDirty('statut')) {
                 return;
@@ -77,15 +91,15 @@ class Matching extends Model
                 return;
             }
 
-            if ($statut === MatchingStatut::CvEnvoye && ! $matching->cv_envoye) {
+            if ($statut === MatchingStatut::PropositionEnvoyee && ! $matching->cv_envoye) {
                 throw ValidationException::withMessages([
-                    'cv_envoye' => 'CV envoyé : marquez le CV comme envoyé avant de passer à ce statut.',
+                    'cv_envoye' => 'Proposition envoyée : marquez le CV comme envoyé avant de passer à ce statut.',
                 ]);
             }
 
-            if ($statut === MatchingStatut::EntretienPrevu && blank($matching->date_entretien)) {
+            if ($statut === MatchingStatut::EntretienEntreprise && blank($matching->date_entretien)) {
                 throw ValidationException::withMessages([
-                    'date_entretien' => 'Entretien prévu : renseignez la date d\'entretien.',
+                    'date_entretien' => 'Entretien entreprise : renseignez la date d\'entretien.',
                 ]);
             }
 
@@ -108,11 +122,11 @@ class Matching extends Model
             return 'Besoin clôturé : impossible d\'accepter ce candidat.';
         }
 
-        if ($to === MatchingStatut::CvEnvoye && ! $this->cv_envoye) {
+        if ($to === MatchingStatut::PropositionEnvoyee && ! $this->cv_envoye) {
             return 'Marquez le CV comme envoyé avant de passer à ce statut.';
         }
 
-        if ($to === MatchingStatut::EntretienPrevu && blank($this->date_entretien)) {
+        if ($to === MatchingStatut::EntretienEntreprise && blank($this->date_entretien)) {
             return 'Renseignez la date d\'entretien avant de passer à ce statut.';
         }
 
@@ -122,6 +136,12 @@ class Matching extends Model
         }
 
         return null;
+    }
+
+    /** Le matching provient-il d'une entreprise trouvée par le candidat ? */
+    public function estOrigineCandidat(): bool
+    {
+        return $this->origine === CycleApprenant::ORIGINE_CANDIDAT;
     }
 
     /** Le besoin rattaché est-il clôturé (statut terminal) ? */

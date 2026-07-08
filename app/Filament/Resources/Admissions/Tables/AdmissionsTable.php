@@ -19,13 +19,20 @@ class AdmissionsTable
     public static function configure(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(fn (Builder $query) => $query->with('candidate.media'))
+            ->modifyQueryUsing(fn (Builder $query) => $query->with(['candidate.media', 'contract.company', 'contract.opcoFile']))
             ->columns([
                 TextColumn::make('candidate.nom_complet')
-                    ->label('Candidat')
+                    ->label('Apprenti')
                     ->getStateUsing(fn ($record) => $record->candidate?->nom_complet)
                     ->searchable(['nom', 'prenom'])
                     ->sortable(['nom']),
+                TextColumn::make('contract.company.raison_sociale')
+                    ->label('Entreprise')
+                    ->placeholder('—'),
+                TextColumn::make('contract.opcoFile.statut')
+                    ->label('Dossier OPCO')
+                    ->badge()
+                    ->placeholder('—'),
                 TextColumn::make('cv')
                     ->label('CV')
                     ->state(fn (Admission $record) => $record->cvManquant() ? 'CV manquant' : 'CV fourni')
@@ -51,6 +58,7 @@ class AdmissionsTable
             ])
             ->recordActions([
                 AdmissionActions::valider(),
+                AdmissionActions::declarerRupture(),
                 ViewAction::make(),
                 EditAction::make(),
             ])
@@ -61,7 +69,8 @@ class AdmissionsTable
             ])
             ->defaultSort('created_at', 'desc')
             ->emptyStateIcon('heroicon-o-clipboard-document-check')
-            ->emptyStateHeading('Aucun dossier de pré-admission')
-            ->emptyStateDescription('Les dossiers sont ouverts automatiquement à la création d\'un candidat. Créez un candidat pour commencer.');
+            ->emptyStateHeading('Aucune admission officielle')
+            ->emptyStateDescription('Une admission apparaît automatiquement dès qu\'un contrat est signé par les '
+                .'trois parties et que son dossier OPCO est créé ou transmis pour validation.');
     }
 }
