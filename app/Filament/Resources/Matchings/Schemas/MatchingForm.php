@@ -73,7 +73,10 @@ class MatchingForm
                             ->label('CV envoyé'),
                         DatePicker::make('date_entretien')
                             ->label('Date d\'entretien entreprise')
-                            ->displayFormat('d/m/Y'),
+                            ->displayFormat('d/m/Y')
+                            // Ne concerne que l'étape « Entretien entreprise ».
+                            ->visible(fn (Get $get): bool => $get('statut') === MatchingStatut::EntretienEntreprise->value)
+                            ->required(fn (Get $get): bool => $get('statut') === MatchingStatut::EntretienEntreprise->value),
                         Textarea::make('retour_entreprise')
                             ->label('Retour entreprise')
                             ->placeholder('ex : Entretien positif, en attente de décision')
