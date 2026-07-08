@@ -304,6 +304,19 @@ class Candidate extends Model implements HasMedia
         return $this->hasOne(Entretien::class)->latestOfMany();
     }
 
+    /**
+     * Entretien « en cours » du candidat (à planifier / planifié / à
+     * reprogrammer / absent), s'il en existe un. Garantit qu'on ne crée pas
+     * de doublon : on reprogramme celui-ci au lieu d'en ouvrir un second.
+     */
+    public function entretienActif(): ?Entretien
+    {
+        return $this->entretiens()
+            ->whereIn('statut', array_map(fn (\App\Enums\EntretienStatut $s) => $s->value, Entretien::ACTIFS))
+            ->latest('id')
+            ->first();
+    }
+
     public function matchings(): HasMany
     {
         return $this->hasMany(Matching::class);

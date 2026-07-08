@@ -24,14 +24,58 @@ class ViewCandidate extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
-            // Liens vers les dossiers liés des autres sections (cycle apprenant).
+            // Point de création UNIQUE d'un entretien (masqué si un entretien
+            // actif existe déjà → « Gérer l'entretien »).
             \Filament\Actions\Action::make('planifierEntretien')
                 ->label('Planifier un entretien')
                 ->icon('heroicon-o-calendar-days')
                 ->color('info')
-                ->visible(fn (): bool => ! $this->getRecord()->statut->estFinal())
-                ->url(fn (): string => \App\Filament\Resources\Entretiens\EntretienResource::getUrl('create')
-                    .'?candidate='.$this->getRecord()->getKey()),
+                ->visible(fn (): bool => ! $this->getRecord()->statut->estFinal()
+                    && $this->getRecord()->entretienActif() === null)
+                ->modalHeading(fn (): string => 'Planifier un entretien — '.$this->getRecord()->nom_complet)
+                ->modalDescription('Le candidat passera automatiquement à « Entretien prévu ».')
+                ->schema([
+                    \Filament\Forms\Components\DatePicker::make('date_entretien')
+                        ->label('Date')->displayFormat('d/m/Y')->native(false)->required(),
+                    \Filament\Forms\Components\TimePicker::make('heure_debut')
+                        ->label('Heure de début')->seconds(false)->required(),
+                    \Filament\Forms\Components\TimePicker::make('heure_fin')
+                        ->label('Heure de fin')->seconds(false)->required()->after('heure_debut'),
+                    \Filament\Forms\Components\Select::make('mode')
+                        ->label('Mode')
+                        ->options(\App\Enums\EntretienMode::class)
+                        ->default(\App\Enums\EntretienMode::Presentiel->value)
+                        ->required(),
+                ])
+                ->action(function (array $data): void {
+                    try {
+                        $entretien = $this->getRecord()->entretiens()->create($data + [
+                            'statut' => \App\Enums\EntretienStatut::Planifie->value,
+                            'responsable_id' => auth()->id(),
+                        ]);
+                    } catch (\Illuminate\Validation\ValidationException $e) {
+                        \Filament\Notifications\Notification::make()->danger()->title('Planification impossible')
+                            ->body(collect($e->errors())->flatten()->first())->send();
+
+                        return;
+                    }
+
+                    \Filament\Notifications\Notification::make()->success()
+                        ->title('Entretien planifié')
+                        ->body($entretien->creneauLisible().' — le candidat passe à « Entretien prévu ».')
+                        ->send();
+                }),
+            // Un entretien est déjà en cours : lien direct pour le gérer.
+            \Filament\Actions\Action::make('gererEntretien')
+                ->label('Gérer l\'entretien')
+                ->icon('heroicon-o-calendar-days')
+                ->color('warning')
+                ->visible(fn (): bool => ! $this->getRecord()->statut->estFinal()
+                    && $this->getRecord()->entretienActif() !== null)
+                ->url(fn (): string => \App\Filament\Resources\Entretiens\EntretienResource::getUrl(
+                    'edit',
+                    ['record' => $this->getRecord()->entretienActif()],
+                )),
             \Filament\Actions\Action::make('voirEntretiens')
                 ->label('Entretiens')
                 ->icon('heroicon-o-arrow-top-right-on-square')

@@ -3,7 +3,6 @@
 namespace App\Filament\Resources\Entretiens;
 
 use App\Filament\Resources\Entretiens\Pages\CalendrierEntretiens;
-use App\Filament\Resources\Entretiens\Pages\CreateEntretien;
 use App\Filament\Resources\Entretiens\Pages\EditEntretien;
 use App\Filament\Resources\Entretiens\Pages\ListEntretiens;
 use App\Filament\Resources\Entretiens\Schemas\EntretienForm;
@@ -55,12 +54,21 @@ class EntretienResource extends Resource
         return EntretiensTable::configure($table);
     }
 
+    /**
+     * Pas de page de création : un entretien se planifie UNIQUEMENT depuis la
+     * fiche candidat (bouton « Planifier un entretien »). La section Entretiens
+     * ne sert qu'à afficher et gérer les entretiens existants.
+     */
+    public static function canCreate(): bool
+    {
+        return false;
+    }
+
     public static function getPages(): array
     {
         return [
             'index' => ListEntretiens::route('/'),
             'calendrier' => CalendrierEntretiens::route('/calendrier'),
-            'create' => CreateEntretien::route('/create'),
             'edit' => EditEntretien::route('/{record}/edit'),
         ];
     }
