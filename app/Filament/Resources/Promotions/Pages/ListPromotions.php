@@ -13,7 +13,7 @@ class ListPromotions extends ListRecords
     public function getSubheading(): ?string
     {
         return 'Les classes / groupes d\'apprentis d\'une même formation et année. On y rattache les '
-            .'séances et l\'assiduité, et c\'est l\'unité sur laquelle on valide le service fait mensuel.';
+            .'séances et l\'assiduité — une classe correspond à une matière de l\'emploi du temps.';
     }
 
     protected function getHeaderActions(): array

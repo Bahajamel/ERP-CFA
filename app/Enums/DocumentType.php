@@ -16,7 +16,6 @@ enum DocumentType: string implements HasLabel
     case Convention = 'convention';
     case Calendrier = 'calendrier';
     case JustificatifAbsence = 'justificatif_absence';
-    case PreuveServiceFait = 'preuve_service_fait';
     case Facture = 'facture';
     case DocumentQualite = 'document_qualite';
     case Autre = 'autre';
@@ -59,7 +58,6 @@ enum DocumentType: string implements HasLabel
             self::Convention => 'Convention',
             self::Calendrier => 'Calendrier',
             self::JustificatifAbsence => "Justificatif d'absence",
-            self::PreuveServiceFait => 'Preuve de service fait',
             self::Facture => 'Facture',
             self::DocumentQualite => 'Document qualité',
             self::Autre => 'Autre',

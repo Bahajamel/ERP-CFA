@@ -5,7 +5,7 @@ namespace App\Enums;
 use Filament\Support\Contracts\HasColor;
 use Filament\Support\Contracts\HasLabel;
 
-/** Statut d'une séance de formation (EPIC-14 ; « Validée » = base du service fait). */
+/** Statut d'une séance de formation (EPIC-14). */
 enum SeanceStatut: string implements HasColor, HasLabel
 {
     case Planifiee = 'planifiee';

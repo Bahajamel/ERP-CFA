@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Schema;
 
 /**
  * Séances de formation (EPIC-14) : une séance = un créneau daté rattaché à une
- * promotion, support de l'émargement (présences) et du service fait.
+ * promotion, support de l'émargement (présences).
  */
 return new class extends Migration
 {

@@ -34,7 +34,7 @@ class Seance extends Model
         static::created(fn (self $seance) => $seance->genererPresences());
 
         // Règle (P1-14-5) : une séance n'est validable que si toutes les présences
-        // sont renseignées (base du service fait).
+        // sont renseignées.
         static::saving(function (self $seance): void {
             if ($seance->statut === SeanceStatut::Validee
                 && $seance->isDirty('statut')
