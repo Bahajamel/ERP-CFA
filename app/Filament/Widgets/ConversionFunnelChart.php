@@ -50,7 +50,7 @@ class ConversionFunnelChart extends ChartWidget
 
     protected function getData(): array
     {
-        $candidats = Candidate::whereNot('statut', CandidateStatut::Rupture->value)->count();
+        $candidats = Candidate::whereNot('statut', CandidateStatut::Refuse->value)->count();
         $admissionsValidees = Admission::where('statut', AdmissionStatut::Valide->value)->count();
         $contratsSignes = Contract::whereIn('statut_contrat', [
             ContractStatut::Signe->value,

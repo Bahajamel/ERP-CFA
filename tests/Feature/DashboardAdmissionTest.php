@@ -41,7 +41,7 @@ it('cache le dashboard admission au commercial', function () {
 it('affiche les indicateurs des dossiers à traiter', function () {
     connecteAvec('Admission');
 
-    Admission::factory()->create(['statut' => AdmissionStatut::Incomplet]);
+    Admission::factory()->create(['statut' => AdmissionStatut::AVerifier]);
     Admission::factory()->create(['statut' => AdmissionStatut::AVerifier]);
     Admission::factory()->create(['statut' => AdmissionStatut::Valide]); // ne compte pas
 
@@ -58,7 +58,7 @@ it('liste les admissions à finaliser dans le tableau', function () {
     $candidate = Candidate::factory()->create(['nom' => 'Boubacar', 'prenom' => 'Aïcha']);
     Admission::factory()->create([
         'candidate_id' => $candidate->id,
-        'statut' => AdmissionStatut::Incomplet,
+        'statut' => AdmissionStatut::AVerifier,
     ]);
 
     Livewire::test(DossiersAdmissionTable::class)

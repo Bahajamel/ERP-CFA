@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\AdmissionStatut;
 use App\Enums\ChecklistItemStatut;
 use App\Enums\DocumentType;
+use App\Parcours\CycleApprenant;
 use App\StateMachine\ManagesState;
 use BackedEnum;
 use Illuminate\Database\Eloquent\Collection;
@@ -12,9 +13,15 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Validation\ValidationException;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
+/**
+ * Admission officielle de l'apprenant — dernière étape du cycle d'entrée
+ * (candidat accepté → entreprise trouvée → contrat signé par les trois
+ * parties → dossier OPCO créé/transmis → admission « À vérifier »).
+ */
 class Admission extends Model
 {
     use HasFactory;
@@ -22,6 +29,36 @@ class Admission extends Model
     use ManagesState;
 
     protected $guarded = [];
+
+    /**
+     * Invariant backend (cycle apprenant) : une admission officielle ne peut
+     * être créée qu'adossée à un contrat signé par les trois parties dont le
+     * dossier OPCO est créé ou transmis pour validation — quel que soit le
+     * chemin (formulaire, service, écriture directe).
+     */
+    protected static function booted(): void
+    {
+        static::creating(function (self $admission): void {
+            $contract = Contract::query()->find($admission->contract_id);
+
+            if ($contract === null || ! $contract->estSigne()) {
+                throw ValidationException::withMessages([
+                    'contract_id' => 'Impossible de créer une admission : le contrat n\'est pas signé par les trois parties.',
+                ]);
+            }
+
+            $opco = $contract->opcoFile;
+
+            if ($opco === null || ! CycleApprenant::opcoOuvreAdmission($opco->statut)) {
+                throw ValidationException::withMessages([
+                    'contract_id' => CycleApprenant::MSG_OPCO_MANQUANT,
+                ]);
+            }
+
+            // Le candidat découle toujours du contrat.
+            $admission->candidate_id ??= $contract->candidate_id;
+        });
+    }
 
     /**
      * Pièces obligatoires générées à l'ouverture d'un dossier d'admission.
@@ -53,6 +90,12 @@ class Admission extends Model
     public function candidate(): BelongsTo
     {
         return $this->belongsTo(Candidate::class);
+    }
+
+    /** Contrat signé qui fonde l'admission officielle (unique par contrat). */
+    public function contract(): BelongsTo
+    {
+        return $this->belongsTo(Contract::class);
     }
 
     public function validatedBy(): BelongsTo
@@ -114,7 +157,11 @@ class Admission extends Model
         return null;
     }
 
-    /** Effets de bord après une transition : métadonnées de validation + commentaire. */
+    /**
+     * Effets de bord après une transition : métadonnées de validation,
+     * commentaire, et ouverture automatique du dossier de rupture quand
+     * l'admission passe en « Rupture » (idempotent : un dossier par contrat).
+     */
     protected function afterTransition(BackedEnum $from, BackedEnum $to, ?string $comment): void
     {
         if ($to === AdmissionStatut::Valide) {
@@ -122,6 +169,10 @@ class Admission extends Model
                 'validated_by' => auth()->id(),
                 'validated_at' => now(),
             ])->saveQuietly();
+        }
+
+        if ($to === AdmissionStatut::Rupture && $this->contract_id !== null) {
+            app(CycleApprenant::class)->ouvrirRupture($this);
         }
 
         if (filled($comment)) {

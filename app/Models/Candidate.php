@@ -6,10 +6,9 @@ use App\Enums\CandidateStatut;
 use App\Enums\DocumentType;
 use App\Enums\PresenceStatut;
 use App\Matching\CompatibilityScorer;
-use App\Observers\CandidateObserver;
+use App\Parcours\CycleApprenant;
+use App\StateMachine\HasStateTransitions;
 use App\StateMachine\ManagesState;
-use BackedEnum;
-use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -27,13 +26,14 @@ use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 
-#[ObservedBy(CandidateObserver::class)]
 class Candidate extends Model implements HasMedia
 {
     use HasFactory;
     use InteractsWithMedia;
     use LogsActivity;
-    use ManagesState;
+    use ManagesState {
+        transitionBlockReason as private baseTransitionBlockReason;
+    }
     use SoftDeletes;
 
     protected $guarded = [];
@@ -116,16 +116,73 @@ class Candidate extends Model implements HasMedia
                 ]);
             }
         });
+
+        // Invariant backend (cycle apprenant) : une décision finale (Accepté /
+        // Refusé) est irréversible, quel que soit le chemin d'écriture — pas
+        // seulement via la machine à états.
+        static::updating(function (self $candidate): void {
+            if (! $candidate->isDirty('statut')) {
+                return;
+            }
+
+            $origine = CandidateStatut::tryFrom((string) $candidate->getRawOriginal('statut'));
+
+            if ($origine === null || ! $origine->estFinal()) {
+                return;
+            }
+
+            throw ValidationException::withMessages([
+                'statut' => match ($candidate->statut) {
+                    CandidateStatut::EntretienPrevu => CycleApprenant::MSG_RETOUR_ENTRETIEN,
+                    CandidateStatut::EntretienAPlanifier => CycleApprenant::MSG_RETOUR_A_PLANIFIER,
+                    default => 'Décision finale déjà prise : le statut du candidat ne peut plus être modifié.',
+                },
+            ]);
+        });
+
+        // Déclencheur automatique du cycle : dès l'acceptation, la recherche
+        // d'entreprise est ouverte au Matching (« En recherche »), sans
+        // double saisie. Idempotent (anti-doublon dans le service).
+        static::updated(function (self $candidate): void {
+            if ($candidate->wasChanged('statut') && $candidate->statut === CandidateStatut::Accepte) {
+                app(CycleApprenant::class)->ouvrirRechercheEntreprise($candidate);
+            }
+        });
     }
 
     /**
-     * Règle métier (pré-candidature) : blocage du passage à « Dossier complet »
-     * tant que le CV — seul document requis à cette étape — n'est pas fourni.
+     * Messages métier des retours interdits (le blocage structurel est porté
+     * par l'enum ; on remplace seulement le message générique).
      */
-    public function guardTransition(BackedEnum $from, BackedEnum $to): ?string
+    public function transitionBlockReason(HasStateTransitions $to): ?string
     {
-        if ($to === CandidateStatut::Complet && ! $this->hasCv()) {
-            return 'Dossier incomplet : le CV du candidat est manquant.';
+        if ($this->statut->estFinal() && in_array($to, CandidateStatut::statutsEntretien(), true)) {
+            return $to === CandidateStatut::EntretienPrevu
+                ? CycleApprenant::MSG_RETOUR_ENTRETIEN
+                : CycleApprenant::MSG_RETOUR_A_PLANIFIER;
+        }
+
+        return $this->baseTransitionBlockReason($to);
+    }
+
+    /**
+     * Gardes métier de la machine à états (cycle apprenant) :
+     *  - « Entretien prévu » exige un entretien réellement planifié
+     *    (date + heures) dans la section Entretiens ;
+     *  - « Accepté » exige un entretien réalisé — un administrateur garde
+     *    une action exceptionnelle pour passer outre.
+     */
+    public function guardTransition(\BackedEnum $from, \BackedEnum $to): ?string
+    {
+        if ($to === CandidateStatut::EntretienPrevu
+            && ! $this->entretiens()->where('statut', \App\Enums\EntretienStatut::Planifie->value)->exists()) {
+            return CycleApprenant::MSG_ENTRETIEN_NON_PLANIFIE;
+        }
+
+        if ($to === CandidateStatut::Accepte
+            && ! $this->entretiens()->where('statut', \App\Enums\EntretienStatut::Realise->value)->exists()
+            && ! (\Illuminate\Support\Facades\Auth::user()?->hasRole('Administrateur') ?? false)) {
+            return CycleApprenant::MSG_ACCEPTATION_SANS_ENTRETIEN;
         }
 
         return null;
@@ -224,9 +281,40 @@ class Candidate extends Model implements HasMedia
         return $this->belongsTo(User::class, 'commercial_id');
     }
 
+    /** Dernière admission officielle du candidat (une par contrat signé). */
     public function admission(): HasOne
     {
-        return $this->hasOne(Admission::class);
+        return $this->hasOne(Admission::class)->latestOfMany();
+    }
+
+    public function admissions(): HasMany
+    {
+        return $this->hasMany(Admission::class);
+    }
+
+    /** Entretiens de recrutement du candidat (section Entretiens). */
+    public function entretiens(): HasMany
+    {
+        return $this->hasMany(Entretien::class);
+    }
+
+    /** Dernier entretien créé (fiche candidat, timeline). */
+    public function dernierEntretien(): HasOne
+    {
+        return $this->hasOne(Entretien::class)->latestOfMany();
+    }
+
+    /**
+     * Entretien « en cours » du candidat (à planifier / planifié / à
+     * reprogrammer / absent), s'il en existe un. Garantit qu'on ne crée pas
+     * de doublon : on reprogramme celui-ci au lieu d'en ouvrir un second.
+     */
+    public function entretienActif(): ?Entretien
+    {
+        return $this->entretiens()
+            ->whereIn('statut', array_map(fn (\App\Enums\EntretienStatut $s) => $s->value, Entretien::ACTIFS))
+            ->latest('id')
+            ->first();
     }
 
     public function matchings(): HasMany

@@ -36,6 +36,39 @@ class Contract extends Model implements HasMedia
 
     protected $guarded = [];
 
+    /**
+     * Anti-doublon (cycle apprenant) : un seul contrat actif par couple
+     * candidat × entreprise — les contrats rompus ou archivés n'empêchent
+     * pas d'en ouvrir un nouveau. Invariant backend, quel que soit le chemin.
+     */
+    protected static function booted(): void
+    {
+        static::creating(function (self $contract): void {
+            $doublon = static::query()
+                ->where('candidate_id', $contract->candidate_id)
+                ->where('company_id', $contract->company_id)
+                ->whereNotIn('statut_contrat', [ContractStatut::Rompu->value, ContractStatut::Archive->value])
+                ->exists();
+
+            if ($doublon) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'company_id' => 'Un contrat est déjà en cours pour ce candidat et cette entreprise.',
+                ]);
+            }
+        });
+
+        // Cycle apprenant : un contrat qui devient « Signé » / « Transmis
+        // OPCO » par écriture directe (formulaire, import) ouvre aussi son
+        // dossier OPCO — même déclencheur que la machine à états (idempotent).
+        static::updated(function (self $contract): void {
+            if ($contract->wasChanged('statut_contrat')
+                && in_array($contract->statut_contrat, [ContractStatut::Signe, ContractStatut::TransmisOpco], true)
+                && $contract->estSigne()) {
+                $contract->ouvrirDossierOpco();
+            }
+        });
+    }
+
     /** La machine à états porte sur le statut du contrat. */
     public function stateColumn(): string
     {
@@ -73,7 +106,15 @@ class Contract extends Model implements HasMedia
      */
     public function ouvrirDossierOpco(): void
     {
-        $this->opcoFile()->firstOrCreate([], ['statut' => OpcoStatut::APreparer->value]);
+        $dossier = $this->opcoFile()->firstOrCreate([], ['statut' => OpcoStatut::APreparer->value]);
+
+        if ($dossier->wasRecentlyCreated) {
+            \App\Parcours\CycleApprenant::notifierAutomatisme(
+                'Contrat signé',
+                'Dossier OPCO créé automatiquement (« À préparer ») pour '
+                .($this->candidate?->nom_complet ?? 'l\'apprenant').'.',
+            );
+        }
     }
 
     public function getActivitylogOptions(): LogOptions
@@ -108,6 +149,12 @@ class Contract extends Model implements HasMedia
     public function opcoFile(): HasOne
     {
         return $this->hasOne(OpcoFile::class);
+    }
+
+    /** Admission officielle fondée sur ce contrat (une au plus). */
+    public function admission(): HasOne
+    {
+        return $this->hasOne(Admission::class);
     }
 
     /** Demandes de signature électronique multi-parties (EPIC-08). */

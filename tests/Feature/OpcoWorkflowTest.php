@@ -19,7 +19,14 @@ beforeEach(function () {
 
 function dossierOpco(OpcoStatut $statut, ContractSignatureStatut $signature = ContractSignatureStatut::Signe): OpcoFile
 {
-    $contract = Contract::factory()->create(['statut_signature' => $signature]);
+    // Statuts déterministes : le statut contrat doit être cohérent avec la
+    // signature (estSigne() regarde les deux champs).
+    $contract = Contract::factory()->create([
+        'statut_signature' => $signature,
+        'statut_contrat' => $signature === ContractSignatureStatut::Signe
+            ? \App\Enums\ContractStatut::Signe
+            : \App\Enums\ContractStatut::EnvoyeSignature,
+    ]);
 
     return OpcoFile::factory()->create([
         'contract_id' => $contract->id,
@@ -28,12 +35,11 @@ function dossierOpco(OpcoStatut $statut, ContractSignatureStatut $signature = Co
     ]);
 }
 
-it('interdit « Prêt au dépôt » si le contrat n\'est pas signé', function () {
-    $file = dossierOpco(OpcoStatut::APreparer, ContractSignatureStatut::NonSigne);
-
-    expect($file->canTransitionTo(OpcoStatut::PretDepot))->toBeFalse();
-    expect(fn () => $file->transitionTo(OpcoStatut::PretDepot))
-        ->toThrow(InvalidTransitionException::class);
+it('interdit la création même du dossier OPCO si le contrat n\'est pas signé', function () {
+    // Cycle apprenant : la garde intervient dès la création du dossier,
+    // plus seulement à la transition « Prêt au dépôt ».
+    expect(fn () => dossierOpco(OpcoStatut::APreparer, ContractSignatureStatut::NonSigne))
+        ->toThrow(Illuminate\Validation\ValidationException::class);
 });
 
 it('autorise « Prêt au dépôt » si le contrat est signé', function () {

@@ -32,11 +32,7 @@ class DossiersAdmissionTable extends BaseWidget
             ->query(
                 Admission::query()
                     ->with('candidate.media')
-                    ->whereIn('statut', [
-                        AdmissionStatut::AVerifier->value,
-                        AdmissionStatut::Incomplet->value,
-                        AdmissionStatut::NonConforme->value,
-                    ])
+                    ->where('statut', AdmissionStatut::AVerifier->value)
                     ->latest()
             )
             ->recordUrl(fn (Admission $record): string => AdmissionResource::getUrl('edit', ['record' => $record]))

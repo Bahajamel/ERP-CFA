@@ -15,7 +15,7 @@ it('cible une entreprise ayant un besoin ouvert compatible', function () {
     $formation = Formation::factory()->create();
     $candidate = Candidate::factory()->create([
         'formation_visee_id' => $formation->id,
-        'statut' => CandidateStatut::EnRechercheEntreprise,
+        'statut' => CandidateStatut::Accepte,
     ]);
 
     $company = Company::factory()->create();
@@ -35,7 +35,7 @@ it('ignore les besoins clôturés (non ouverts)', function () {
     $formation = Formation::factory()->create();
     $candidate = Candidate::factory()->create([
         'formation_visee_id' => $formation->id,
-        'statut' => CandidateStatut::EnRechercheEntreprise,
+        'statut' => CandidateStatut::Accepte,
     ]);
 
     Need::factory()->create([
@@ -67,7 +67,7 @@ it('fusionne les deux signaux pour une entreprise à la fois partenaire et avec 
     $formation = Formation::factory()->create();
     $candidate = Candidate::factory()->create([
         'formation_visee_id' => $formation->id,
-        'statut' => CandidateStatut::EnRechercheEntreprise,
+        'statut' => CandidateStatut::Accepte,
     ]);
 
     $company = Company::factory()->create();
@@ -86,7 +86,7 @@ it('classe les besoins ouverts compatibles avant les simples partenaires', funct
     $formation = Formation::factory()->create();
     $candidate = Candidate::factory()->create([
         'formation_visee_id' => $formation->id,
-        'statut' => CandidateStatut::EnRechercheEntreprise,
+        'statut' => CandidateStatut::Accepte,
     ]);
 
     // Partenaire sans besoin ouvert (score 0)

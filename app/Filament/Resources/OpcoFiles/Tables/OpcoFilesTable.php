@@ -73,6 +73,16 @@ class OpcoFilesTable
                 OpcoFileActions::preparerDepot(),
                 OpcoFileActions::accepter(),
                 OpcoFileActions::rejeter(),
+                // Lien vers l'admission ouverte automatiquement (cycle apprenant).
+                \Filament\Actions\Action::make('voirAdmission')
+                    ->label('Voir l\'admission')
+                    ->icon('heroicon-o-arrow-top-right-on-square')
+                    ->color('info')
+                    ->visible(fn ($record): bool => $record->contract?->admission !== null)
+                    ->url(fn ($record): string => \App\Filament\Resources\Admissions\AdmissionResource::getUrl(
+                        'edit',
+                        ['record' => $record->contract->admission],
+                    )),
                 ViewAction::make(),
                 EditAction::make(),
             ])

@@ -15,7 +15,7 @@ it('calcule les postes restants = demandés moins candidats acceptés', function
     $need = Need::factory()->create(['statut' => NeedStatut::ProfilsEnvoyes, 'nb_postes' => 3]);
 
     Matching::factory()->for($need)->create(['statut' => MatchingStatut::Accepte]);
-    Matching::factory()->for($need)->create(['statut' => MatchingStatut::Propose]); // ne compte pas
+    Matching::factory()->for($need)->create(['statut' => MatchingStatut::EnRecherche]); // ne compte pas
 
     expect($need->postesRestants())->toBe(2);
 });
@@ -42,25 +42,25 @@ it('le scope ouverts exclut les besoins clôturés', function () {
 
 it('empêche d\'accepter un candidat sur un besoin clôturé (enregistrement)', function () {
     $need = Need::factory()->create(['statut' => NeedStatut::Pourvu]);
-    $matching = Matching::factory()->for($need)->create(['statut' => MatchingStatut::Propose]);
+    $matching = Matching::factory()->for($need)->create(['statut' => MatchingStatut::EnRecherche]);
 
     expect(fn () => $matching->update(['statut' => MatchingStatut::Accepte]))
         ->toThrow(ValidationException::class);
 
-    expect($matching->fresh()->statut)->toBe(MatchingStatut::Propose);
+    expect($matching->fresh()->statut)->toBe(MatchingStatut::EnRecherche);
 });
 
 it('la garde de transition bloque « Accepté » quand le besoin est clôturé', function () {
     $need = Need::factory()->create(['statut' => NeedStatut::Archive]);
-    $matching = Matching::factory()->for($need)->create(['statut' => MatchingStatut::AttenteRetour]);
+    $matching = Matching::factory()->for($need)->create(['statut' => MatchingStatut::PropositionEnvoyee]);
 
-    expect($matching->guardTransition(MatchingStatut::AttenteRetour, MatchingStatut::Accepte))
+    expect($matching->guardTransition(MatchingStatut::PropositionEnvoyee, MatchingStatut::Accepte))
         ->not->toBeNull();
 });
 
 it('autorise « Accepté » tant que le besoin est ouvert', function () {
     $need = Need::factory()->create(['statut' => NeedStatut::EntretienPrevu]);
-    $matching = Matching::factory()->for($need)->create(['statut' => MatchingStatut::AttenteRetour]);
+    $matching = Matching::factory()->for($need)->create(['statut' => MatchingStatut::PropositionEnvoyee]);
 
     $matching->update(['statut' => MatchingStatut::Accepte]);
 

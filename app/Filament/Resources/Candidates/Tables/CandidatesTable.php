@@ -5,6 +5,9 @@ namespace App\Filament\Resources\Candidates\Tables;
 use App\Enums\CandidateStatut;
 use App\Livret\LivrablesArchive;
 use App\Models\Candidate;
+use App\Models\Need;
+use App\Parcours\CycleApprenant;
+use App\Parcours\CycleBloqueException;
 use App\StateMachine\InvalidTransitionException;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
@@ -70,11 +73,19 @@ class CandidatesTable
                 Action::make('changerStatut')
                     ->label('Changer le statut')
                     ->icon('heroicon-o-arrows-right-left')
-                    ->visible(fn ($record): bool => filled($record->currentState()->transitions()))
+                    // Cycle apprenant : le statut est piloté par les Entretiens.
+                    // On n'affiche que les transitions réellement possibles ici
+                    // (ex. « Refuser ») — « Accepté »/« Entretien prévu » passent
+                    // par la section Entretiens et sont donc masqués tant qu'ils
+                    // ne sont pas atteignables.
+                    ->visible(fn ($record): bool => filled($record->allowedTransitions()))
+                    ->modalDescription('L\'acceptation et le passage à « Entretien prévu » se font via la '
+                        .'section Entretiens (planifier un entretien, puis accepter après l\'avoir réalisé). '
+                        .'Ce menu ne propose que les changements possibles manuellement.')
                     ->schema(fn ($record): array => [
                         Select::make('to')
                             ->label('Nouveau statut')
-                            ->options(collect($record->currentState()->transitions())
+                            ->options(collect($record->allowedTransitions())
                                 ->mapWithKeys(fn (CandidateStatut $s) => [$s->value => $s->getLabel()])
                                 ->all())
                             ->required(),
@@ -87,6 +98,91 @@ class CandidatesTable
                             Notification::make()->success()->title('Statut mis à jour')->send();
                         } catch (InvalidTransitionException $e) {
                             Notification::make()->danger()->title('Transition refusée')->body($e->getMessage())->send();
+                        }
+                    }),
+                // Point de création UNIQUE d'un entretien (la section Entretiens
+                // ne fait que les afficher / gérer). Masqué s'il existe déjà un
+                // entretien actif → on propose alors « Gérer l'entretien ».
+                Action::make('planifierEntretien')
+                    ->label('Planifier un entretien')
+                    ->icon('heroicon-o-calendar-days')
+                    ->color('info')
+                    ->visible(fn (Candidate $record): bool => ! $record->statut->estFinal()
+                        && $record->entretienActif() === null)
+                    ->modalHeading(fn (Candidate $record): string => "Planifier un entretien — {$record->nom_complet}")
+                    ->modalDescription('L\'entretien apparaîtra dans la section Entretiens et le candidat passera '
+                        .'automatiquement à « Entretien prévu ».')
+                    ->schema([
+                        \Filament\Forms\Components\DatePicker::make('date_entretien')
+                            ->label('Date')->displayFormat('d/m/Y')->native(false)->required(),
+                        \Filament\Forms\Components\TimePicker::make('heure_debut')
+                            ->label('Heure de début')->seconds(false)->required(),
+                        \Filament\Forms\Components\TimePicker::make('heure_fin')
+                            ->label('Heure de fin')->seconds(false)->required()->after('heure_debut'),
+                        Select::make('mode')
+                            ->label('Mode')
+                            ->options(\App\Enums\EntretienMode::class)
+                            ->default(\App\Enums\EntretienMode::Presentiel->value)
+                            ->required(),
+                    ])
+                    ->action(function (Candidate $record, array $data): void {
+                        try {
+                            $entretien = $record->entretiens()->create($data + [
+                                'statut' => \App\Enums\EntretienStatut::Planifie->value,
+                                'responsable_id' => auth()->id(),
+                            ]);
+                        } catch (\Illuminate\Validation\ValidationException $e) {
+                            Notification::make()->danger()->title('Planification impossible')
+                                ->body(collect($e->errors())->flatten()->first())->send();
+
+                            return;
+                        }
+
+                        Notification::make()->success()
+                            ->title('Entretien planifié')
+                            ->body($entretien->creneauLisible().' — le candidat passe à « Entretien prévu ».')
+                            ->send();
+                    }),
+                // Un entretien est déjà en cours : on renvoie vers la section
+                // Entretiens pour le gérer (reprogrammer, réaliser, décider).
+                Action::make('gererEntretien')
+                    ->label('Gérer l\'entretien')
+                    ->icon('heroicon-o-calendar-days')
+                    ->color('warning')
+                    ->visible(fn (Candidate $record): bool => ! $record->statut->estFinal()
+                        && $record->entretienActif() !== null)
+                    ->url(fn (Candidate $record): string => \App\Filament\Resources\Entretiens\EntretienResource::getUrl(
+                        'edit',
+                        ['record' => $record->entretienActif()],
+                    )),
+                Action::make('envoyerMatching')
+                    ->label('Envoyer vers Matching')
+                    ->icon('heroicon-o-paper-airplane')
+                    ->color('success')
+                    // Étape suivante du cycle : uniquement pour les candidats acceptés.
+                    ->visible(fn (Candidate $record): bool => $record->statut === CandidateStatut::Accepte)
+                    ->modalHeading(fn (Candidate $record): string => "Envoyer {$record->nom_complet} vers le Matching")
+                    ->schema([
+                        Select::make('need_id')
+                            ->label('Besoin entreprise')
+                            ->options(fn (): array => Need::query()->ouverts()->with('company')->get()
+                                ->mapWithKeys(fn (Need $n): array => [
+                                    $n->id => $n->intitule_poste.($n->company ? ' — '.$n->company->raison_sociale : ''),
+                                ])->all())
+                            ->searchable()
+                            ->required()
+                            ->helperText('Besoins ouverts uniquement. Si le candidat a trouvé son entreprise '
+                                .'lui-même, utilisez « Entreprise trouvée par le candidat » dans le module Matching.'),
+                    ])
+                    ->action(function (Candidate $record, array $data): void {
+                        try {
+                            app(CycleApprenant::class)->envoyerVersMatching($record, Need::query()->findOrFail($data['need_id']));
+                            Notification::make()->success()
+                                ->title('Candidat envoyé au Matching')
+                                ->body('Un matching « En recherche » a été créé pour ce besoin.')
+                                ->send();
+                        } catch (CycleBloqueException $e) {
+                            Notification::make()->danger()->title('Envoi impossible')->body($e->getMessage())->send();
                         }
                     }),
                 Action::make('entreprisesACibler')
@@ -142,6 +238,7 @@ class CandidatesTable
             ->defaultSort('created_at', 'desc')
             ->emptyStateIcon('heroicon-o-user-plus')
             ->emptyStateHeading('Aucun candidat pour le moment')
-            ->emptyStateDescription('Créez votre premier candidat pour démarrer le suivi : son dossier de pré-admission sera ouvert automatiquement.');
+            ->emptyStateDescription('Créez votre premier candidat : il démarre en « Entretien à planifier ». '
+                .'Planifiez son entretien, puis acceptez-le ou refusez-le — l\'acceptation ouvre automatiquement le Matching.');
     }
 }

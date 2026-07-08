@@ -28,7 +28,7 @@ beforeEach(function () {
 it('agrège les candidats proposés à travers les besoins de l\'entreprise', function () {
     $company = Company::factory()->create();
     $need = Need::factory()->for($company)->create(['statut' => NeedStatut::ProfilsEnvoyes]);
-    Matching::factory()->for($need)->count(3)->create(['statut' => MatchingStatut::Propose]);
+    Matching::factory()->for($need)->count(3)->create(['statut' => MatchingStatut::EnRecherche]);
 
     // Un autre besoin d'une autre entreprise ne doit pas compter.
     Matching::factory()->create();
@@ -42,7 +42,7 @@ it('affiche la vue 360° avec besoins, candidats proposés et contrats', functio
         'intitule_poste' => 'Développeur web alternant',
         'statut' => NeedStatut::CandidatRetenu,
     ]);
-    $candidate = Candidate::factory()->create(['nom' => 'Petit', 'prenom' => 'Lucas']);
+    $candidate = Candidate::factory()->create(['nom' => 'Petit', 'prenom' => 'Lucas', 'statut' => \App\Enums\CandidateStatut::Accepte]);
     Matching::factory()->for($need)->create([
         'candidate_id' => $candidate->id,
         'statut' => MatchingStatut::Accepte,

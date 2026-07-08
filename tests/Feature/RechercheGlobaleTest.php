@@ -45,7 +45,11 @@ it('trouve un contrat par le nom de l\'apprenti', function () {
 
 it('trouve un dossier OPCO via l\'apprenti du contrat', function () {
     $candidate = Candidate::factory()->create(['nom' => 'Wexford', 'prenom' => 'Tom']);
-    $contract = Contract::factory()->create(['candidate_id' => $candidate->id]);
+    $contract = Contract::factory()->create([
+        'candidate_id' => $candidate->id,
+        'statut_contrat' => App\Enums\ContractStatut::Signe,
+        'statut_signature' => App\Enums\ContractSignatureStatut::Signe,
+    ]);
     OpcoFile::factory()->create(['contract_id' => $contract->id]);
 
     expect(OpcoFileResource::getGlobalSearchResults('Wexford'))->not->toBeEmpty();

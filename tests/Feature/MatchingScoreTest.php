@@ -15,7 +15,7 @@ it('additionne formation (50) + disponibilité (25) + niveau (10)', function () 
     $need = Need::factory()->create(['formation_id' => $formation->id, 'localisation' => 'Lyon']);
     $candidate = Candidate::factory()->create([
         'formation_visee_id' => $formation->id,
-        'statut' => CandidateStatut::EnRechercheEntreprise,
+        'statut' => CandidateStatut::Accepte,
         'niveau_actuel' => 'Bac+2',
         'mobilite' => 'Locale',
     ]);
@@ -28,7 +28,7 @@ it('ajoute la mobilité (15) quand elle contient la localisation du besoin', fun
     $need = Need::factory()->create(['formation_id' => $formation->id, 'localisation' => 'Lyon']);
     $candidate = Candidate::factory()->create([
         'formation_visee_id' => $formation->id,
-        'statut' => CandidateStatut::EnRechercheEntreprise,
+        'statut' => CandidateStatut::Accepte,
         'niveau_actuel' => 'Bac+2',
         'mobilite' => 'Lyon et périphérie',
     ]);
@@ -40,7 +40,7 @@ it('donne un score nul sans formation ni disponibilité', function () {
     $need = Need::factory()->create(['formation_id' => Formation::factory(), 'localisation' => 'Paris']);
     $candidate = Candidate::factory()->create([
         'formation_visee_id' => Formation::factory(),
-        'statut' => CandidateStatut::Incomplet,
+        'statut' => CandidateStatut::EntretienPrevu,
         'niveau_actuel' => null,
         'mobilite' => null,
     ]);
@@ -54,11 +54,11 @@ it('classe les candidats compatibles par score décroissant', function () {
 
     $fort = Candidate::factory()->create([
         'formation_visee_id' => $formation->id,
-        'statut' => CandidateStatut::EnRechercheEntreprise,
+        'statut' => CandidateStatut::Accepte,
     ]);
     $faible = Candidate::factory()->create([
         'formation_visee_id' => Formation::factory(),
-        'statut' => CandidateStatut::Incomplet,
+        'statut' => CandidateStatut::Accepte,
         'niveau_actuel' => 'Bac',
     ]);
 
@@ -73,19 +73,19 @@ it('exclut les candidats déjà proposés sur ce besoin', function () {
     $need = Need::factory()->create(['formation_id' => $formation->id]);
     $propose = Candidate::factory()->create([
         'formation_visee_id' => $formation->id,
-        'statut' => CandidateStatut::EnRechercheEntreprise,
+        'statut' => CandidateStatut::Accepte,
     ]);
     Matching::factory()->create(['need_id' => $need->id, 'candidate_id' => $propose->id]);
 
     expect($need->candidatsCompatibles()->pluck('candidate.id'))->not->toContain($propose->id);
 });
 
-it('exclut les candidats en rupture', function () {
+it('exclut les candidats non acceptés par le CFA', function () {
     $formation = Formation::factory()->create();
     $need = Need::factory()->create(['formation_id' => $formation->id]);
     Candidate::factory()->create([
         'formation_visee_id' => $formation->id,
-        'statut' => CandidateStatut::Rupture,
+        'statut' => CandidateStatut::Refuse,
     ]);
 
     expect($need->candidatsCompatibles())->toBeEmpty();

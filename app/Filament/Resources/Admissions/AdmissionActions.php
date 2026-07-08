@@ -3,76 +3,100 @@
 namespace App\Filament\Resources\Admissions;
 
 use App\Enums\AdmissionStatut;
+use App\Enums\RuptureMotif;
 use App\Models\Admission;
+use App\Parcours\CycleApprenant;
+use App\Parcours\CycleBloqueException;
 use App\StateMachine\InvalidTransitionException;
 use Filament\Actions\Action;
+use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Support\Icons\Heroicon;
 
 /**
- * Actions de workflow du dossier d'admission, pilotées par la machine à états.
- * Réutilisées dans la table et l'en-tête de la page d'édition.
+ * Actions de workflow de l'admission officielle, pilotées par la machine à
+ * états (À vérifier → Validé / Rupture). Réutilisées dans la table et le
+ * formulaire d'édition.
  */
 class AdmissionActions
 {
-    /**
-     * Valider (« présenter ») le dossier de pré-admission. Visible seulement si
-     * la règle métier l'autorise, c.-à-d. si le CV du candidat est présent.
-     */
+    /** Valider l'admission (contrôle du dossier terminé). */
     public static function valider(): Action
     {
         return Action::make('valider')
-            ->label('Valider le dossier')
+            ->label('Valider l\'admission')
             ->icon(Heroicon::OutlinedCheckBadge)
             ->color('success')
             ->requiresConfirmation()
-            ->modalDescription('Le CV du candidat est présent. Confirmer la validation de ce dossier de pré-admission ?')
+            ->modalDescription('Confirmer l\'admission officielle de cet apprenant ? Le dossier a été contrôlé.')
             ->visible(fn (Admission $record) => $record->canTransitionTo(AdmissionStatut::Valide))
             ->action(function (Admission $record) {
-                self::executer($record, AdmissionStatut::Valide);
+                try {
+                    $record->transitionTo(AdmissionStatut::Valide);
+
+                    Notification::make()->success()->title('Admission validée')->send();
+                } catch (InvalidTransitionException $e) {
+                    Notification::make()->danger()->title('Validation refusée')->body($e->getMessage())->send();
+                }
             });
     }
 
-    /** Transition générique vers un état atteignable (structure + gardes métier). */
-    public static function changerStatut(): Action
+    /**
+     * Déclarer la rupture de l'apprenant : l'admission passe en « Rupture »
+     * et le dossier Rupture (livrables) est ouvert automatiquement — un seul
+     * par contrat.
+     */
+    public static function declarerRupture(): Action
     {
-        return Action::make('changerStatut')
-            ->label('Faire évoluer')
-            ->icon(Heroicon::OutlinedArrowPath)
-            ->color('gray')
-            ->visible(fn (Admission $record) => count($record->allowedTransitions()) > 0)
+        return Action::make('declarerRupture')
+            ->label('Déclarer une rupture')
+            ->icon(Heroicon::OutlinedXCircle)
+            ->color('danger')
+            ->visible(fn (Admission $record) => $record->contract_id !== null
+                && $record->canTransitionTo(AdmissionStatut::Rupture))
+            ->modalHeading('Déclarer la rupture du contrat')
+            ->modalDescription('L\'admission passera en « Rupture », le contrat en « Rompu », et un dossier '
+                .'sera ouvert dans la section Rupture pour générer les livrables.')
             ->schema([
-                Select::make('statut')
-                    ->label('Nouveau statut')
-                    ->options(fn (Admission $record) => collect($record->allowedTransitions())
-                        ->mapWithKeys(fn (AdmissionStatut $s) => [$s->value => $s->getLabel()])
-                        ->all())
+                DatePicker::make('date_rupture')
+                    ->label('Date de rupture')
+                    ->default(now())
+                    ->displayFormat('d/m/Y')
                     ->required(),
+                Select::make('motif')
+                    ->label('Motif')
+                    ->options(RuptureMotif::class)
+                    ->required(),
+                Select::make('initiative')
+                    ->label('À l\'initiative de')
+                    ->options([
+                        'Employeur' => 'Employeur',
+                        'Apprenti' => 'Apprenti',
+                        'Commun accord' => 'Commun accord',
+                    ]),
                 Textarea::make('commentaire')
-                    ->label('Commentaire (optionnel)'),
+                    ->label('Commentaire interne (optionnel)')
+                    ->rows(2),
             ])
             ->action(function (Admission $record, array $data) {
-                self::executer($record, AdmissionStatut::from($data['statut']), $data['commentaire'] ?? null);
+                try {
+                    app(CycleApprenant::class)->ouvrirRupture($record, [
+                        'date_rupture' => $data['date_rupture'] ?? null,
+                        'motif' => $data['motif'] ?? null,
+                        'initiative' => $data['initiative'] ?? null,
+                        'commentaire' => $data['commentaire'] ?? null,
+                    ]);
+
+                    Notification::make()
+                        ->warning()
+                        ->title('Rupture déclarée')
+                        ->body('Le dossier de rupture a été ouvert : générez les livrables depuis la section Rupture.')
+                        ->send();
+                } catch (CycleBloqueException $e) {
+                    Notification::make()->danger()->title('Rupture impossible')->body($e->getMessage())->send();
+                }
             });
-    }
-
-    private static function executer(Admission $record, AdmissionStatut $cible, ?string $comment = null): void
-    {
-        try {
-            $record->transitionTo($cible, $comment);
-
-            Notification::make()
-                ->title('Statut mis à jour : '.$cible->getLabel())
-                ->success()
-                ->send();
-        } catch (InvalidTransitionException $e) {
-            Notification::make()
-                ->title('Transition refusée')
-                ->body($e->getMessage())
-                ->danger()
-                ->send();
-        }
     }
 }

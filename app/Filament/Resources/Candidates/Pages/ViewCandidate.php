@@ -4,15 +4,18 @@ namespace App\Filament\Resources\Candidates\Pages;
 
 use App\Filament\Resources\Candidates\CandidateResource;
 use App\Models\Candidate;
+use App\Parcours\CycleApprenant;
 use Filament\Actions\EditAction;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Resources\Pages\ViewRecord;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
+use Illuminate\Support\HtmlString;
 
 /**
- * Vue 360° « Parcours de l'apprenant » : rassemble en un écran les 4 phases du
- * cycle de vie (admission → entreprise/contrat → OPCO → scolarité).
+ * Vue 360° « Parcours de l'apprenant » : timeline du cycle (Candidat →
+ * Matching → Contrat → OPCO → Admission → Rupture) puis le détail de
+ * chaque phase en un écran.
  */
 class ViewCandidate extends ViewRecord
 {
@@ -21,6 +24,70 @@ class ViewCandidate extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
+            // Point de création UNIQUE d'un entretien (masqué si un entretien
+            // actif existe déjà → « Gérer l'entretien »).
+            \Filament\Actions\Action::make('planifierEntretien')
+                ->label('Planifier un entretien')
+                ->icon('heroicon-o-calendar-days')
+                ->color('info')
+                ->visible(fn (): bool => ! $this->getRecord()->statut->estFinal()
+                    && $this->getRecord()->entretienActif() === null)
+                ->modalHeading(fn (): string => 'Planifier un entretien — '.$this->getRecord()->nom_complet)
+                ->modalDescription('Le candidat passera automatiquement à « Entretien prévu ».')
+                ->schema([
+                    \Filament\Forms\Components\DatePicker::make('date_entretien')
+                        ->label('Date')->displayFormat('d/m/Y')->native(false)->required(),
+                    \Filament\Forms\Components\TimePicker::make('heure_debut')
+                        ->label('Heure de début')->seconds(false)->required(),
+                    \Filament\Forms\Components\TimePicker::make('heure_fin')
+                        ->label('Heure de fin')->seconds(false)->required()->after('heure_debut'),
+                    \Filament\Forms\Components\Select::make('mode')
+                        ->label('Mode')
+                        ->options(\App\Enums\EntretienMode::class)
+                        ->default(\App\Enums\EntretienMode::Presentiel->value)
+                        ->required(),
+                ])
+                ->action(function (array $data): void {
+                    try {
+                        $entretien = $this->getRecord()->entretiens()->create($data + [
+                            'statut' => \App\Enums\EntretienStatut::Planifie->value,
+                            'responsable_id' => auth()->id(),
+                        ]);
+                    } catch (\Illuminate\Validation\ValidationException $e) {
+                        \Filament\Notifications\Notification::make()->danger()->title('Planification impossible')
+                            ->body(collect($e->errors())->flatten()->first())->send();
+
+                        return;
+                    }
+
+                    \Filament\Notifications\Notification::make()->success()
+                        ->title('Entretien planifié')
+                        ->body($entretien->creneauLisible().' — le candidat passe à « Entretien prévu ».')
+                        ->send();
+                }),
+            // Un entretien est déjà en cours : lien direct pour le gérer.
+            \Filament\Actions\Action::make('gererEntretien')
+                ->label('Gérer l\'entretien')
+                ->icon('heroicon-o-calendar-days')
+                ->color('warning')
+                ->visible(fn (): bool => ! $this->getRecord()->statut->estFinal()
+                    && $this->getRecord()->entretienActif() !== null)
+                ->url(fn (): string => \App\Filament\Resources\Entretiens\EntretienResource::getUrl(
+                    'edit',
+                    ['record' => $this->getRecord()->entretienActif()],
+                )),
+            \Filament\Actions\Action::make('voirEntretiens')
+                ->label('Entretiens')
+                ->icon('heroicon-o-arrow-top-right-on-square')
+                ->color('gray')
+                ->visible(fn (): bool => $this->getRecord()->entretiens()->exists())
+                ->url(fn (): string => \App\Filament\Resources\Entretiens\EntretienResource::getUrl('index')),
+            \Filament\Actions\Action::make('voirMatching')
+                ->label('Voir le matching')
+                ->icon('heroicon-o-arrow-top-right-on-square')
+                ->color('gray')
+                ->visible(fn (): bool => $this->getRecord()->matchings()->exists())
+                ->url(fn (): string => \App\Filament\Resources\Matchings\MatchingResource::getUrl('index')),
             EditAction::make(),
         ];
     }
@@ -28,6 +95,18 @@ class ViewCandidate extends ViewRecord
     public function infolist(Schema $schema): Schema
     {
         return $schema->components([
+            // Où en est l'apprenant dans le cycle — visible d'un coup d'œil.
+            Section::make('Parcours de l\'apprenant')
+                ->schema([
+                    TextEntry::make('parcours')
+                        ->hiddenLabel()
+                        ->state(fn (Candidate $record): HtmlString => new HtmlString(
+                            view('filament.parcours.timeline', [
+                                'etapes' => app(CycleApprenant::class)->etapes($record),
+                            ])->render(),
+                        )),
+                ]),
+
             Section::make('Identité & scolarité')
                 ->columns(3)
                 ->schema([
@@ -59,13 +138,29 @@ class ViewCandidate extends ViewRecord
                         ->placeholder('—'),
                 ]),
 
-            Section::make('1 · Admission')
+            Section::make('Entretien de recrutement')
+                ->columns(3)
+                ->schema([
+                    TextEntry::make('dernierEntretien.statut')
+                        ->label('Dernier entretien')
+                        ->badge()
+                        ->placeholder('Aucun entretien'),
+                    TextEntry::make('entretien_creneau')
+                        ->label('Créneau')
+                        ->state(fn (Candidate $record) => $record->dernierEntretien?->creneauLisible())
+                        ->placeholder('—'),
+                    TextEntry::make('dernierEntretien.responsable.name')
+                        ->label('Responsable')
+                        ->placeholder('—'),
+                ]),
+
+            Section::make('3 · Admission officielle')
                 ->columns(3)
                 ->schema([
                     TextEntry::make('admission.statut')
-                        ->label('Dossier d\'admission')
+                        ->label('Admission')
                         ->badge()
-                        ->placeholder('Aucun dossier'),
+                        ->placeholder('Pas encore admis'),
                     TextEntry::make('cv')
                         ->label('CV')
                         ->state(fn (Candidate $record) => $record->hasCv() ? 'CV fourni' : 'CV manquant')
@@ -77,7 +172,7 @@ class ViewCandidate extends ViewRecord
                         ->placeholder('—'),
                 ]),
 
-            Section::make('2 · Entreprise & contrat')
+            Section::make('1 · Entreprise & contrat')
                 ->columns(3)
                 ->schema([
                     TextEntry::make('contrat_entreprise')
@@ -103,7 +198,7 @@ class ViewCandidate extends ViewRecord
                         ->placeholder('—'),
                 ]),
 
-            Section::make('3 · Financement OPCO')
+            Section::make('2 · Financement OPCO')
                 ->columns(3)
                 ->schema([
                     TextEntry::make('opco_statut')

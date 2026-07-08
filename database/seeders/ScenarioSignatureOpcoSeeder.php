@@ -62,7 +62,7 @@ class ScenarioSignatureOpcoSeeder extends Seeder
             'telephone' => '0600000000',
             'date_naissance' => now()->subYears(22),
             'formation_visee_id' => $formation->id,
-            'statut' => CandidateStatut::Complet,
+            'statut' => CandidateStatut::Accepte,
         ]);
 
         $contract = Contract::create([

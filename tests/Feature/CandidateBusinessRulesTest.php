@@ -2,21 +2,12 @@
 
 use App\Enums\CandidateStatut;
 use App\Models\Candidate;
+use App\Parcours\CycleApprenant;
 use App\StateMachine\InvalidTransitionException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 uses(RefreshDatabase::class);
-
-/** Attache un CV (PDF minimal) au candidat, dans la collection média « cv ». */
-function attacherCv(Candidate $candidate): void
-{
-    Storage::fake('public');
-    $candidate->addMediaFromString("%PDF-1.4\ntrailer<</Root 1 0 R>>\n%%EOF")
-        ->usingFileName('cv.pdf')
-        ->toMediaCollection('cv');
-}
 
 /*
 |--------------------------------------------------------------------------
@@ -42,36 +33,66 @@ it('accepte un candidat avec seulement un email', function () {
 
 /*
 |--------------------------------------------------------------------------
-| P0-02-6 — Règle 2 : machine à états + « pas Complet si pièces manquantes »
+| Cycle apprenant — décision CFA : Entretien prévu → Accepté / Refusé
 |--------------------------------------------------------------------------
 */
 
-it('autorise une transition déclarée', function () {
-    $candidate = Candidate::factory()->create(['statut' => CandidateStatut::Incomplet]);
+it('démarre tout nouveau candidat au statut « Entretien à planifier » (défaut)', function () {
+    $candidate = Candidate::query()->create([
+        'nom' => 'Nouveau', 'prenom' => 'Candidat', 'email' => 'nouveau@exemple.fr',
+    ]);
 
-    $candidate->transitionTo(CandidateStatut::EnRechercheEntreprise);
-
-    expect($candidate->fresh()->statut)->toBe(CandidateStatut::EnRechercheEntreprise);
+    expect($candidate->fresh()->statut)->toBe(CandidateStatut::EntretienAPlanifier);
 });
 
-it('refuse une transition non déclarée', function () {
-    $candidate = Candidate::factory()->create(['statut' => CandidateStatut::Incomplet]);
+it('autorise le passage d\'« Entretien prévu » à « Accepté » après un entretien réalisé', function () {
+    $candidate = Candidate::factory()->create(['statut' => CandidateStatut::EntretienPrevu]);
+    \App\Models\Entretien::factory()->realise()->create(['candidate_id' => $candidate->id]);
 
-    $candidate->transitionTo(CandidateStatut::ContratSigne);
-})->throws(InvalidTransitionException::class);
+    $candidate->transitionTo(CandidateStatut::Accepte);
 
-it('bloque « Dossier complet » si le CV est manquant', function () {
-    $candidate = Candidate::factory()->create(['statut' => CandidateStatut::Incomplet]);
+    expect($candidate->fresh()->statut)->toBe(CandidateStatut::Accepte);
+});
 
-    expect(fn () => $candidate->fresh()->transitionTo(CandidateStatut::Complet))
+it('autorise le passage d\'« Entretien prévu » à « Refusé »', function () {
+    $candidate = Candidate::factory()->create(['statut' => CandidateStatut::EntretienPrevu]);
+
+    $candidate->transitionTo(CandidateStatut::Refuse);
+
+    expect($candidate->fresh()->statut)->toBe(CandidateStatut::Refuse);
+});
+
+it('interdit le retour à « Entretien prévu » après acceptation, avec un message dédié', function () {
+    $candidate = Candidate::factory()->create(['statut' => CandidateStatut::Accepte]);
+
+    expect($candidate->transitionBlockReason(CandidateStatut::EntretienPrevu))
+        ->toBe(CycleApprenant::MSG_RETOUR_ENTRETIEN);
+
+    expect(fn () => $candidate->transitionTo(CandidateStatut::EntretienPrevu))
+        ->toThrow(InvalidTransitionException::class, CycleApprenant::MSG_RETOUR_ENTRETIEN);
+
+    expect($candidate->fresh()->statut)->toBe(CandidateStatut::Accepte);
+});
+
+it('interdit le retour à « Entretien prévu » après refus', function () {
+    $candidate = Candidate::factory()->create(['statut' => CandidateStatut::Refuse]);
+
+    expect(fn () => $candidate->transitionTo(CandidateStatut::EntretienPrevu))
+        ->toThrow(InvalidTransitionException::class, CycleApprenant::MSG_RETOUR_ENTRETIEN);
+});
+
+it('bloque aussi le retour arrière par écriture directe (hors machine à états)', function () {
+    $candidate = Candidate::factory()->create(['statut' => CandidateStatut::Accepte]);
+
+    expect(fn () => $candidate->forceFill(['statut' => CandidateStatut::EntretienPrevu])->save())
+        ->toThrow(ValidationException::class);
+
+    expect($candidate->fresh()->statut)->toBe(CandidateStatut::Accepte);
+});
+
+it('fige toute décision finale (pas de bascule Accepté ↔ Refusé)', function () {
+    $candidate = Candidate::factory()->create(['statut' => CandidateStatut::Refuse]);
+
+    expect(fn () => $candidate->transitionTo(CandidateStatut::Accepte))
         ->toThrow(InvalidTransitionException::class);
-});
-
-it('autorise « Dossier complet » quand le CV est fourni', function () {
-    $candidate = Candidate::factory()->create(['statut' => CandidateStatut::Incomplet]);
-    attacherCv($candidate);
-
-    $candidate->fresh()->transitionTo(CandidateStatut::Complet);
-
-    expect($candidate->fresh()->statut)->toBe(CandidateStatut::Complet);
 });

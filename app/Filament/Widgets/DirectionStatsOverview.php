@@ -43,7 +43,7 @@ class DirectionStatsOverview extends StatsOverviewWidget
 
     protected function getStats(): array
     {
-        $candidatsActifs = Candidate::whereNot('statut', CandidateStatut::Rupture->value)->count();
+        $candidatsActifs = Candidate::whereNot('statut', CandidateStatut::Refuse->value)->count();
         $besoinsOuverts = Need::whereIn('statut', [
             NeedStatut::Cree->value,
             NeedStatut::EnQualification->value,
