@@ -31,6 +31,7 @@ class MatchingsTable
                 TextColumn::make('need.intitule_poste')
                     ->label('Besoin')
                     ->description(fn ($record) => $record->need?->company?->raison_sociale)
+                    ->placeholder('Recherche en cours — aucune entreprise rattachée')
                     ->searchable(),
                 IconColumn::make('origine')
                     ->label('Origine')
@@ -87,15 +88,23 @@ class MatchingsTable
     private static function creerContrat(): Action
     {
         return Action::make('creerContrat')
-            ->label('Créer le contrat')
+            // Le contrat naît automatiquement à l'acceptation du matching :
+            // l'action sert surtout de lien direct vers le dossier lié.
+            ->label(fn (Matching $record): string => self::contratExistant($record)
+                ? 'Voir le contrat'
+                : 'Créer le contrat')
             ->icon('heroicon-o-document-plus')
             ->color('success')
             ->visible(fn (Matching $record): bool => $record->statut === MatchingStatut::Accepte)
             ->requiresConfirmation()
-            ->modalHeading('Créer le contrat d\'apprentissage')
-            ->modalDescription(fn (Matching $record): string => 'Un contrat prérempli sera créé pour '
-                .($record->candidate?->nom_complet ?? 'ce candidat').' chez '
-                .($record->need?->company?->raison_sociale ?? 'l\'entreprise').'.')
+            ->modalHeading(fn (Matching $record): string => self::contratExistant($record)
+                ? 'Ouvrir le contrat d\'apprentissage'
+                : 'Créer le contrat d\'apprentissage')
+            ->modalDescription(fn (Matching $record): string => self::contratExistant($record)
+                ? 'Le contrat créé automatiquement à l\'acceptation du matching sera ouvert.'
+                : 'Un contrat prérempli sera créé pour '
+                    .($record->candidate?->nom_complet ?? 'ce candidat').' chez '
+                    .($record->need?->company?->raison_sociale ?? 'l\'entreprise').'.')
             ->action(function (Matching $record) {
                 try {
                     $contract = app(CycleApprenant::class)->creerContratDepuisMatching($record);
@@ -115,5 +124,22 @@ class MatchingsTable
 
                 return redirect(ContractResource::getUrl('edit', ['record' => $contract]));
             });
+    }
+
+    /** Un contrat actif existe-t-il déjà pour ce candidat × entreprise ? */
+    private static function contratExistant(Matching $record): bool
+    {
+        if ($record->need?->company_id === null || $record->candidate_id === null) {
+            return false;
+        }
+
+        return \App\Models\Contract::query()
+            ->where('candidate_id', $record->candidate_id)
+            ->where('company_id', $record->need->company_id)
+            ->whereNotIn('statut_contrat', array_map(
+                fn ($s) => $s->value,
+                CycleApprenant::CONTRATS_ACTIFS_EXCLUS,
+            ))
+            ->exists();
     }
 }

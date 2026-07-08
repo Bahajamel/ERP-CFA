@@ -10,6 +10,9 @@ use Filament\Support\Contracts\HasLabel;
 
 /**
  * Décision du CFA sur la candidature — première étape du cycle apprenant.
+ *
+ * Tout nouveau candidat démarre à « Entretien à planifier » ; « Entretien
+ * prévu » est piloté par la section Entretiens (un vrai créneau planifié).
  * Le parcours aval (matching, contrat, OPCO, admission, rupture) est porté
  * par les modules dédiés : le statut candidat ne revient jamais en arrière
  * après une décision finale (Accepté / Refusé).
@@ -18,6 +21,7 @@ enum CandidateStatut: string implements HasLabel, HasColor, HasIcon, HasStateTra
 {
     use DefinesTransitions;
 
+    case EntretienAPlanifier = 'entretien_a_planifier';
     case EntretienPrevu = 'entretien_prevu';
     case Accepte = 'accepte';
     case Refuse = 'refuse';
@@ -25,6 +29,7 @@ enum CandidateStatut: string implements HasLabel, HasColor, HasIcon, HasStateTra
     public function getLabel(): string
     {
         return match ($this) {
+            self::EntretienAPlanifier => 'Entretien à planifier',
             self::EntretienPrevu => 'Entretien prévu',
             self::Accepte => 'Accepté',
             self::Refuse => 'Refusé',
@@ -34,6 +39,7 @@ enum CandidateStatut: string implements HasLabel, HasColor, HasIcon, HasStateTra
     public function getColor(): string
     {
         return match ($this) {
+            self::EntretienAPlanifier => 'gray',
             self::EntretienPrevu => 'warning',
             self::Accepte => 'success',
             self::Refuse => 'danger',
@@ -43,20 +49,38 @@ enum CandidateStatut: string implements HasLabel, HasColor, HasIcon, HasStateTra
     public function getIcon(): string
     {
         return match ($this) {
+            self::EntretienAPlanifier => 'heroicon-o-clock',
             self::EntretienPrevu => 'heroicon-o-calendar-days',
             self::Accepte => 'heroicon-o-check-badge',
             self::Refuse => 'heroicon-o-x-circle',
         };
     }
 
-    /** Les décisions finales sont terminales : aucun retour à « Entretien prévu ». */
+    /**
+     * Les décisions finales sont terminales : aucun retour aux statuts
+     * d'entretien. « Entretien prévu » peut revenir à « Entretien à
+     * planifier » (entretien annulé / à reprogrammer).
+     */
     public function transitions(): array
     {
         return match ($this) {
-            self::EntretienPrevu => [self::Accepte, self::Refuse],
+            self::EntretienAPlanifier => [self::EntretienPrevu, self::Accepte, self::Refuse],
+            self::EntretienPrevu => [self::EntretienAPlanifier, self::Accepte, self::Refuse],
             self::Accepte => [],
             self::Refuse => [],
         };
+    }
+
+    /** Statuts d'entretien (avant décision finale). */
+    public static function statutsEntretien(): array
+    {
+        return [self::EntretienAPlanifier, self::EntretienPrevu];
+    }
+
+    /** La décision finale (Accepté / Refusé) est-elle prise ? */
+    public function estFinal(): bool
+    {
+        return in_array($this, [self::Accepte, self::Refuse], true);
     }
 
     /** Colonnes du pipeline (Kanban), dans l'ordre du parcours. */

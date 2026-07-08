@@ -127,30 +127,65 @@ class Candidate extends Model implements HasMedia
 
             $origine = CandidateStatut::tryFrom((string) $candidate->getRawOriginal('statut'));
 
-            if ($origine === null || $origine === CandidateStatut::EntretienPrevu) {
+            if ($origine === null || ! $origine->estFinal()) {
                 return;
             }
 
             throw ValidationException::withMessages([
-                'statut' => $candidate->statut === CandidateStatut::EntretienPrevu
-                    ? CycleApprenant::MSG_RETOUR_ENTRETIEN
-                    : 'Décision finale déjà prise : le statut du candidat ne peut plus être modifié.',
+                'statut' => match ($candidate->statut) {
+                    CandidateStatut::EntretienPrevu => CycleApprenant::MSG_RETOUR_ENTRETIEN,
+                    CandidateStatut::EntretienAPlanifier => CycleApprenant::MSG_RETOUR_A_PLANIFIER,
+                    default => 'Décision finale déjà prise : le statut du candidat ne peut plus être modifié.',
+                },
             ]);
+        });
+
+        // Déclencheur automatique du cycle : dès l'acceptation, la recherche
+        // d'entreprise est ouverte au Matching (« En recherche »), sans
+        // double saisie. Idempotent (anti-doublon dans le service).
+        static::updated(function (self $candidate): void {
+            if ($candidate->wasChanged('statut') && $candidate->statut === CandidateStatut::Accepte) {
+                app(CycleApprenant::class)->ouvrirRechercheEntreprise($candidate);
+            }
         });
     }
 
     /**
-     * Message métier dédié au retour vers « Entretien prévu » après une
-     * décision finale (le blocage structurel est porté par l'enum ; on
-     * remplace seulement le message générique de la machine à états).
+     * Messages métier des retours interdits (le blocage structurel est porté
+     * par l'enum ; on remplace seulement le message générique).
      */
     public function transitionBlockReason(HasStateTransitions $to): ?string
     {
-        if ($to === CandidateStatut::EntretienPrevu && $this->statut !== CandidateStatut::EntretienPrevu) {
-            return CycleApprenant::MSG_RETOUR_ENTRETIEN;
+        if ($this->statut->estFinal() && in_array($to, CandidateStatut::statutsEntretien(), true)) {
+            return $to === CandidateStatut::EntretienPrevu
+                ? CycleApprenant::MSG_RETOUR_ENTRETIEN
+                : CycleApprenant::MSG_RETOUR_A_PLANIFIER;
         }
 
         return $this->baseTransitionBlockReason($to);
+    }
+
+    /**
+     * Gardes métier de la machine à états (cycle apprenant) :
+     *  - « Entretien prévu » exige un entretien réellement planifié
+     *    (date + heures) dans la section Entretiens ;
+     *  - « Accepté » exige un entretien réalisé — un administrateur garde
+     *    une action exceptionnelle pour passer outre.
+     */
+    public function guardTransition(\BackedEnum $from, \BackedEnum $to): ?string
+    {
+        if ($to === CandidateStatut::EntretienPrevu
+            && ! $this->entretiens()->where('statut', \App\Enums\EntretienStatut::Planifie->value)->exists()) {
+            return CycleApprenant::MSG_ENTRETIEN_NON_PLANIFIE;
+        }
+
+        if ($to === CandidateStatut::Accepte
+            && ! $this->entretiens()->where('statut', \App\Enums\EntretienStatut::Realise->value)->exists()
+            && ! (\Illuminate\Support\Facades\Auth::user()?->hasRole('Administrateur') ?? false)) {
+            return CycleApprenant::MSG_ACCEPTATION_SANS_ENTRETIEN;
+        }
+
+        return null;
     }
 
     /**
@@ -255,6 +290,18 @@ class Candidate extends Model implements HasMedia
     public function admissions(): HasMany
     {
         return $this->hasMany(Admission::class);
+    }
+
+    /** Entretiens de recrutement du candidat (section Entretiens). */
+    public function entretiens(): HasMany
+    {
+        return $this->hasMany(Entretien::class);
+    }
+
+    /** Dernier entretien créé (fiche candidat, timeline). */
+    public function dernierEntretien(): HasOne
+    {
+        return $this->hasOne(Entretien::class)->latestOfMany();
     }
 
     public function matchings(): HasMany

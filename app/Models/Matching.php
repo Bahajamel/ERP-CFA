@@ -91,6 +91,17 @@ class Matching extends Model
                 return;
             }
 
+            // Au-delà de « En recherche », une entreprise (besoin) doit être rattachée.
+            if ($matching->need_id === null && in_array($statut, [
+                MatchingStatut::PropositionEnvoyee,
+                MatchingStatut::EntretienEntreprise,
+                MatchingStatut::Accepte,
+            ], true)) {
+                throw ValidationException::withMessages([
+                    'need_id' => 'Rattachez une entreprise (besoin) avant de faire avancer ce matching.',
+                ]);
+            }
+
             if ($statut === MatchingStatut::PropositionEnvoyee && ! $matching->cv_envoye) {
                 throw ValidationException::withMessages([
                     'cv_envoye' => 'Proposition envoyée : marquez le CV comme envoyé avant de passer à ce statut.',
@@ -110,6 +121,28 @@ class Matching extends Model
                 ]);
             }
         });
+
+        // Déclencheur automatique du cycle : matching accepté → contrat créé
+        // (ou rouvert) dans la section Contrats, prérempli depuis le besoin.
+        static::updated(function (self $matching): void {
+            if (! $matching->wasChanged('statut') || $matching->statut !== MatchingStatut::Accepte) {
+                return;
+            }
+
+            try {
+                $contract = app(CycleApprenant::class)->creerContratDepuisMatching($matching);
+            } catch (\App\Parcours\CycleBloqueException) {
+                return; // Sans entreprise rattachée, rien à créer (déjà bloqué en amont).
+            }
+
+            if ($contract->wasRecentlyCreated) {
+                CycleApprenant::notifierAutomatisme(
+                    'Matching accepté',
+                    'Contrat créé automatiquement pour '.($matching->candidate?->nom_complet ?? 'le candidat')
+                    .' — complétez les dates puis lancez la signature des trois parties.',
+                );
+            }
+        });
     }
 
     /**
@@ -118,6 +151,14 @@ class Matching extends Model
      */
     public function guardTransition(BackedEnum $from, BackedEnum $to): ?string
     {
+        if ($this->need_id === null && in_array($to, [
+            MatchingStatut::PropositionEnvoyee,
+            MatchingStatut::EntretienEntreprise,
+            MatchingStatut::Accepte,
+        ], true)) {
+            return 'Rattachez une entreprise (besoin) avant de faire avancer ce matching.';
+        }
+
         if ($to === MatchingStatut::Accepte && $this->besoinEstCloture()) {
             return 'Besoin clôturé : impossible d\'accepter ce candidat.';
         }

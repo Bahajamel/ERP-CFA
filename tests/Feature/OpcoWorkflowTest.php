@@ -19,7 +19,14 @@ beforeEach(function () {
 
 function dossierOpco(OpcoStatut $statut, ContractSignatureStatut $signature = ContractSignatureStatut::Signe): OpcoFile
 {
-    $contract = Contract::factory()->create(['statut_signature' => $signature]);
+    // Statuts déterministes : le statut contrat doit être cohérent avec la
+    // signature (estSigne() regarde les deux champs).
+    $contract = Contract::factory()->create([
+        'statut_signature' => $signature,
+        'statut_contrat' => $signature === ContractSignatureStatut::Signe
+            ? \App\Enums\ContractStatut::Signe
+            : \App\Enums\ContractStatut::EnvoyeSignature,
+    ]);
 
     return OpcoFile::factory()->create([
         'contract_id' => $contract->id,

@@ -135,18 +135,20 @@ function matchingAccepte(): App\Models\Matching
     return $matching->fresh();
 }
 
-it('crée le contrat prérempli depuis un matching accepté', function () {
+it('crée AUTOMATIQUEMENT le contrat prérempli quand le matching passe à « Accepté »', function () {
     $matching = matchingAccepte();
 
-    $contract = cycle()->creerContratDepuisMatching($matching);
+    // Déclencheur du cycle : aucun appel manuel — le contrat naît à l'acceptation.
+    $contract = Contract::query()->where('candidate_id', $matching->candidate_id)->first();
 
-    expect($contract->wasRecentlyCreated)->toBeTrue()
-        ->and($contract->candidate_id)->toBe($matching->candidate_id)
+    expect($contract)->not->toBeNull()
         ->and($contract->company_id)->toBe($matching->need->company_id)
         ->and($contract->formation_id)->toBe($matching->need->formation_id)
         ->and($contract->tuteur_id)->toBe($matching->need->tuteur_id)
         ->and($contract->code_rncp)->toBe($matching->need->formation->code_rncp)
-        ->and($contract->statut_contrat)->toBe(ContractStatut::Brouillon);
+        // Premier statut par défaut de la section Contrats.
+        ->and($contract->statut_contrat)->toBe(ContractStatut::Brouillon)
+        ->and(Contract::query()->count())->toBe(1);
 });
 
 it('refuse de créer un contrat depuis un matching non accepté', function () {
@@ -231,13 +233,16 @@ it('résume le parcours dans la timeline : étapes, états et étape courante', 
 
     $etapes = collect(cycle()->etapes($candidat))->keyBy('cle');
 
-    expect($etapes)->toHaveCount(6)
+    expect($etapes)->toHaveCount(7)
         ->and($etapes['candidat']['etat'])->toBe(CycleApprenant::ETAT_TERMINEE)
+        // Décision prise (candidat accepté) : l'étape entretien est acquise.
+        ->and($etapes['entretien']['etat'])->toBe(CycleApprenant::ETAT_TERMINEE)
         ->and($etapes['matching']['etat'])->toBe(CycleApprenant::ETAT_TERMINEE)
-        ->and($etapes['contrat']['etat'])->toBe(CycleApprenant::ETAT_NON_DEMARREE)
+        // Contrat créé automatiquement à l'acceptation du matching (brouillon).
+        ->and($etapes['contrat']['etat'])->toBe(CycleApprenant::ETAT_EN_COURS)
         ->and($etapes['admission']['etat'])->toBe(CycleApprenant::ETAT_NON_DEMARREE);
 
-    // Après création + signature du contrat et dépôt OPCO : admission en cours.
+    // Après signature du contrat et dépôt OPCO : admission en cours.
     $contract = cycle()->creerContratDepuisMatching($matching);
     $contract->forceFill([
         'statut_contrat' => ContractStatut::Signe,

@@ -59,6 +59,17 @@ class AdmissionsTable
             ->recordActions([
                 AdmissionActions::valider(),
                 AdmissionActions::declarerRupture(),
+                // Lien vers le dossier lié créé automatiquement (cycle apprenant).
+                \Filament\Actions\Action::make('voirRupture')
+                    ->label('Voir la rupture')
+                    ->icon('heroicon-o-arrow-top-right-on-square')
+                    ->color('danger')
+                    ->visible(fn (Admission $record): bool => $record->statut === AdmissionStatut::Rupture
+                        && $record->contract?->rupture !== null)
+                    ->url(fn (Admission $record): string => \App\Filament\Resources\Ruptures\RuptureResource::getUrl(
+                        'edit',
+                        ['record' => $record->contract->rupture],
+                    )),
                 ViewAction::make(),
                 EditAction::make(),
             ])

@@ -59,7 +59,10 @@ class AdmissionStatsOverview extends StatsOverviewWidget
     protected function getStats(): array
     {
         $admissionsATraiter = Admission::whereIn('statut', self::ADMISSIONS_A_TRAITER)->count();
-        $candidatsEnAttente = Candidate::where('statut', CandidateStatut::EntretienPrevu->value)->count();
+        $candidatsEnAttente = Candidate::whereIn('statut', array_map(
+            fn (CandidateStatut $s) => $s->value,
+            CandidateStatut::statutsEntretien(),
+        ))->count();
         $contratsATraiter = Contract::whereIn('statut_contrat', self::CONTRATS_A_TRAITER)->count();
         $opcoATraiter = OpcoFile::whereIn('statut', self::OPCO_A_TRAITER)->count();
 

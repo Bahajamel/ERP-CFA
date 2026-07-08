@@ -24,6 +24,26 @@ class ViewCandidate extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
+            // Liens vers les dossiers liés des autres sections (cycle apprenant).
+            \Filament\Actions\Action::make('planifierEntretien')
+                ->label('Planifier un entretien')
+                ->icon('heroicon-o-calendar-days')
+                ->color('info')
+                ->visible(fn (): bool => ! $this->getRecord()->statut->estFinal())
+                ->url(fn (): string => \App\Filament\Resources\Entretiens\EntretienResource::getUrl('create')
+                    .'?candidate='.$this->getRecord()->getKey()),
+            \Filament\Actions\Action::make('voirEntretiens')
+                ->label('Entretiens')
+                ->icon('heroicon-o-arrow-top-right-on-square')
+                ->color('gray')
+                ->visible(fn (): bool => $this->getRecord()->entretiens()->exists())
+                ->url(fn (): string => \App\Filament\Resources\Entretiens\EntretienResource::getUrl('index')),
+            \Filament\Actions\Action::make('voirMatching')
+                ->label('Voir le matching')
+                ->icon('heroicon-o-arrow-top-right-on-square')
+                ->color('gray')
+                ->visible(fn (): bool => $this->getRecord()->matchings()->exists())
+                ->url(fn (): string => \App\Filament\Resources\Matchings\MatchingResource::getUrl('index')),
             EditAction::make(),
         ];
     }
@@ -71,6 +91,22 @@ class ViewCandidate extends ViewRecord
                     TextEntry::make('date_disponibilite')
                         ->label('Disponible à partir du')
                         ->date('d/m/Y')
+                        ->placeholder('—'),
+                ]),
+
+            Section::make('Entretien de recrutement')
+                ->columns(3)
+                ->schema([
+                    TextEntry::make('dernierEntretien.statut')
+                        ->label('Dernier entretien')
+                        ->badge()
+                        ->placeholder('Aucun entretien'),
+                    TextEntry::make('entretien_creneau')
+                        ->label('Créneau')
+                        ->state(fn (Candidate $record) => $record->dernierEntretien?->creneauLisible())
+                        ->placeholder('—'),
+                    TextEntry::make('dernierEntretien.responsable.name')
+                        ->label('Responsable')
                         ->placeholder('—'),
                 ]),
 

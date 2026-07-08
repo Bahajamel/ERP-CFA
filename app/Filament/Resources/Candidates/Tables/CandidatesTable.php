@@ -92,6 +92,44 @@ class CandidatesTable
                             Notification::make()->danger()->title('Transition refusée')->body($e->getMessage())->send();
                         }
                     }),
+                Action::make('planifierEntretien')
+                    ->label('Planifier un entretien')
+                    ->icon('heroicon-o-calendar-days')
+                    ->color('info')
+                    // Avant décision finale uniquement : l'entretien pilote le statut.
+                    ->visible(fn (Candidate $record): bool => ! $record->statut->estFinal())
+                    ->modalHeading(fn (Candidate $record): string => "Planifier un entretien — {$record->nom_complet}")
+                    ->schema([
+                        \Filament\Forms\Components\DatePicker::make('date_entretien')
+                            ->label('Date')->displayFormat('d/m/Y')->native(false)->required(),
+                        \Filament\Forms\Components\TimePicker::make('heure_debut')
+                            ->label('Heure de début')->seconds(false)->required(),
+                        \Filament\Forms\Components\TimePicker::make('heure_fin')
+                            ->label('Heure de fin')->seconds(false)->required()->after('heure_debut'),
+                        Select::make('mode')
+                            ->label('Mode')
+                            ->options(\App\Enums\EntretienMode::class)
+                            ->default(\App\Enums\EntretienMode::Presentiel->value)
+                            ->required(),
+                    ])
+                    ->action(function (Candidate $record, array $data): void {
+                        try {
+                            $entretien = $record->entretiens()->create($data + [
+                                'statut' => \App\Enums\EntretienStatut::Planifie->value,
+                                'responsable_id' => auth()->id(),
+                            ]);
+                        } catch (\Illuminate\Validation\ValidationException $e) {
+                            Notification::make()->danger()->title('Planification impossible')
+                                ->body(collect($e->errors())->flatten()->first())->send();
+
+                            return;
+                        }
+
+                        Notification::make()->success()
+                            ->title('Entretien planifié')
+                            ->body($entretien->creneauLisible().' — le candidat passe à « Entretien prévu ».')
+                            ->send();
+                    }),
                 Action::make('envoyerMatching')
                     ->label('Envoyer vers Matching')
                     ->icon('heroicon-o-paper-airplane')
@@ -175,6 +213,7 @@ class CandidatesTable
             ->defaultSort('created_at', 'desc')
             ->emptyStateIcon('heroicon-o-user-plus')
             ->emptyStateHeading('Aucun candidat pour le moment')
-            ->emptyStateDescription('Créez votre premier candidat : il démarre en « Entretien prévu », puis le CFA l\'accepte ou le refuse avant l\'envoi vers le Matching.');
+            ->emptyStateDescription('Créez votre premier candidat : il démarre en « Entretien à planifier ». '
+                .'Planifiez son entretien, puis acceptez-le ou refusez-le — l\'acceptation ouvre automatiquement le Matching.');
     }
 }

@@ -37,16 +37,17 @@ it('accepte un candidat avec seulement un email', function () {
 |--------------------------------------------------------------------------
 */
 
-it('démarre tout nouveau candidat au statut « Entretien prévu » (défaut)', function () {
+it('démarre tout nouveau candidat au statut « Entretien à planifier » (défaut)', function () {
     $candidate = Candidate::query()->create([
         'nom' => 'Nouveau', 'prenom' => 'Candidat', 'email' => 'nouveau@exemple.fr',
     ]);
 
-    expect($candidate->fresh()->statut)->toBe(CandidateStatut::EntretienPrevu);
+    expect($candidate->fresh()->statut)->toBe(CandidateStatut::EntretienAPlanifier);
 });
 
-it('autorise le passage d\'« Entretien prévu » à « Accepté »', function () {
+it('autorise le passage d\'« Entretien prévu » à « Accepté » après un entretien réalisé', function () {
     $candidate = Candidate::factory()->create(['statut' => CandidateStatut::EntretienPrevu]);
+    \App\Models\Entretien::factory()->realise()->create(['candidate_id' => $candidate->id]);
 
     $candidate->transitionTo(CandidateStatut::Accepte);
 
