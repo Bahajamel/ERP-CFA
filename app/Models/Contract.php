@@ -47,6 +47,7 @@ class Contract extends Model implements HasMedia
         return [
             'date_debut' => 'date',
             'date_fin' => 'date',
+            'salaire_mensuel_brut' => 'decimal:2',
             'statut_signature' => ContractSignatureStatut::class,
             'statut_contrat' => ContractStatut::class,
         ];
