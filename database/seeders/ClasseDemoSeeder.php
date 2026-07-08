@@ -41,6 +41,8 @@ class ClasseDemoSeeder extends Seeder
                 $libelles[] = '2ème année';
             }
 
+            $creneau = 0; // répartit les classes de la formation sur la semaine
+
             foreach ($libelles as $libelle) {
                 // Une classe = une matière : chaque année a sa matière « cœur de
                 // métier » + l'anglais pro, suivies par les MÊMES apprenants.
@@ -59,7 +61,7 @@ class ClasseDemoSeeder extends Seeder
                     );
 
                     $this->composerClasse($classe, $formation, $commercial);
-                    $this->planifierSeances($classe, $formateur);
+                    $this->planifierSeances($classe, $formateur, $creneau++);
                 }
             }
         }
@@ -111,12 +113,33 @@ class ClasseDemoSeeder extends Seeder
         }
     }
 
-    /** Une séance passée (émargée puis validée) + une séance à venir (planifiée). */
-    private function planifierSeances(Promotion $classe, ?User $formateur): void
+    /**
+     * Répartit la classe sur l'emploi du temps : un jour de semaine et un
+     * créneau (matin/après-midi) stables, déclinés sur trois semaines —
+     * passée (émargée puis validée), courante et prochaine (planifiées).
+     */
+    private function planifierSeances(Promotion $classe, ?User $formateur, int $creneau): void
     {
+        $jour = $creneau % 5; // lundi → vendredi
+        [$debut, $fin] = $creneau % 2 === 0 ? ['09:00', '12:30'] : ['14:00', '17:30'];
+
+        $lundi = now()->startOfWeek();
+        $dates = [
+            'passee' => $lundi->copy()->subWeek()->addDays($jour)->toDateString(),
+            'courante' => $lundi->copy()->addDays($jour)->toDateString(),
+            'prochaine' => $lundi->copy()->addWeek()->addDays($jour)->toDateString(),
+        ];
+
+        // Nettoie les séances d'anciennes exécutions du seeder (toutes empilées
+        // sur les mêmes dates) sans toucher aux séances créées à la main.
+        $classe->seances()
+            ->whereIn('libelle', array_filter([$classe->matiere, 'Atelier pratique', 'Gestion de projet']))
+            ->whereNotIn('date', array_values($dates))
+            ->delete();
+
         $passee = $classe->seances()->firstOrCreate(
-            ['date' => now()->subDays(7)->toDateString(), 'libelle' => $classe->matiere ?? 'Atelier pratique'],
-            ['heure_debut' => '09:00', 'heure_fin' => '17:00', 'formateur_id' => $formateur?->id],
+            ['date' => $dates['passee'], 'libelle' => $classe->matiere ?? 'Atelier pratique'],
+            ['heure_debut' => $debut, 'heure_fin' => $fin, 'formateur_id' => $formateur?->id],
         );
 
         if ($passee->statut !== SeanceStatut::Validee) {
@@ -131,9 +154,11 @@ class ClasseDemoSeeder extends Seeder
             $passee->update(['statut' => SeanceStatut::Validee]);
         }
 
-        $classe->seances()->firstOrCreate(
-            ['date' => now()->addDays(7)->toDateString(), 'libelle' => $classe->matiere ?? 'Gestion de projet'],
-            ['heure_debut' => '09:00', 'heure_fin' => '12:30', 'formateur_id' => $formateur?->id],
-        );
+        foreach ([$dates['courante'], $dates['prochaine']] as $date) {
+            $classe->seances()->firstOrCreate(
+                ['date' => $date, 'libelle' => $classe->matiere ?? 'Gestion de projet'],
+                ['heure_debut' => $debut, 'heure_fin' => $fin, 'formateur_id' => $formateur?->id],
+            );
+        }
     }
 }
