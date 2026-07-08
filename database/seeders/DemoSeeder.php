@@ -139,7 +139,14 @@ class DemoSeeder extends Seeder
             ['Sarah', 'Faure', $commerce, CandidateStatut::Accepte, 'Bac'],
             ['Théo', 'Garnier', $marketing, CandidateStatut::Refuse, 'Bac+2'],
             ['Inès', 'Chevalier', $compta, CandidateStatut::Accepte, 'Bac'],
+            // Pipeline de recrutement en amont (démo du cycle Entretiens) : ces
+            // candidats ne sont pas encore engagés, pour peupler les colonnes
+            // « Entretien à planifier » / « Entretien prévu » du pipeline.
             ['Jade', 'Renard', $devWeb, CandidateStatut::EntretienAPlanifier, 'Bac'],
+            ['Camille', 'Girard', $cyber, CandidateStatut::EntretienAPlanifier, 'Bac+2'],
+            ['Noah', 'Lefevre', $commerce, CandidateStatut::EntretienAPlanifier, 'Bac'],
+            ['Manon', 'Robert', $marketing, CandidateStatut::EntretienAPlanifier, 'Bac+2'],
+            ['Louna', 'Simon', $compta, CandidateStatut::EntretienAPlanifier, 'Bac'],
         ];
         $candidates = [];
         foreach ($candidatesData as $i => [$prenom, $nom, $formation, $statut, $niveau]) {
@@ -186,6 +193,31 @@ class DemoSeeder extends Seeder
             'statut' => EntretienStatut::Realise->value, 'resultat' => 'refuse',
             'compte_rendu' => 'Projet incompatible avec le rythme de l\'alternance.',
         ]);
+        // Camille & Noah : entretiens planifiés → ils passent « Entretien prévu ».
+        $candidates[11]->entretiens()->create([
+            'responsable_id' => $sophie->id,
+            'date_entretien' => now()->addDays(2)->toDateString(),
+            'heure_debut' => '09:30', 'heure_fin' => '10:15',
+            'mode' => EntretienMode::Visio->value, 'lien_visio' => 'https://meet.exemple.fr/camille-girard',
+            'statut' => EntretienStatut::Planifie->value,
+        ]);
+        $candidates[12]->entretiens()->create([
+            'responsable_id' => $thomas->id,
+            'date_entretien' => now()->addDays(4)->toDateString(),
+            'heure_debut' => '15:00', 'heure_fin' => '16:00',
+            'mode' => EntretienMode::Presentiel->value,
+            'statut' => EntretienStatut::Planifie->value,
+        ]);
+        // Manon : entretien réalisé, décision non encore prise (à traiter).
+        $candidates[13]->entretiens()->create([
+            'responsable_id' => $sophie->id,
+            'date_entretien' => now()->subDay()->toDateString(),
+            'heure_debut' => '11:00', 'heure_fin' => '11:45',
+            'mode' => EntretienMode::Telephone->value,
+            'statut' => EntretienStatut::Realise->value,
+            'compte_rendu' => 'Bon échange, à confronter avec les besoins entreprises.',
+        ]);
+        // Louna reste « Entretien à planifier » (aucun créneau encore posé).
 
         // -------- Matching (propositions candidat ↔ besoin) --------
         Matching::create(['need_id' => $needs[0]->id, 'candidate_id' => $candidates[0]->id, 'statut' => MatchingStatut::Accepte, 'cv_envoye' => true, 'date_entretien' => now()->subDays(20), 'retour_entreprise' => 'Candidat retenu, profil parfait.', 'assigned_by' => $sophie->id]);

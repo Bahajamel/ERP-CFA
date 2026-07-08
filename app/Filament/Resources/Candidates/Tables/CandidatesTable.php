@@ -73,11 +73,19 @@ class CandidatesTable
                 Action::make('changerStatut')
                     ->label('Changer le statut')
                     ->icon('heroicon-o-arrows-right-left')
-                    ->visible(fn ($record): bool => filled($record->currentState()->transitions()))
+                    // Cycle apprenant : le statut est piloté par les Entretiens.
+                    // On n'affiche que les transitions réellement possibles ici
+                    // (ex. « Refuser ») — « Accepté »/« Entretien prévu » passent
+                    // par la section Entretiens et sont donc masqués tant qu'ils
+                    // ne sont pas atteignables.
+                    ->visible(fn ($record): bool => filled($record->allowedTransitions()))
+                    ->modalDescription('L\'acceptation et le passage à « Entretien prévu » se font via la '
+                        .'section Entretiens (planifier un entretien, puis accepter après l\'avoir réalisé). '
+                        .'Ce menu ne propose que les changements possibles manuellement.')
                     ->schema(fn ($record): array => [
                         Select::make('to')
                             ->label('Nouveau statut')
-                            ->options(collect($record->currentState()->transitions())
+                            ->options(collect($record->allowedTransitions())
                                 ->mapWithKeys(fn (CandidateStatut $s) => [$s->value => $s->getLabel()])
                                 ->all())
                             ->required(),
