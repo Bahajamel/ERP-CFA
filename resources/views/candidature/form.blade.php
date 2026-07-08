@@ -41,8 +41,8 @@
             <div class="grid gap-4 sm:grid-cols-2">
                 @include('candidature.partials.field', ['name' => 'nom', 'label' => 'Nom *', 'type' => 'text', 'required' => true])
                 @include('candidature.partials.field', ['name' => 'prenom', 'label' => 'Prénom *', 'type' => 'text', 'required' => true])
-                @include('candidature.partials.field', ['name' => 'email', 'label' => 'Email', 'type' => 'email'])
-                @include('candidature.partials.field', ['name' => 'telephone', 'label' => 'Téléphone', 'type' => 'tel'])
+                @include('candidature.partials.field', ['name' => 'email', 'label' => 'Email *', 'type' => 'email', 'required' => true])
+                @include('candidature.partials.field', ['name' => 'telephone', 'label' => 'Téléphone *', 'type' => 'tel', 'required' => true])
                 @include('candidature.partials.field', ['name' => 'date_naissance', 'label' => 'Date de naissance *', 'type' => 'date', 'required' => true])
                 <div>
                     <label for="formation_visee_id" class="block text-sm font-medium text-slate-700">Formation visée *</label>
@@ -65,7 +65,6 @@
                     class="absolute z-20 mt-1 hidden w-full overflow-hidden rounded-lg border border-slate-200 bg-white text-sm shadow-lg"></ul>
                 <p class="mt-1 text-xs text-slate-400">Sélectionnez votre adresse dans la liste pour qu'elle soit exacte.</p>
             </div>
-            <p class="text-xs text-slate-500">Indiquez au moins un email <strong>ou</strong> un téléphone pour être recontacté(e).</p>
         </fieldset>
 
         <fieldset class="space-y-4">

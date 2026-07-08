@@ -97,8 +97,8 @@ class CandidatureController extends Controller
         $validator = validator($request->all(), [
             'nom' => array_merge(['required', 'string', 'max:100'], $nomHumain),
             'prenom' => array_merge(['required', 'string', 'max:100'], $nomHumain),
-            'email' => ['nullable', 'email', 'max:255', 'required_without:telephone'],
-            'telephone' => ['nullable', 'string', 'max:30', 'regex:/^[0-9+\s().\-]{6,30}$/', 'required_without:email'],
+            'email' => ['required', 'email', 'max:255'],
+            'telephone' => ['required', 'string', 'max:30', 'regex:/^[0-9+\s().\-]{6,30}$/'],
             'date_naissance' => ['required', 'date', 'before:today'],
             'adresse' => ['nullable', 'string', 'max:255'],
             'formation_visee_id' => ['required', 'integer', 'exists:formations,id'],
@@ -107,7 +107,6 @@ class CandidatureController extends Controller
             'carte_vitale' => array_merge(['required'], $justificatif),
             'attestation_projet' => array_merge(['nullable'], $justificatif),
         ], [
-            'required_without' => 'Renseignez au moins un email ou un téléphone.',
             'nom.regex' => 'Le nom ne peut contenir que des lettres, espaces, apostrophes et tirets.',
             'prenom.regex' => 'Le prénom ne peut contenir que des lettres, espaces, apostrophes et tirets.',
             'telephone.regex' => 'Le numéro de téléphone est invalide.',
