@@ -62,6 +62,32 @@ class CompanyForm
         }
     }
 
+    /**
+     * F-09 — Alerte « établissement fermé » : prévient (sans jamais bloquer
+     * la saisie) qu'un établissement administrativement fermé ou une
+     * entreprise cessée ne peut pas accueillir d'apprenti.
+     *
+     * @param  array{ferme: bool, date_fermeture: ?string}|null  $etat
+     */
+    private static function notifierSiEtablissementFerme(?array $etat): void
+    {
+        if ($etat === null || ! $etat['ferme']) {
+            return;
+        }
+
+        $depuis = filled($etat['date_fermeture'] ?? null)
+            ? ' depuis le '.\Carbon\Carbon::parse($etat['date_fermeture'])->format('d/m/Y')
+            : '';
+
+        Notification::make()
+            ->danger()
+            ->persistent()
+            ->title('⚠️ Établissement administrativement fermé')
+            ->body("Cet établissement est signalé fermé{$depuis} par l'Annuaire des Entreprises (INSEE). "
+                .'Vérifiez la situation de l\'entreprise avant toute convention ou contrat d\'apprentissage.')
+            ->send();
+    }
+
     public static function configure(Schema $schema): Schema
     {
         return $schema
@@ -98,8 +124,13 @@ class CompanyForm
                                     $set('latitude', $fiche['latitude']);
                                     $set('longitude', $fiche['longitude']);
 
-                                    // Enchaîne la détection de l'OPCO depuis le SIRET.
+                                    // Enchaîne la détection de l'OPCO depuis le SIRET,
+                                    // puis l'alerte si l'établissement est fermé (F-09).
                                     self::detecterEtNotifierOpco($fiche['siret'], $set, $get);
+                                    self::notifierSiEtablissementFerme([
+                                        'ferme' => EntrepriseAnnuaire::ferme($fiche),
+                                        'date_fermeture' => $fiche['date_fermeture'] ?? null,
+                                    ]);
                                 })
                                 ->helperText('Annuaire officiel des Entreprises (État) : SIRET, adresse et OPCO remplis automatiquement. La saisie manuelle reste possible.')
                                 ->columnSpanFull(),
@@ -124,8 +155,15 @@ class CompanyForm
                                     }
                                 })
                                 ->unique(ignoreRecord: true)
-                                // Détection automatique de l'OPCO dès qu'un SIRET valide est saisi.
-                                ->afterStateUpdated(fn (?string $state, Set $set, Get $get) => self::detecterEtNotifierOpco($state, $set, $get)),
+                                // Détection automatique de l'OPCO dès qu'un SIRET valide est
+                                // saisi, puis contrôle de l'état administratif (F-09).
+                                ->afterStateUpdated(function (?string $state, Set $set, Get $get): void {
+                                    self::detecterEtNotifierOpco($state, $set, $get);
+
+                                    if (OpcoDetector::siretValide($state)) {
+                                        self::notifierSiEtablissementFerme(app(EntrepriseAnnuaire::class)->etatSiret($state));
+                                    }
+                                }),
                             TextInput::make('secteur')
                                 ->label("Secteur d'activité")
                                 ->placeholder('ex : Restauration, BTP, Informatique'),

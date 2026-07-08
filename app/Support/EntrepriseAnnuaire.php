@@ -80,6 +80,11 @@ class EntrepriseAnnuaire
             $secteur = self::SECTIONS_NAF[$resultat['section_activite_principale'] ?? '']
                 ?? ($resultat['activite_principale'] ?? null);
 
+            // État administratif : « F » (établissement fermé) au niveau du
+            // siège, ou « C » (entreprise cessée) au niveau de l'unité légale.
+            $ferme = ($siege['etat_administratif'] ?? null) === 'F'
+                || ($resultat['etat_administratif'] ?? null) === 'C';
+
             $cle = json_encode([
                 'raison_sociale' => $nom,
                 'siret' => $siret,
@@ -90,10 +95,12 @@ class EntrepriseAnnuaire
                 'pays' => 'France',
                 'latitude' => isset($siege['latitude']) ? (float) $siege['latitude'] : null,
                 'longitude' => isset($siege['longitude']) ? (float) $siege['longitude'] : null,
-                'label' => $nom.($ville ? ' — '.$ville : '').' · SIRET '.$siret,
+                'ferme' => $ferme,
+                'date_fermeture' => $siege['date_fermeture'] ?? null,
+                'label' => $nom.($ville ? ' — '.$ville : '').' · SIRET '.$siret.($ferme ? ' · ⚠ Fermé' : ''),
             ], JSON_UNESCAPED_UNICODE);
 
-            $options[$cle] = $nom.($ville ? ' — '.$ville : '').' · '.$siret;
+            $options[$cle] = $nom.($ville ? ' — '.$ville : '').' · '.$siret.($ferme ? ' · ⚠ Fermé' : '');
         }
 
         return $options;
@@ -102,7 +109,7 @@ class EntrepriseAnnuaire
     /**
      * Décode la clé d'une option en fiche entreprise structurée.
      *
-     * @return array{raison_sociale:?string, siret:?string, secteur:?string, adresse:?string, code_postal:?string, ville:?string, pays:?string, latitude:?float, longitude:?float, label:?string}|null
+     * @return array{raison_sociale:?string, siret:?string, secteur:?string, adresse:?string, code_postal:?string, ville:?string, pays:?string, latitude:?float, longitude:?float, ferme:?bool, date_fermeture:?string, label:?string}|null
      */
     public static function decode(?string $cle): ?array
     {
@@ -113,6 +120,52 @@ class EntrepriseAnnuaire
         $data = json_decode($cle, true);
 
         return is_array($data) ? $data : null;
+    }
+
+    /** L'établissement de la fiche est-il administrativement fermé ? */
+    public static function ferme(?array $fiche): bool
+    {
+        return (bool) ($fiche['ferme'] ?? false);
+    }
+
+    /**
+     * État administratif d'un établissement par SIRET (F-09) : recherche
+     * dans l'Annuaire et lecture de l'état du siège ou de l'établissement
+     * correspondant. Null si l'API est indisponible ou le SIRET inconnu —
+     * l'appelant ne doit alors rien conclure (contrôle jamais bloquant).
+     *
+     * @return array{ferme: bool, date_fermeture: ?string}|null
+     */
+    public function etatSiret(?string $siret): ?array
+    {
+        $siret = OpcoDetector::normaliserSiret($siret);
+
+        if (! OpcoDetector::siretValide($siret)) {
+            return null;
+        }
+
+        $reponse = $this->appel($siret);
+
+        if ($reponse === null || ! $reponse->successful()) {
+            return null;
+        }
+
+        foreach ($reponse->json('results') ?? [] as $resultat) {
+            $cessee = ($resultat['etat_administratif'] ?? null) === 'C';
+
+            // L'établissement exact prime (siège ou secondaire), l'état de
+            // l'unité légale (entreprise cessée) s'applique dans tous les cas.
+            foreach ([...($resultat['matching_etablissements'] ?? []), $resultat['siege'] ?? []] as $etablissement) {
+                if (($etablissement['siret'] ?? null) === $siret) {
+                    return [
+                        'ferme' => $cessee || ($etablissement['etat_administratif'] ?? null) === 'F',
+                        'date_fermeture' => $etablissement['date_fermeture'] ?? null,
+                    ];
+                }
+            }
+        }
+
+        return null;
     }
 
     /** Voie du siège (« 43 AVENUE GABRIELLE »), repli sur l'adresse complète. */
