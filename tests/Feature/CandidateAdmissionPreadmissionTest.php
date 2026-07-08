@@ -5,6 +5,7 @@ use App\Enums\DocumentType;
 use App\Filament\Resources\Admissions\AdmissionResource;
 use App\Filament\Resources\Admissions\Pages\EditAdmission;
 use App\Filament\Resources\Candidates\Pages\CreateCandidate;
+use App\Models\Admission;
 use App\Models\Candidate;
 use App\Models\User;
 use App\Support\AdresseBan;
@@ -33,13 +34,13 @@ function candidatAvecCvMedia(): Candidate
     return $candidate;
 }
 
-it('crée automatiquement le dossier de pré-admission et y rend le CV accessible', function () {
+it('rend le CV du candidat accessible depuis son admission officielle', function () {
     $candidate = candidatAvecCvMedia();
+    $admission = Admission::factory()->create(['candidate_id' => $candidate->id]);
 
     // Le CV posé côté candidat est disponible côté admission via la relation.
-    expect($candidate->admission)->not->toBeNull()
-        ->and($candidate->admission->candidate->hasCv())->toBeTrue()
-        ->and($candidate->admission->cvManquant())->toBeFalse()
+    expect($admission->candidate->hasCv())->toBeTrue()
+        ->and($admission->cvManquant())->toBeFalse()
         ->and($candidate->cvUrl())->not->toBeNull();
 });
 
@@ -63,8 +64,8 @@ it('détecte le CV qu\'il soit en média « cv » ou en document GED de type CV'
 });
 
 it('n\'expose aucune gestion documentaire (checklist) dans le module Admissions', function () {
-    // Pré-admission : aucun RelationManager (donc pas de « Ajouter une pièce »
-    // ni de checklist de documents administratifs).
+    // Les pièces vivent sur la fiche candidat : pas de RelationManager côté
+    // admission (donc pas de « Ajouter une pièce » ni de checklist).
     expect(AdmissionResource::getRelations())->toBe([]);
 });
 
@@ -86,13 +87,14 @@ it('rend la page de création candidat (adresse, CV, disponibilités) sans erreu
     Livewire\Livewire::test(CreateCandidate::class)->assertOk();
 });
 
-it('rend la page du dossier de pré-admission sans erreur', function () {
+it('rend la page de l\'admission officielle (parcours + dossier) sans erreur', function () {
     $this->seed(RolePermissionSeeder::class);
     $this->actingAs(preadmUser('Admission'));
 
     $candidate = candidatAvecCvMedia();
+    $admission = Admission::factory()->create(['candidate_id' => $candidate->id]);
 
-    Livewire\Livewire::test(EditAdmission::class, ['record' => $candidate->admission->getKey()])
+    Livewire\Livewire::test(EditAdmission::class, ['record' => $admission->getKey()])
         ->assertOk();
 });
 

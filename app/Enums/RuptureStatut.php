@@ -7,23 +7,24 @@ use App\StateMachine\HasStateTransitions;
 use Filament\Support\Contracts\HasColor;
 use Filament\Support\Contracts\HasLabel;
 
+/**
+ * Traitement administratif d'un dossier de rupture : à traiter, livrables
+ * générés, puis clôturé. (L'accompagnement / reclassement ne fait pas
+ * partie du workflow actuel.)
+ */
 enum RuptureStatut: string implements HasLabel, HasColor, HasStateTransitions
 {
     use DefinesTransitions;
 
-    case Ouverte = 'ouverte';
-    case EnAccompagnement = 'en_accompagnement';
-    case RechercheEmployeur = 'recherche_employeur';
-    case Reclasse = 'reclasse';
+    case ATraiter = 'a_traiter';
+    case DocumentsGeneres = 'documents_generes';
     case Cloturee = 'cloturee';
 
     public function getLabel(): string
     {
         return match ($this) {
-            self::Ouverte => 'Ouverte',
-            self::EnAccompagnement => 'En accompagnement',
-            self::RechercheEmployeur => 'Recherche employeur',
-            self::Reclasse => 'Reclassé',
+            self::ATraiter => 'À traiter',
+            self::DocumentsGeneres => 'Documents générés',
             self::Cloturee => 'Clôturée',
         };
     }
@@ -31,10 +32,8 @@ enum RuptureStatut: string implements HasLabel, HasColor, HasStateTransitions
     public function getColor(): string
     {
         return match ($this) {
-            self::Ouverte => 'warning',
-            self::EnAccompagnement => 'info',
-            self::RechercheEmployeur => 'info',
-            self::Reclasse => 'success',
+            self::ATraiter => 'warning',
+            self::DocumentsGeneres => 'info',
             self::Cloturee => 'gray',
         };
     }
@@ -42,10 +41,8 @@ enum RuptureStatut: string implements HasLabel, HasColor, HasStateTransitions
     public function transitions(): array
     {
         return match ($this) {
-            self::Ouverte => [self::EnAccompagnement, self::Cloturee],
-            self::EnAccompagnement => [self::RechercheEmployeur, self::Reclasse, self::Cloturee],
-            self::RechercheEmployeur => [self::Reclasse, self::Cloturee],
-            self::Reclasse => [self::Cloturee],
+            self::ATraiter => [self::DocumentsGeneres, self::Cloturee],
+            self::DocumentsGeneres => [self::Cloturee],
             self::Cloturee => [],
         };
     }

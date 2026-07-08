@@ -2,14 +2,20 @@
 
 namespace App\Filament\Resources\Admissions\Schemas;
 
+use App\Enums\ContractSignatureStatut;
+use App\Enums\ContractStatut;
+use App\Enums\OpcoStatut;
 use App\Filament\Resources\Admissions\AdmissionActions;
 use App\Models\Admission;
+use App\Models\Contract;
+use App\Parcours\CycleApprenant;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Schemas\Components\Actions;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\HtmlString;
 
 class AdmissionForm
@@ -18,31 +24,71 @@ class AdmissionForm
     {
         return $schema
             ->components([
-                Section::make('Dossier de pré-admission')
-                    ->description('Le statut évolue via les actions de workflow, pas manuellement.')
+                Section::make('Admission officielle')
+                    ->description('Dernière étape du cycle d\'entrée : le candidat est accepté, l\'entreprise '
+                        .'trouvée, le contrat signé par les trois parties et le dossier OPCO créé ou transmis. '
+                        .'Le statut évolue via les actions de workflow, pas manuellement.')
                     ->columns(1)
                     ->schema([
-                        Select::make('candidate_id')
-                            ->label('Candidat')
-                            ->relationship('candidate', 'nom')
-                            ->getOptionLabelFromRecordUsing(fn ($record) => $record->nom_complet)
-                            ->searchable(['nom', 'prenom'])
+                        Select::make('contract_id')
+                            ->label('Contrat signé (apprenti — entreprise)')
+                            // Prérequis du cycle : contrat signé par les trois parties
+                            // ET dossier OPCO créé/transmis, sans admission existante.
+                            ->relationship(
+                                'contract',
+                                'id',
+                                fn (Builder $query, ?Admission $record): Builder => $query
+                                    ->where(fn (Builder $q) => $q
+                                        ->whereIn('statut_contrat', [
+                                            ContractStatut::Signe->value,
+                                            ContractStatut::TransmisOpco->value,
+                                            ContractStatut::Actif->value,
+                                        ])
+                                        ->orWhere('statut_signature', ContractSignatureStatut::Signe->value))
+                                    ->whereHas('opcoFile', fn (Builder $q) => $q->whereNotIn('statut', [
+                                        OpcoStatut::NonCree->value,
+                                        OpcoStatut::APreparer->value,
+                                    ]))
+                                    ->where(fn (Builder $q) => $q
+                                        ->whereDoesntHave('admission')
+                                        ->when($record?->contract_id, fn (Builder $qq, $id) => $qq->orWhere('id', $id))),
+                            )
+                            ->getOptionLabelFromRecordUsing(fn (Contract $record): string => trim(
+                                ($record->candidate?->nom_complet ?? 'Contrat #'.$record->id)
+                                .($record->company ? ' — '.$record->company->raison_sociale : ''),
+                            ))
+                            ->searchable()
+                            ->preload()
                             ->required()
-                            // Un dossier reste rattaché à son candidat.
-                            ->disabledOn('edit'),
+                            ->disabledOn('edit')
+                            ->helperText('Seuls les contrats signés par les trois parties dont le dossier OPCO '
+                                .'est créé ou transmis pour validation sont proposés. L\'admission démarre « À vérifier ».'),
                         Textarea::make('commentaire')
                             ->label('Commentaire')
-                            ->placeholder('ex : Remarques sur le dossier, points à vérifier…')
+                            ->placeholder('ex : Points à vérifier avant validation…')
                             ->rows(3),
                     ]),
 
-                // Récapitulatif du candidat + CV (pré-admission = pas d'autres documents).
-                Section::make('Candidat')
+                // Vision claire du chemin déjà accompli (cycle apprenant).
+                Section::make('Parcours de l\'apprenant')
+                    ->visibleOn('edit')
+                    ->schema([
+                        Placeholder::make('parcours')
+                            ->hiddenLabel()
+                            ->content(fn (?Admission $record): HtmlString|string => $record?->candidate
+                                ? new HtmlString(view('filament.parcours.timeline', [
+                                    'etapes' => app(CycleApprenant::class)->etapes($record->candidate),
+                                ])->render())
+                                : '—'),
+                    ]),
+
+                // Récapitulatif du dossier : apprenti, entreprise, contrat, OPCO.
+                Section::make('Dossier')
                     ->visibleOn('edit')
                     ->columns(2)
                     ->schema([
                         Placeholder::make('identite')
-                            ->label('Identité')
+                            ->label('Apprenti')
                             ->content(fn (?Admission $record) => $record?->candidate?->nom_complet ?? '—'),
                         Placeholder::make('contact')
                             ->label('Contact')
@@ -50,26 +96,31 @@ class AdmissionForm
                                 $record?->candidate?->email,
                                 $record?->candidate?->telephone,
                             ]))) ?: '—'),
-                        Placeholder::make('adresse')
-                            ->label('Adresse')
-                            ->content(fn (?Admission $record) => trim(implode(' ', array_filter([
-                                $record?->candidate?->adresse,
-                                $record?->candidate?->code_postal,
-                                $record?->candidate?->ville,
-                            ]))) ?: '—'),
+                        Placeholder::make('entreprise')
+                            ->label('Entreprise')
+                            ->content(fn (?Admission $record) => $record?->contract?->company?->raison_sociale ?? '—'),
+                        Placeholder::make('tuteur')
+                            ->label('Tuteur en entreprise')
+                            ->content(fn (?Admission $record) => $record?->contract?->tuteur?->nom_complet ?? '—'),
                         Placeholder::make('formation')
-                            ->label('Formation visée')
-                            ->content(fn (?Admission $record) => $record?->candidate?->formationVisee?->libelle ?? '—'),
-                        Placeholder::make('disponibilite')
-                            ->label('Disponible à partir du')
-                            ->content(fn (?Admission $record) => $record?->candidate?->date_disponibilite?->format('d/m/Y')
-                                ?? ($record?->candidate?->disponibilite ?: '—'))
+                            ->label('Formation')
+                            ->content(fn (?Admission $record) => $record?->contract?->formation?->libelle
+                                ?? $record?->candidate?->formationVisee?->libelle ?? '—'),
+                        Placeholder::make('contrat')
+                            ->label('Contrat')
+                            ->content(fn (?Admission $record) => $record?->contract
+                                ? $record->contract->statut_contrat->getLabel()
+                                    .' · signature : '.$record->contract->statut_signature->getLabel()
+                                : '—'),
+                        Placeholder::make('opco')
+                            ->label('Dossier OPCO')
+                            ->content(fn (?Admission $record) => $record?->contract?->opcoFile?->statut?->getLabel() ?? '—')
                             ->columnSpanFull(),
                     ]),
 
                 Section::make('Pièces du candidat')
                     ->description('Les pièces fournies dans la fiche candidat sont réutilisées ici — '
-                        .'aucun nouvel upload n\'est nécessaire. Le CV est le seul document requis à cette étape.')
+                        .'aucun nouvel upload n\'est nécessaire.')
                     ->visibleOn('edit')
                     ->schema([
                         Placeholder::make('cv')
@@ -81,7 +132,7 @@ class AdmissionForm
                                     return new HtmlString(
                                         '<span class="text-danger-600 font-medium">⚠ Aucun CV fourni pour ce candidat.</span>'
                                         .'<br><span class="text-sm text-gray-500">Ajoutez-le dans la fiche candidat '
-                                        .'pour pouvoir valider ce dossier.</span>'
+                                        .'pour pouvoir valider cette admission.</span>'
                                     );
                                 }
 
@@ -104,9 +155,10 @@ class AdmissionForm
                             }),
                     ]),
 
-                // Action de validation en bas du dossier, après les infos et le CV.
+                // Actions de workflow en bas du dossier.
                 Actions::make([
                     AdmissionActions::valider(),
+                    AdmissionActions::declarerRupture(),
                 ])
                     ->visibleOn('edit'),
             ]);

@@ -48,14 +48,14 @@ it('abandonne les matchings ouverts et préserve l\'accepté quand le besoin est
     $need = Need::factory()->create(['statut' => NeedStatut::CandidatRetenu]);
 
     $accepte = Matching::factory()->for($need)->create(['statut' => MatchingStatut::Accepte]);
-    $propose = Matching::factory()->for($need)->create(['statut' => MatchingStatut::Propose]);
-    $cvEnvoye = Matching::factory()->for($need)->create(['statut' => MatchingStatut::CvEnvoye]);
-    $dejaRefuse = Matching::factory()->for($need)->create(['statut' => MatchingStatut::RefuseCandidat]);
+    $propose = Matching::factory()->for($need)->create(['statut' => MatchingStatut::EnRecherche]);
+    $cvEnvoye = Matching::factory()->for($need)->create(['statut' => MatchingStatut::PropositionEnvoyee]);
+    $dejaRefuse = Matching::factory()->for($need)->create(['statut' => MatchingStatut::Refuse]);
 
     $need->transitionTo(NeedStatut::Pourvu);
 
     expect($accepte->fresh()->statut)->toBe(MatchingStatut::Accepte)
         ->and($propose->fresh()->statut)->toBe(MatchingStatut::Abandonne)
         ->and($cvEnvoye->fresh()->statut)->toBe(MatchingStatut::Abandonne)
-        ->and($dejaRefuse->fresh()->statut)->toBe(MatchingStatut::RefuseCandidat);
+        ->and($dejaRefuse->fresh()->statut)->toBe(MatchingStatut::Refuse);
 });

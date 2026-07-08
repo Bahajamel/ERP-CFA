@@ -36,6 +36,28 @@ class Contract extends Model implements HasMedia
 
     protected $guarded = [];
 
+    /**
+     * Anti-doublon (cycle apprenant) : un seul contrat actif par couple
+     * candidat × entreprise — les contrats rompus ou archivés n'empêchent
+     * pas d'en ouvrir un nouveau. Invariant backend, quel que soit le chemin.
+     */
+    protected static function booted(): void
+    {
+        static::creating(function (self $contract): void {
+            $doublon = static::query()
+                ->where('candidate_id', $contract->candidate_id)
+                ->where('company_id', $contract->company_id)
+                ->whereNotIn('statut_contrat', [ContractStatut::Rompu->value, ContractStatut::Archive->value])
+                ->exists();
+
+            if ($doublon) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'company_id' => 'Un contrat est déjà en cours pour ce candidat et cette entreprise.',
+                ]);
+            }
+        });
+    }
+
     /** La machine à états porte sur le statut du contrat. */
     public function stateColumn(): string
     {
@@ -108,6 +130,12 @@ class Contract extends Model implements HasMedia
     public function opcoFile(): HasOne
     {
         return $this->hasOne(OpcoFile::class);
+    }
+
+    /** Admission officielle fondée sur ce contrat (une au plus). */
+    public function admission(): HasOne
+    {
+        return $this->hasOne(Admission::class);
     }
 
     /** Demandes de signature électronique multi-parties (EPIC-08). */

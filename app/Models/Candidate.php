@@ -6,10 +6,9 @@ use App\Enums\CandidateStatut;
 use App\Enums\DocumentType;
 use App\Enums\PresenceStatut;
 use App\Matching\CompatibilityScorer;
-use App\Observers\CandidateObserver;
+use App\Parcours\CycleApprenant;
+use App\StateMachine\HasStateTransitions;
 use App\StateMachine\ManagesState;
-use BackedEnum;
-use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -27,13 +26,14 @@ use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 
-#[ObservedBy(CandidateObserver::class)]
 class Candidate extends Model implements HasMedia
 {
     use HasFactory;
     use InteractsWithMedia;
     use LogsActivity;
-    use ManagesState;
+    use ManagesState {
+        transitionBlockReason as private baseTransitionBlockReason;
+    }
     use SoftDeletes;
 
     protected $guarded = [];
@@ -111,19 +111,41 @@ class Candidate extends Model implements HasMedia
                 ]);
             }
         });
+
+        // Invariant backend (cycle apprenant) : une décision finale (Accepté /
+        // Refusé) est irréversible, quel que soit le chemin d'écriture — pas
+        // seulement via la machine à états.
+        static::updating(function (self $candidate): void {
+            if (! $candidate->isDirty('statut')) {
+                return;
+            }
+
+            $origine = CandidateStatut::tryFrom((string) $candidate->getRawOriginal('statut'));
+
+            if ($origine === null || $origine === CandidateStatut::EntretienPrevu) {
+                return;
+            }
+
+            throw ValidationException::withMessages([
+                'statut' => $candidate->statut === CandidateStatut::EntretienPrevu
+                    ? CycleApprenant::MSG_RETOUR_ENTRETIEN
+                    : 'Décision finale déjà prise : le statut du candidat ne peut plus être modifié.',
+            ]);
+        });
     }
 
     /**
-     * Règle métier (pré-candidature) : blocage du passage à « Dossier complet »
-     * tant que le CV — seul document requis à cette étape — n'est pas fourni.
+     * Message métier dédié au retour vers « Entretien prévu » après une
+     * décision finale (le blocage structurel est porté par l'enum ; on
+     * remplace seulement le message générique de la machine à états).
      */
-    public function guardTransition(BackedEnum $from, BackedEnum $to): ?string
+    public function transitionBlockReason(HasStateTransitions $to): ?string
     {
-        if ($to === CandidateStatut::Complet && ! $this->hasCv()) {
-            return 'Dossier incomplet : le CV du candidat est manquant.';
+        if ($to === CandidateStatut::EntretienPrevu && $this->statut !== CandidateStatut::EntretienPrevu) {
+            return CycleApprenant::MSG_RETOUR_ENTRETIEN;
         }
 
-        return null;
+        return $this->baseTransitionBlockReason($to);
     }
 
     /**
@@ -219,9 +241,15 @@ class Candidate extends Model implements HasMedia
         return $this->belongsTo(User::class, 'commercial_id');
     }
 
+    /** Dernière admission officielle du candidat (une par contrat signé). */
     public function admission(): HasOne
     {
-        return $this->hasOne(Admission::class);
+        return $this->hasOne(Admission::class)->latestOfMany();
+    }
+
+    public function admissions(): HasMany
+    {
+        return $this->hasMany(Admission::class);
     }
 
     public function matchings(): HasMany

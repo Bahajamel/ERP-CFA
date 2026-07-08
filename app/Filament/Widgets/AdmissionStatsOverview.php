@@ -33,8 +33,6 @@ class AdmissionStatsOverview extends StatsOverviewWidget
     /** Statuts d'admission nécessitant une action back-office. */
     private const ADMISSIONS_A_TRAITER = [
         AdmissionStatut::AVerifier->value,
-        AdmissionStatut::Incomplet->value,
-        AdmissionStatut::NonConforme->value,
     ];
 
     /** Statuts de contrat avant signature (à finaliser par l'administratif). */
@@ -61,20 +59,20 @@ class AdmissionStatsOverview extends StatsOverviewWidget
     protected function getStats(): array
     {
         $admissionsATraiter = Admission::whereIn('statut', self::ADMISSIONS_A_TRAITER)->count();
-        $candidatsIncomplets = Candidate::where('statut', CandidateStatut::Incomplet->value)->count();
+        $candidatsEnAttente = Candidate::where('statut', CandidateStatut::EntretienPrevu->value)->count();
         $contratsATraiter = Contract::whereIn('statut_contrat', self::CONTRATS_A_TRAITER)->count();
         $opcoATraiter = OpcoFile::whereIn('statut', self::OPCO_A_TRAITER)->count();
 
         return [
             Stat::make('Admissions à traiter', $admissionsATraiter)
-                ->description('À vérifier, incomplètes ou non conformes')
+                ->description('Admissions officielles à vérifier')
                 ->descriptionIcon('heroicon-m-clipboard-document-check')
                 ->color($admissionsATraiter > 0 ? 'warning' : 'success')
                 ->url(AdmissionResource::getUrl()),
-            Stat::make('Candidats dossier incomplet', $candidatsIncomplets)
-                ->description('Pièces obligatoires manquantes')
-                ->descriptionIcon('heroicon-m-document-minus')
-                ->color($candidatsIncomplets > 0 ? 'danger' : 'success')
+            Stat::make('Candidats en entretien', $candidatsEnAttente)
+                ->description('Décision CFA attendue')
+                ->descriptionIcon('heroicon-m-calendar-days')
+                ->color($candidatsEnAttente > 0 ? 'warning' : 'success')
                 ->url(CandidateResource::getUrl()),
             Stat::make('Contrats à traiter', $contratsATraiter)
                 ->description('Avant signature')

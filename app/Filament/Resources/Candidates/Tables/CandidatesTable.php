@@ -5,6 +5,9 @@ namespace App\Filament\Resources\Candidates\Tables;
 use App\Enums\CandidateStatut;
 use App\Livret\LivrablesArchive;
 use App\Models\Candidate;
+use App\Models\Need;
+use App\Parcours\CycleApprenant;
+use App\Parcours\CycleBloqueException;
 use App\StateMachine\InvalidTransitionException;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
@@ -89,6 +92,36 @@ class CandidatesTable
                             Notification::make()->danger()->title('Transition refusée')->body($e->getMessage())->send();
                         }
                     }),
+                Action::make('envoyerMatching')
+                    ->label('Envoyer vers Matching')
+                    ->icon('heroicon-o-paper-airplane')
+                    ->color('success')
+                    // Étape suivante du cycle : uniquement pour les candidats acceptés.
+                    ->visible(fn (Candidate $record): bool => $record->statut === CandidateStatut::Accepte)
+                    ->modalHeading(fn (Candidate $record): string => "Envoyer {$record->nom_complet} vers le Matching")
+                    ->schema([
+                        Select::make('need_id')
+                            ->label('Besoin entreprise')
+                            ->options(fn (): array => Need::query()->ouverts()->with('company')->get()
+                                ->mapWithKeys(fn (Need $n): array => [
+                                    $n->id => $n->intitule_poste.($n->company ? ' — '.$n->company->raison_sociale : ''),
+                                ])->all())
+                            ->searchable()
+                            ->required()
+                            ->helperText('Besoins ouverts uniquement. Si le candidat a trouvé son entreprise '
+                                .'lui-même, utilisez « Entreprise trouvée par le candidat » dans le module Matching.'),
+                    ])
+                    ->action(function (Candidate $record, array $data): void {
+                        try {
+                            app(CycleApprenant::class)->envoyerVersMatching($record, Need::query()->findOrFail($data['need_id']));
+                            Notification::make()->success()
+                                ->title('Candidat envoyé au Matching')
+                                ->body('Un matching « En recherche » a été créé pour ce besoin.')
+                                ->send();
+                        } catch (CycleBloqueException $e) {
+                            Notification::make()->danger()->title('Envoi impossible')->body($e->getMessage())->send();
+                        }
+                    }),
                 Action::make('entreprisesACibler')
                     ->label('Entreprises à cibler')
                     ->icon('heroicon-o-building-office-2')
@@ -142,6 +175,6 @@ class CandidatesTable
             ->defaultSort('created_at', 'desc')
             ->emptyStateIcon('heroicon-o-user-plus')
             ->emptyStateHeading('Aucun candidat pour le moment')
-            ->emptyStateDescription('Créez votre premier candidat pour démarrer le suivi : son dossier de pré-admission sera ouvert automatiquement.');
+            ->emptyStateDescription('Créez votre premier candidat : il démarre en « Entretien prévu », puis le CFA l\'accepte ou le refuse avant l\'envoi vers le Matching.');
     }
 }

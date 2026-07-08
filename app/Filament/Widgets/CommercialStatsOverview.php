@@ -41,25 +41,28 @@ class CommercialStatsOverview extends StatsOverviewWidget
         $userId = Auth::id();
 
         $mesCandidats = Candidate::where('commercial_id', $userId)
-            ->whereNot('statut', CandidateStatut::Rupture->value)->count();
+            ->whereNot('statut', CandidateStatut::Refuse->value)->count();
 
         $aRappeler = Interaction::query()->relanceDue()->where('user_id', $userId)->count();
 
-        $incomplets = $this->compteCandidats($userId, CandidateStatut::Incomplet);
-        $contratsSignes = $this->compteCandidats($userId, CandidateStatut::ContratSigne);
+        $entretiensAMener = $this->compteCandidats($userId, CandidateStatut::EntretienPrevu);
+        $contratsSignes = Candidate::where('commercial_id', $userId)
+            ->whereHas('contracts', fn ($q) => $q->whereIn(
+                'statut_contrat',
+                \App\Enums\ContractStatut::enCours(),
+            ))->count();
 
         $besoinsOuverts = Need::query()->ouverts()->count();
 
         $enCours = [
-            MatchingStatut::Propose->value,
-            MatchingStatut::CvEnvoye->value,
-            MatchingStatut::EntretienPrevu->value,
-            MatchingStatut::AttenteRetour->value,
+            MatchingStatut::EnRecherche->value,
+            MatchingStatut::PropositionEnvoyee->value,
+            MatchingStatut::EntretienEntreprise->value,
         ];
         $matchingsEnCours = Matching::where('assigned_by', $userId)->whereIn('statut', $enCours)->count();
-        $cvEnvoyes = $this->compteMatchings($userId, MatchingStatut::CvEnvoye);
-        $entretiens = $this->compteMatchings($userId, MatchingStatut::EntretienPrevu);
-        $retours = $this->compteMatchings($userId, MatchingStatut::AttenteRetour);
+        $propositions = $this->compteMatchings($userId, MatchingStatut::PropositionEnvoyee);
+        $entretiens = $this->compteMatchings($userId, MatchingStatut::EntretienEntreprise);
+        $acceptes = $this->compteMatchings($userId, MatchingStatut::Accepte);
 
         $tachesEnRetard = Task::where('assignee_id', $userId)
             ->where('statut', TaskStatut::EnRetard->value)->count();
@@ -74,11 +77,11 @@ class CommercialStatsOverview extends StatsOverviewWidget
                 ->description('Relances datées échues')
                 ->descriptionIcon('heroicon-m-phone-arrow-up-right')
                 ->color($aRappeler > 0 ? 'danger' : 'success'),
-            Stat::make('Dossiers incomplets', $incomplets)
-                ->description('Pièces manquantes')
-                ->descriptionIcon('heroicon-m-document-minus')
-                ->color($incomplets > 0 ? 'warning' : 'gray')
-                ->url($this->candidatsUrl(CandidateStatut::Incomplet)),
+            Stat::make('Entretiens à mener', $entretiensAMener)
+                ->description('Décision CFA attendue')
+                ->descriptionIcon('heroicon-m-calendar-days')
+                ->color($entretiensAMener > 0 ? 'warning' : 'gray')
+                ->url($this->candidatsUrl(CandidateStatut::EntretienPrevu)),
             Stat::make('Besoins ouverts', $besoinsOuverts)
                 ->description('Postes à pourvoir')
                 ->descriptionIcon('heroicon-m-briefcase')
@@ -89,26 +92,26 @@ class CommercialStatsOverview extends StatsOverviewWidget
                 ->descriptionIcon('heroicon-m-arrows-right-left')
                 ->color('primary')
                 ->url(MatchingResource::getUrl()),
-            Stat::make('CV envoyés', $cvEnvoyes)
+            Stat::make('Propositions envoyées', $propositions)
                 ->description('En attente de suite')
                 ->descriptionIcon('heroicon-m-paper-airplane')
-                ->color($cvEnvoyes > 0 ? 'info' : 'gray')
-                ->url($this->matchingsUrl(MatchingStatut::CvEnvoye)),
-            Stat::make('Entretiens prévus', $entretiens)
+                ->color($propositions > 0 ? 'info' : 'gray')
+                ->url($this->matchingsUrl(MatchingStatut::PropositionEnvoyee)),
+            Stat::make('Entretiens entreprise', $entretiens)
                 ->description('À préparer')
                 ->descriptionIcon('heroicon-m-calendar-days')
                 ->color($entretiens > 0 ? 'warning' : 'gray')
-                ->url($this->matchingsUrl(MatchingStatut::EntretienPrevu)),
-            Stat::make('Retours en attente', $retours)
-                ->description('Réponse entreprise attendue')
-                ->descriptionIcon('heroicon-m-clock')
-                ->color($retours > 0 ? 'warning' : 'gray')
-                ->url($this->matchingsUrl(MatchingStatut::AttenteRetour)),
+                ->url($this->matchingsUrl(MatchingStatut::EntretienEntreprise)),
+            Stat::make('Matchings acceptés', $acceptes)
+                ->description('Contrat à créer')
+                ->descriptionIcon('heroicon-m-hand-thumb-up')
+                ->color($acceptes > 0 ? 'success' : 'gray')
+                ->url($this->matchingsUrl(MatchingStatut::Accepte)),
             Stat::make('Contrats signés', $contratsSignes)
                 ->description('Candidats placés')
                 ->descriptionIcon('heroicon-m-check-badge')
                 ->color('success')
-                ->url($this->candidatsUrl(CandidateStatut::ContratSigne)),
+                ->url(CandidateResource::getUrl()),
             Stat::make('Tâches en retard', $tachesEnRetard)
                 ->description('À traiter en priorité')
                 ->descriptionIcon('heroicon-m-bell-alert')

@@ -45,16 +45,16 @@ it('affiche les indicateurs commerciaux du commercial connecté', function () {
 
     Candidate::factory()->count(2)->create([
         'commercial_id' => $user->id,
-        'statut' => CandidateStatut::EnRechercheEntreprise,
+        'statut' => CandidateStatut::Accepte,
     ]);
     // Candidat d'un autre commercial : ne doit pas gonfler « Mes candidats ».
-    Candidate::factory()->create(['statut' => CandidateStatut::EnRechercheEntreprise]);
+    Candidate::factory()->create(['statut' => CandidateStatut::Accepte]);
 
     Livewire::test(CommercialStatsOverview::class)
         ->assertSuccessful()
         ->assertSee('Candidats actifs')
-        ->assertSee('Dossiers incomplets')
-        ->assertSee('CV envoyés')
+        ->assertSee('Entretiens à mener')
+        ->assertSee('Propositions envoyées')
         ->assertSee('Contrats signés')
         ->assertSee('À rappeler');
 });

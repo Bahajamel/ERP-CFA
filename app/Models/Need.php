@@ -106,10 +106,9 @@ class Need extends Model
     protected function clotureMatchingsOuverts(): void
     {
         $ouverts = [
-            MatchingStatut::Propose->value,
-            MatchingStatut::CvEnvoye->value,
-            MatchingStatut::EntretienPrevu->value,
-            MatchingStatut::AttenteRetour->value,
+            MatchingStatut::EnRecherche->value,
+            MatchingStatut::PropositionEnvoyee->value,
+            MatchingStatut::EntretienEntreprise->value,
         ];
 
         $this->matchings()
@@ -162,7 +161,9 @@ class Need extends Model
 
         return Candidate::query()
             ->whereNotIn('id', $dejaProposes)
-            ->where('statut', '!=', CandidateStatut::Rupture->value)
+            // Cycle apprenant : seuls les candidats acceptés par le CFA
+            // entrent en recherche d'entreprise.
+            ->where('statut', CandidateStatut::Accepte->value)
             ->get()
             ->map(fn (Candidate $candidate): array => [
                 'candidate' => $candidate,
