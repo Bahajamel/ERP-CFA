@@ -6,8 +6,10 @@ use App\Enums\ContractStatut;
 use App\Models\Candidate;
 use App\Models\CompanyContact;
 use App\Models\Contract;
+use App\Support\RemunerationApprenti;
 use Closure;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
 use Filament\Forms\Components\TextInput;
@@ -16,6 +18,7 @@ use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\HtmlString;
 
 class ContractForm
 {
@@ -32,7 +35,10 @@ class ContractForm
                             ->getOptionLabelFromRecordUsing(fn (Candidate $record): string => $record->nom_complet)
                             ->searchable(['nom', 'prenom'])
                             ->preload()
-                            ->required(),
+                            ->required()
+                            // L'âge de l'apprenti pilote le barème légal de rémunération.
+                            ->live()
+                            ->afterStateUpdated(fn (Set $set, Get $get) => self::preRemplirSalaire($set, $get)),
                         Select::make('company_id')
                             ->label('Entreprise')
                             ->relationship('company', 'raison_sociale')
@@ -107,17 +113,61 @@ class ContractForm
                         DatePicker::make('date_debut')
                             ->label('Date de début')
                             ->displayFormat('d/m/Y')
-                            ->required(),
+                            ->required()
+                            ->live(onBlur: true)
+                            ->afterStateUpdated(fn (Set $set, Get $get) => self::preRemplirSalaire($set, $get)),
                         DatePicker::make('date_fin')
                             ->label('Date de fin')
                             ->displayFormat('d/m/Y')
                             ->required()
-                            ->afterOrEqual('date_debut'),
+                            ->afterOrEqual('date_debut')
+                            ->live(onBlur: true)
+                            ->afterStateUpdated(fn (Set $set, Get $get) => self::preRemplirSalaire($set, $get)),
                         TextInput::make('lieu_formation')
                             ->label('Lieu de formation')
                             ->placeholder('ex : CFA de Lyon, 15 rue Garibaldi')
                             ->required()
                             ->columnSpanFull(),
+                    ]),
+                Section::make('Rémunération')
+                    ->description('Minimum légal calculé automatiquement depuis l\'âge de l\'apprenti et les dates '
+                        .'du contrat (grille apprentissage, % du SMIC). À partir de 21 ans, le minimum conventionnel '
+                        .'de branche peut être plus favorable.')
+                    ->columns(2)
+                    ->schema([
+                        Placeholder::make('bareme_legal')
+                            ->label('Barème légal applicable')
+                            ->content(fn (Get $get): HtmlString => self::baremeLegalHtml($get))
+                            ->columnSpanFull(),
+                        TextInput::make('salaire_mensuel_brut')
+                            ->label('Salaire mensuel brut')
+                            ->suffix('€ / mois')
+                            ->numeric()
+                            ->minValue(0)
+                            ->step('0.01')
+                            ->live(onBlur: true)
+                            ->placeholder('ex : 802.82')
+                            ->helperText('Pré-rempli avec le minimum légal dès que l\'apprenti et les dates sont '
+                                .'renseignés ; ajustable à la hausse (accord ou convention plus favorable).')
+                            // Garde légale : un salaire sous le plancher (grille % du SMIC)
+                            // ne peut pas être enregistré — le message explique le calcul.
+                            ->rule(fn (Get $get): Closure => function (string $attribute, $value, Closure $fail) use ($get): void {
+                                if (blank($value) || ! is_numeric($value)) {
+                                    return;
+                                }
+
+                                $min = self::minimumLegal($get);
+
+                                if ($min !== null && (float) $value + 0.005 < $min['montant']) {
+                                    $fail(sprintf(
+                                        'Salaire sous le minimum légal de l\'apprenti : %s € (%d %% du SMIC — %d ans, année %d du contrat).',
+                                        number_format($min['montant'], 2, ',', ' '),
+                                        $min['taux'],
+                                        $min['age'],
+                                        $min['annee'],
+                                    ));
+                                }
+                            }),
                     ]),
                 Section::make('Statut du contrat')
                     ->description('Faire évoluer le statut applique les règles métier : garde de signature, '
@@ -141,6 +191,81 @@ class ContractForm
                             ->columnSpanFull(),
                     ]),
             ]);
+    }
+
+    /** Périodes du barème légal pour l'état courant du formulaire. */
+    private static function baremeLegal(Get $get): array
+    {
+        $candidate = filled($get('candidate_id'))
+            ? Candidate::query()->find($get('candidate_id'))
+            : null;
+
+        return RemunerationApprenti::periodes(
+            $candidate?->date_naissance,
+            $get('date_debut'),
+            $get('date_fin'),
+        );
+    }
+
+    /** Plancher légal applicable aujourd'hui (ou en début de contrat). */
+    private static function minimumLegal(Get $get): ?array
+    {
+        $candidate = filled($get('candidate_id'))
+            ? Candidate::query()->find($get('candidate_id'))
+            : null;
+
+        return RemunerationApprenti::minimum(
+            $candidate?->date_naissance,
+            $get('date_debut'),
+            $get('date_fin'),
+        );
+    }
+
+    /**
+     * Pré-remplit le salaire avec le minimum légal dès que l'apprenti et
+     * les dates sont connus — sans jamais écraser une saisie existante.
+     */
+    private static function preRemplirSalaire(Set $set, Get $get): void
+    {
+        if (blank($get('salaire_mensuel_brut')) && ($min = self::minimumLegal($get)) !== null) {
+            $set('salaire_mensuel_brut', number_format($min['montant'], 2, '.', ''));
+        }
+    }
+
+    /**
+     * Barème légal rendu dans le formulaire : une ligne par période de
+     * rémunération (année d'exécution × tranche d'âge), avec le détail du
+     * calcul. Contenu entièrement généré (aucune donnée saisie injectée).
+     */
+    private static function baremeLegalHtml(Get $get): HtmlString
+    {
+        $periodes = self::baremeLegal($get);
+
+        if ($periodes === []) {
+            return new HtmlString(
+                '<span style="font-size:.875rem;opacity:.7">Sélectionnez l\'apprenti (avec sa date de naissance) '
+                .'et les dates du contrat : le minimum légal se calcule automatiquement.</span>'
+            );
+        }
+
+        $lignes = collect($periodes)->map(fn (array $p): string => sprintf(
+            '<li>Du <b>%s</b> au <b>%s</b> · année %d · %d ans → <b>%d %% du SMIC = %s € / mois</b></li>',
+            $p['du']->format('d/m/Y'),
+            $p['au']->format('d/m/Y'),
+            $p['annee'],
+            $p['age'],
+            $p['taux'],
+            number_format($p['montant'], 2, ',', ' '),
+        ))->implode('');
+
+        $premier = $periodes[0];
+
+        return new HtmlString(
+            '<ul style="margin:0;padding-left:1.1rem;display:grid;gap:.3rem;font-size:.875rem">'.$lignes.'</ul>'
+            .'<p style="margin:.5rem 0 0;font-size:.75rem;opacity:.65">Grille légale (art. D6222-26 du Code du travail) · '
+            .'SMIC mensuel brut de référence : '.number_format($premier['smic'], 2, ',', ' ').' € · '
+            .'Le montant suit automatiquement les revalorisations du SMIC et les changements de tranche d\'âge.</p>'
+        );
     }
 
     /**
