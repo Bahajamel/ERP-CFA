@@ -43,8 +43,15 @@
             <div class="grid gap-4 sm:grid-cols-2">
                 @include('candidature.partials.field', ['name' => 'raison_sociale', 'label' => 'Raison sociale *', 'type' => 'text', 'required' => true])
                 @include('candidature.partials.field', ['name' => 'secteur', 'label' => 'Secteur (code NAF)', 'type' => 'text'])
-                <div class="sm:col-span-2">
-                    @include('candidature.partials.field', ['name' => 'adresse', 'label' => 'Adresse', 'type' => 'text'])
+                {{-- Adresse avec autocomplétion (Base Adresse Nationale — api-adresse.data.gouv.fr) --}}
+                <div class="relative sm:col-span-2">
+                    <label for="adresse" class="block text-sm font-medium text-slate-700">Adresse</label>
+                    <input type="text" id="adresse" name="adresse" value="{{ old('adresse') }}"
+                        autocomplete="off" placeholder="Commencez à taper l'adresse de l'établissement…"
+                        class="mt-1 w-full rounded-lg border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    <ul id="adresse-suggestions"
+                        class="absolute z-20 mt-1 hidden w-full overflow-hidden rounded-lg border border-slate-200 bg-white text-sm shadow-lg"></ul>
+                    <p class="mt-1 text-xs text-slate-400">Remplie par le SIRET, ou sélectionnez-la dans la liste pour qu'elle soit exacte.</p>
                 </div>
                 <div class="sm:col-span-2">
                     <label for="opco_id" class="block text-sm font-medium text-slate-700">OPCO</label>
@@ -100,5 +107,52 @@
                 statut.textContent = 'Impossible de contacter le service. Remplissez manuellement.';
             }
         }
+
+        // ---- Adresse intelligente : autocomplétion Base Adresse Nationale ----
+        (function () {
+            var champ = document.getElementById('adresse');
+            var liste = document.getElementById('adresse-suggestions');
+            var minuteur = null;
+
+            function fermer() {
+                liste.classList.add('hidden');
+                liste.replaceChildren();
+            }
+
+            function afficher(resultats) {
+                liste.replaceChildren();
+                if (!resultats.length) { fermer(); return; }
+
+                resultats.forEach(function (r) {
+                    var item = document.createElement('li');
+                    // textContent uniquement : les données externes ne sont jamais interprétées en HTML.
+                    item.textContent = r.properties.label;
+                    item.className = 'cursor-pointer px-3 py-2 hover:bg-indigo-50';
+                    item.addEventListener('mousedown', function (e) {
+                        e.preventDefault();
+                        champ.value = r.properties.label;
+                        fermer();
+                    });
+                    liste.appendChild(item);
+                });
+                liste.classList.remove('hidden');
+            }
+
+            champ.addEventListener('input', function () {
+                clearTimeout(minuteur);
+                var q = champ.value.trim();
+                if (q.length < 4) { fermer(); return; }
+
+                minuteur = setTimeout(function () {
+                    fetch('https://api-adresse.data.gouv.fr/search/?limit=5&q=' + encodeURIComponent(q))
+                        .then(function (rep) { return rep.ok ? rep.json() : { features: [] }; })
+                        .then(function (json) { afficher(json.features || []); })
+                        .catch(fermer);
+                }, 300);
+            });
+
+            champ.addEventListener('blur', function () { setTimeout(fermer, 150); });
+            champ.addEventListener('keydown', function (e) { if (e.key === 'Escape') fermer(); });
+        })();
     </script>
 @endsection

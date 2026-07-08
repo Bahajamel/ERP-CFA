@@ -63,17 +63,42 @@ class CandidatureController extends Controller
         }
     }
 
+    /**
+     * Nettoie les champs texte d'un formulaire public : balises HTML retirées
+     * (défense en profondeur contre le XSS stocké), espaces normalisés.
+     * Blade échappe déjà à l'affichage — on refuse en plus d'en stocker.
+     */
+    private function assainir(Request $request, array $champs): array
+    {
+        return collect($request->only($champs))
+            ->map(function ($valeur) {
+                if (! is_string($valeur)) {
+                    return null; // tableaux/objets injectés → ignorés
+                }
+
+                $propre = trim(strip_tags($valeur));
+
+                return $propre === '' ? null : $propre;
+            })
+            ->all();
+    }
+
     /** @return array<string, mixed> */
     private function valider(Request $request): array
     {
+        $request->merge($this->assainir($request, ['nom', 'prenom', 'email', 'telephone', 'adresse']));
+
+        // Lettres (accents compris), espaces, apostrophes, tirets — rien d'autre.
+        $nomHumain = ['regex:/^[\p{L}\p{M}\s\'\’\-\.]+$/u'];
+
         $justificatif = ['file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'];
         $cv = ['file', 'mimes:pdf,doc,docx', 'max:5120'];
 
         $validator = validator($request->all(), [
-            'nom' => ['required', 'string', 'max:255'],
-            'prenom' => ['required', 'string', 'max:255'],
+            'nom' => array_merge(['required', 'string', 'max:100'], $nomHumain),
+            'prenom' => array_merge(['required', 'string', 'max:100'], $nomHumain),
             'email' => ['nullable', 'email', 'max:255', 'required_without:telephone'],
-            'telephone' => ['nullable', 'string', 'max:30', 'required_without:email'],
+            'telephone' => ['nullable', 'string', 'max:30', 'regex:/^[0-9+\s().\-]{6,30}$/', 'required_without:email'],
             'date_naissance' => ['required', 'date', 'before:today'],
             'adresse' => ['nullable', 'string', 'max:255'],
             'formation_visee_id' => ['required', 'integer', 'exists:formations,id'],
@@ -83,6 +108,9 @@ class CandidatureController extends Controller
             'attestation_projet' => array_merge(['nullable'], $justificatif),
         ], [
             'required_without' => 'Renseignez au moins un email ou un téléphone.',
+            'nom.regex' => 'Le nom ne peut contenir que des lettres, espaces, apostrophes et tirets.',
+            'prenom.regex' => 'Le prénom ne peut contenir que des lettres, espaces, apostrophes et tirets.',
+            'telephone.regex' => 'Le numéro de téléphone est invalide.',
         ], [
             'formation_visee_id' => 'formation visée',
             'piece_identite' => "pièce d'identité",

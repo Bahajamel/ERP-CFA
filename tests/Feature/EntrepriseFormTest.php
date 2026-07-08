@@ -70,6 +70,25 @@ it('crée une entreprise « Prospect » avec son contact principal', function ()
         ->and($company->contacts()->where('is_principal', true)->where('nom', 'Dupont')->exists())->toBeTrue();
 });
 
+it('refuse les caractères dangereux dans le contact (anti-XSS) et nettoie la raison sociale', function () {
+    $payload = [
+        'raison_sociale' => 'ACME <script>alert(1)</script> SA',
+        'siret' => '12345678900011',
+        'contact_nom' => '<img src=x onerror=alert(1)>',
+        'contact_email' => 'contact@acme.test',
+    ];
+
+    // Le nom du contact, une fois les balises retirées, est invalide → rejeté.
+    $this->post(route('entreprise.store'), $payload)->assertSessionHasErrors('contact_nom');
+
+    // Avec un contact valide, la raison sociale est enregistrée sans balises.
+    $payload['contact_nom'] = 'Dupont';
+    $this->post(route('entreprise.store'), $payload)->assertRedirect(route('entreprise.merci'));
+
+    expect(Company::where('siret', '12345678900011')->value('raison_sociale'))
+        ->toBe('ACME alert(1) SA');
+});
+
 it('refuse un SIRET invalide et un doublon à la création', function () {
     $this->post(route('entreprise.store'), ['raison_sociale' => 'X', 'siret' => '123', 'contact_nom' => 'D', 'contact_email' => 'd@x.fr'])
         ->assertSessionHasErrors('siret');

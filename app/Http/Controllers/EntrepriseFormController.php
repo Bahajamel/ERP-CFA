@@ -60,20 +60,45 @@ class EntrepriseFormController extends Controller
             return redirect()->route('entreprise.merci');
         }
 
+        // Assainissement des champs texte (défense en profondeur anti-XSS) :
+        // balises HTML retirées, espaces normalisés, valeurs non-texte ignorées.
+        $request->merge(
+            collect($request->only([
+                'raison_sociale', 'secteur', 'adresse',
+                'contact_nom', 'contact_prenom', 'contact_email', 'contact_telephone', 'contact_fonction',
+            ]))
+                ->map(function ($valeur) {
+                    if (! is_string($valeur)) {
+                        return null;
+                    }
+
+                    $propre = trim(strip_tags($valeur));
+
+                    return $propre === '' ? null : $propre;
+                })
+                ->all()
+        );
+
+        // Lettres (accents compris), espaces, apostrophes, tirets — rien d'autre.
+        $nomHumain = 'regex:/^[\p{L}\p{M}\s\'\’\-\.]+$/u';
+
         $data = $request->validate([
             'raison_sociale' => ['required', 'string', 'max:255'],
             'siret' => ['required', 'digits:14', 'unique:companies,siret'],
             'secteur' => ['nullable', 'string', 'max:255'],
             'adresse' => ['nullable', 'string', 'max:255'],
             'opco_id' => ['nullable', 'integer', 'exists:opcos,id'],
-            'contact_nom' => ['required', 'string', 'max:255'],
-            'contact_prenom' => ['nullable', 'string', 'max:255'],
+            'contact_nom' => ['required', 'string', 'max:100', $nomHumain],
+            'contact_prenom' => ['nullable', 'string', 'max:100', $nomHumain],
             'contact_email' => ['nullable', 'email', 'max:255', 'required_without:contact_telephone'],
-            'contact_telephone' => ['nullable', 'string', 'max:30', 'required_without:contact_email'],
-            'contact_fonction' => ['nullable', 'string', 'max:255'],
+            'contact_telephone' => ['nullable', 'string', 'max:30', 'regex:/^[0-9+\s().\-]{6,30}$/', 'required_without:contact_email'],
+            'contact_fonction' => ['nullable', 'string', 'max:100'],
         ], [
             'required_without' => 'Renseignez au moins un email ou un téléphone pour le contact.',
             'siret.unique' => 'Cette entreprise (SIRET) est déjà enregistrée.',
+            'contact_nom.regex' => 'Le nom ne peut contenir que des lettres, espaces, apostrophes et tirets.',
+            'contact_prenom.regex' => 'Le prénom ne peut contenir que des lettres, espaces, apostrophes et tirets.',
+            'contact_telephone.regex' => 'Le numéro de téléphone est invalide.',
         ]);
 
         DB::transaction(function () use ($data): void {

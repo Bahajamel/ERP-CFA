@@ -79,3 +79,30 @@ it('n\'exige pas l\'attestation avant 30 ans', function () {
     $this->post(route('candidature.store'), candidaturePayload(['date_naissance' => now()->subYears(25)->format('Y-m-d')]))
         ->assertRedirect(route('candidature.merci'));
 });
+
+it('refuse les caractères dangereux dans le nom et le téléphone (anti-XSS)', function () {
+    $this->post(route('candidature.store'), candidaturePayload(['nom' => '<script>alert(1)</script>']))
+        ->assertSessionHasErrors('nom');
+
+    $this->post(route('candidature.store'), candidaturePayload(['telephone' => '06 12 <img src=x>']))
+        ->assertSessionHasErrors('telephone');
+
+    expect(Candidate::count())->toBe(0);
+});
+
+it('retire les balises HTML de l\'adresse avant enregistrement', function () {
+    $this->post(route('candidature.store'), candidaturePayload([
+        'adresse' => '12 rue de la Paix <b>75001</b> Paris',
+    ]))->assertRedirect(route('candidature.merci'));
+
+    expect(Candidate::first()->adresse)->toBe('12 rue de la Paix 75001 Paris');
+});
+
+it('accepte les noms accentués et composés', function () {
+    $this->post(route('candidature.store'), candidaturePayload([
+        'nom' => "N'Guessan-Dupré",
+        'prenom' => 'Chloé Aïcha',
+    ]))->assertRedirect(route('candidature.merci'));
+
+    expect(Candidate::where('nom', "N'Guessan-Dupré")->exists())->toBeTrue();
+});
