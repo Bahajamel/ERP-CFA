@@ -33,6 +33,8 @@ it('groupe les candidats par statut dans les colonnes', function () {
 
 it('déplace une carte vers un statut autorisé (transition appliquée)', function () {
     $candidate = Candidate::factory()->create(['statut' => CandidateStatut::EntretienPrevu]);
+    // « Accepté » exige un entretien réalisé (cycle apprenant).
+    \App\Models\Entretien::factory()->realise()->create(['candidate_id' => $candidate->id]);
 
     Livewire::test(CandidatesKanban::class)
         ->call('moveCard', $candidate->id, CandidateStatut::Accepte->value)

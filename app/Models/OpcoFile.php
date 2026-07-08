@@ -63,6 +63,14 @@ class OpcoFile extends Model
                 app(CycleApprenant::class)->ouvrirAdmission($dossier);
             }
         });
+
+        // Même déclencheur pour une mise à jour directe du statut (formulaire,
+        // import…) hors machine à états : idempotent via firstOrCreate.
+        static::updated(function (self $dossier): void {
+            if ($dossier->wasChanged('statut') && CycleApprenant::opcoOuvreAdmission($dossier->statut)) {
+                app(CycleApprenant::class)->ouvrirAdmission($dossier);
+            }
+        });
     }
 
     public function getActivitylogOptions(): LogOptions

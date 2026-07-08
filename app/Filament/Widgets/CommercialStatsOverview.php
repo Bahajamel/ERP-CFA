@@ -45,6 +45,7 @@ class CommercialStatsOverview extends StatsOverviewWidget
 
         $aRappeler = Interaction::query()->relanceDue()->where('user_id', $userId)->count();
 
+        $entretiensAPlanifier = $this->compteCandidats($userId, CandidateStatut::EntretienAPlanifier);
         $entretiensAMener = $this->compteCandidats($userId, CandidateStatut::EntretienPrevu);
         $contratsSignes = Candidate::where('commercial_id', $userId)
             ->whereHas('contracts', fn ($q) => $q->whereIn(
@@ -77,7 +78,12 @@ class CommercialStatsOverview extends StatsOverviewWidget
                 ->description('Relances datées échues')
                 ->descriptionIcon('heroicon-m-phone-arrow-up-right')
                 ->color($aRappeler > 0 ? 'danger' : 'success'),
-            Stat::make('Entretiens à mener', $entretiensAMener)
+            Stat::make('Entretiens à planifier', $entretiensAPlanifier)
+                ->description('Candidats sans créneau fixé')
+                ->descriptionIcon('heroicon-m-clock')
+                ->color($entretiensAPlanifier > 0 ? 'danger' : 'gray')
+                ->url($this->candidatsUrl(CandidateStatut::EntretienAPlanifier)),
+            Stat::make('Entretiens prévus', $entretiensAMener)
                 ->description('Décision CFA attendue')
                 ->descriptionIcon('heroicon-m-calendar-days')
                 ->color($entretiensAMener > 0 ? 'warning' : 'gray')

@@ -71,7 +71,11 @@ it('relie une entreprise à ses contacts, besoins et OPCO', function () {
 });
 
 it('relie le contrat à son dossier OPCO et à ses parties', function () {
-    $contract = Contract::factory()->create();
+    // Contrat signé : condition (déterministe) de création du dossier OPCO.
+    $contract = Contract::factory()->create([
+        'statut_signature' => \App\Enums\ContractSignatureStatut::Signe,
+        'statut_contrat' => \App\Enums\ContractStatut::Signe,
+    ]);
     $opcoFile = OpcoFile::factory()->create(['contract_id' => $contract->id]);
 
     expect($opcoFile->contract->is($contract))->toBeTrue()

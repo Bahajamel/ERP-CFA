@@ -69,6 +69,33 @@ class AdmissionForm
                             ->rows(3),
                     ]),
 
+                // Alerte : le rejet / la correction OPCO ne supprime jamais
+                // l'admission, mais le dossier doit être traité.
+                Section::make('Action requise sur le dossier OPCO')
+                    ->visibleOn('edit')
+                    ->visible(fn (?Admission $record): bool => in_array(
+                        $record?->contract?->opcoFile?->statut,
+                        [OpcoStatut::Rejete, OpcoStatut::EnCorrection],
+                        true,
+                    ))
+                    ->icon('heroicon-o-exclamation-triangle')
+                    ->iconColor('danger')
+                    ->schema([
+                        Placeholder::make('alerte_opco')
+                            ->hiddenLabel()
+                            ->content(fn (?Admission $record): HtmlString => new HtmlString(
+                                '<span class="text-danger-600 font-medium">Le dossier OPCO est « '
+                                .e($record?->contract?->opcoFile?->statut?->getLabel() ?? '')
+                                .' » : une action est nécessaire côté OPCO.</span>'
+                                .($record?->contract?->opcoFile?->motif_rejet
+                                    ? '<br><span class="text-sm text-gray-500">Motif : '
+                                        .e($record->contract->opcoFile->motif_rejet).'</span>'
+                                    : '')
+                                .'<br><span class="text-sm text-gray-500">L\'admission reste ouverte : '
+                                .'corrigez et redéposez le dossier dans le module OPCO.</span>'
+                            )),
+                    ]),
+
                 // Vision claire du chemin déjà accompli (cycle apprenant).
                 Section::make('Parcours de l\'apprenant')
                     ->visibleOn('edit')

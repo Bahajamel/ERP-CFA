@@ -43,7 +43,7 @@ class CandidatureController extends Controller
                 'date_naissance' => $data['date_naissance'] ?? null,
                 'adresse' => $data['adresse'] ?? null,
                 'formation_visee_id' => $data['formation_visee_id'] ?? null,
-                'statut' => CandidateStatut::EntretienPrevu,
+                'statut' => CandidateStatut::EntretienAPlanifier,
                 'source' => 'Candidature en ligne',
             ]);
 

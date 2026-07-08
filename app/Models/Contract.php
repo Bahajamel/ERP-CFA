@@ -56,6 +56,17 @@ class Contract extends Model implements HasMedia
                 ]);
             }
         });
+
+        // Cycle apprenant : un contrat qui devient « Signé » / « Transmis
+        // OPCO » par écriture directe (formulaire, import) ouvre aussi son
+        // dossier OPCO — même déclencheur que la machine à états (idempotent).
+        static::updated(function (self $contract): void {
+            if ($contract->wasChanged('statut_contrat')
+                && in_array($contract->statut_contrat, [ContractStatut::Signe, ContractStatut::TransmisOpco], true)
+                && $contract->estSigne()) {
+                $contract->ouvrirDossierOpco();
+            }
+        });
     }
 
     /** La machine à états porte sur le statut du contrat. */
@@ -95,7 +106,15 @@ class Contract extends Model implements HasMedia
      */
     public function ouvrirDossierOpco(): void
     {
-        $this->opcoFile()->firstOrCreate([], ['statut' => OpcoStatut::APreparer->value]);
+        $dossier = $this->opcoFile()->firstOrCreate([], ['statut' => OpcoStatut::APreparer->value]);
+
+        if ($dossier->wasRecentlyCreated) {
+            \App\Parcours\CycleApprenant::notifierAutomatisme(
+                'Contrat signé',
+                'Dossier OPCO créé automatiquement (« À préparer ») pour '
+                .($this->candidate?->nom_complet ?? 'l\'apprenant').'.',
+            );
+        }
     }
 
     public function getActivitylogOptions(): LogOptions

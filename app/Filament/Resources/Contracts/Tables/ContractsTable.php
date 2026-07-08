@@ -59,6 +59,16 @@ class ContractsTable
                 ContractActions::envoyerSignature(),
                 ContractActions::simulerSignature(),
                 ContractActions::genererLivrables(),
+                // Lien vers le dossier OPCO ouvert automatiquement à la signature.
+                \Filament\Actions\Action::make('voirOpco')
+                    ->label('Dossier OPCO')
+                    ->icon('heroicon-o-arrow-top-right-on-square')
+                    ->color('info')
+                    ->visible(fn ($record): bool => $record->opcoFile !== null)
+                    ->url(fn ($record): string => \App\Filament\Resources\OpcoFiles\OpcoFileResource::getUrl(
+                        'edit',
+                        ['record' => $record->opcoFile],
+                    )),
                 ViewAction::make(),
                 EditAction::make(),
             ])

@@ -53,7 +53,8 @@ it('affiche les indicateurs commerciaux du commercial connecté', function () {
     Livewire::test(CommercialStatsOverview::class)
         ->assertSuccessful()
         ->assertSee('Candidats actifs')
-        ->assertSee('Entretiens à mener')
+        ->assertSee('Entretiens à planifier')
+        ->assertSee('Entretiens prévus')
         ->assertSee('Propositions envoyées')
         ->assertSee('Contrats signés')
         ->assertSee('À rappeler');

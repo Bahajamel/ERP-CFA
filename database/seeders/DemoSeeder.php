@@ -8,6 +8,8 @@ use App\Enums\CandidateStatut;
 use App\Enums\CompanyStatut;
 use App\Enums\ContractSignatureStatut;
 use App\Enums\ContractStatut;
+use App\Enums\EntretienMode;
+use App\Enums\EntretienStatut;
 use App\Enums\MatchingStatut;
 use App\Enums\NeedStatut;
 use App\Enums\OpcoStatut;
@@ -122,19 +124,22 @@ class DemoSeeder extends Seeder
 
         // -------- Candidats --------
         $commerciaux = [$sophie->id, $thomas->id];
-        // Cycle apprenant : Entretien prévu → Accepté / Refusé. Les candidats
-        // engagés dans le parcours aval (matching, contrat…) sont « Accepté ».
+        // Cycle apprenant : Entretien à planifier → Entretien prévu → Accepté /
+        // Refusé. Les candidats engagés dans le parcours aval sont « Accepté » ;
+        // Nathan démarre « à planifier » (son entretien planifié plus bas le
+        // fera passer automatiquement à « Entretien prévu »).
         $candidatesData = [
             ['Lucas', 'Petit', $devWeb, CandidateStatut::Accepte, 'Bac+2'],
             ['Emma', 'Roux', $cyber, CandidateStatut::Accepte, 'Bac'],
             ['Hugo', 'Fontaine', $commerce, CandidateStatut::Accepte, 'Bac'],
             ['Léa', 'Girard', $marketing, CandidateStatut::Accepte, 'Bac+2'],
-            ['Nathan', 'Lambert', $compta, CandidateStatut::EntretienPrevu, 'Bac'],
+            ['Nathan', 'Lambert', $compta, CandidateStatut::EntretienAPlanifier, 'Bac'],
             ['Chloé', 'Mercier', $devWeb, CandidateStatut::Accepte, 'Bac+2'],
             ['Maxime', 'Blanc', $cyber, CandidateStatut::Accepte, 'Bac'],
             ['Sarah', 'Faure', $commerce, CandidateStatut::Accepte, 'Bac'],
             ['Théo', 'Garnier', $marketing, CandidateStatut::Refuse, 'Bac+2'],
             ['Inès', 'Chevalier', $compta, CandidateStatut::Accepte, 'Bac'],
+            ['Jade', 'Renard', $devWeb, CandidateStatut::EntretienAPlanifier, 'Bac'],
         ];
         $candidates = [];
         foreach ($candidatesData as $i => [$prenom, $nom, $formation, $statut, $niveau]) {
@@ -153,6 +158,34 @@ class DemoSeeder extends Seeder
                 'statut' => $statut,
             ]);
         }
+
+        // -------- Entretiens (nouvelle section du cycle) --------
+        // Nathan : entretien planifié → il passe automatiquement à « Entretien prévu ».
+        $candidates[4]->entretiens()->create([
+            'responsable_id' => $sophie->id,
+            'date_entretien' => now()->addDays(3)->toDateString(),
+            'heure_debut' => '10:00', 'heure_fin' => '11:00',
+            'mode' => EntretienMode::Presentiel->value,
+            'statut' => EntretienStatut::Planifie->value,
+        ]);
+        // Lucas : entretien réalisé et accepté (trace du parcours).
+        $candidates[0]->entretiens()->create([
+            'responsable_id' => $sophie->id,
+            'date_entretien' => now()->subDays(45)->toDateString(),
+            'heure_debut' => '14:00', 'heure_fin' => '15:00',
+            'mode' => EntretienMode::Visio->value, 'lien_visio' => 'https://meet.exemple.fr/lucas-petit',
+            'statut' => EntretienStatut::Realise->value, 'resultat' => 'accepte',
+            'compte_rendu' => 'Très motivé, projet professionnel clair. Avis favorable.',
+        ]);
+        // Théo : entretien réalisé et refusé.
+        $candidates[8]->entretiens()->create([
+            'responsable_id' => $thomas->id,
+            'date_entretien' => now()->subDays(30)->toDateString(),
+            'heure_debut' => '09:00', 'heure_fin' => '09:45',
+            'mode' => EntretienMode::Telephone->value,
+            'statut' => EntretienStatut::Realise->value, 'resultat' => 'refuse',
+            'compte_rendu' => 'Projet incompatible avec le rythme de l\'alternance.',
+        ]);
 
         // -------- Matching (propositions candidat ↔ besoin) --------
         Matching::create(['need_id' => $needs[0]->id, 'candidate_id' => $candidates[0]->id, 'statut' => MatchingStatut::Accepte, 'cv_envoye' => true, 'date_entretien' => now()->subDays(20), 'retour_entreprise' => 'Candidat retenu, profil parfait.', 'assigned_by' => $sophie->id]);

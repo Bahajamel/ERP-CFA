@@ -6,6 +6,7 @@ use App\Enums\AdmissionStatut;
 use App\Enums\CandidateStatut;
 use App\Enums\CompanyStatut;
 use App\Enums\ContractStatut;
+use App\Enums\EntretienStatut;
 use App\Enums\MatchingStatut;
 use App\Enums\NeedStatut;
 use App\Enums\OpcoStatut;
@@ -15,20 +16,28 @@ use App\Models\Admission;
 use App\Models\Candidate;
 use App\Models\Company;
 use App\Models\Contract;
+use App\Models\Entretien;
 use App\Models\Matching;
 use App\Models\Need;
 use App\Models\OpcoFile;
 use App\Models\Rupture;
 use App\Support\OpcoDetector;
+use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 /**
  * Service central du cycle de vie apprenant :
  *
- *   Candidat (accepté) → Matching (accepté) → Contrat (signé 3 parties)
- *     → Dossier OPCO (créé/transmis) → Admission officielle (« À vérifier »)
- *     → éventuellement Rupture (livrables).
+ *   Candidat → Entretien (réalisé + accepté) → Matching (accepté)
+ *     → Contrat (signé 3 parties) → Dossier OPCO (créé/transmis)
+ *     → Admission officielle (« À vérifier ») → éventuellement Rupture.
+ *
+ * Chaque statut déclencheur crée automatiquement l'enregistrement de la
+ * section suivante, à son statut par défaut : candidat accepté → matching
+ * « En recherche » ; matching accepté → contrat ; contrat signé → dossier
+ * OPCO ; OPCO créé/transmis → admission « À vérifier » ; admission en
+ * rupture → dossier rupture « À traiter ».
  *
  * Toute la logique de passage d'étape vit ici : prérequis, anti-doublons,
  * création automatique de l'étape suivante et messages métier. Les modèles
@@ -44,11 +53,21 @@ class CycleApprenant
 
     public const MSG_MATCHING_NON_ACCEPTE = 'Impossible de créer un contrat : le matching n\'est pas accepté.';
 
+    public const MSG_MATCHING_SANS_ENTREPRISE = 'Impossible de créer un contrat : aucune entreprise n\'est rattachée à ce matching.';
+
     public const MSG_CONTRAT_NON_SIGNE = 'Le dossier OPCO ne peut pas être créé tant que le contrat n\'est pas signé par les trois parties.';
 
     public const MSG_OPCO_MANQUANT = 'Impossible de créer une admission : le dossier OPCO n\'est pas encore créé ou transmis.';
 
     public const MSG_RETOUR_ENTRETIEN = 'Impossible de revenir au statut « Entretien prévu » après une décision finale.';
+
+    public const MSG_RETOUR_A_PLANIFIER = 'Impossible de revenir au statut « Entretien à planifier » après une décision finale.';
+
+    public const MSG_ENTRETIEN_INCOMPLET = 'Un entretien ne peut être planifié que si la date, l\'heure de début et l\'heure de fin sont renseignées.';
+
+    public const MSG_ENTRETIEN_NON_PLANIFIE = 'Impossible de passer à « Entretien prévu » : aucun entretien planifié (date et heures) pour ce candidat.';
+
+    public const MSG_ACCEPTATION_SANS_ENTRETIEN = 'Impossible d\'accepter ce candidat : aucun entretien réalisé. (Un administrateur peut passer outre.)';
 
     /** Origines d'un matching : proposé par le CFA ou entreprise trouvée par le candidat. */
     public const ORIGINE_CFA = 'cfa';
@@ -76,11 +95,129 @@ class CycleApprenant
     }
 
     /* ----------------------------------------------------------------
-     |  Candidat → Matching
+     |  Entretiens → statut candidat
+     * ---------------------------------------------------------------- */
+
+    /**
+     * Synchronise le statut du candidat avec ses entretiens (appelé à chaque
+     * enregistrement d'un entretien) :
+     *  - entretien planifié → candidat « Entretien prévu » ;
+     *  - entretien annulé / absent / à reprogrammer → retour à « Entretien à
+     *    planifier » s'il ne reste aucun autre entretien planifié.
+     * Une décision finale (Accepté / Refusé) n'est jamais remise en cause.
+     */
+    public function synchroniserCandidatDepuisEntretien(Entretien $entretien): void
+    {
+        $candidate = $entretien->candidate;
+
+        if ($candidate === null || $candidate->statut->estFinal()) {
+            return;
+        }
+
+        if ($entretien->statut === EntretienStatut::Planifie) {
+            if ($candidate->statut === CandidateStatut::EntretienAPlanifier) {
+                $candidate->transitionTo(CandidateStatut::EntretienPrevu);
+            }
+
+            return;
+        }
+
+        $enSuspens = in_array($entretien->statut, [
+            EntretienStatut::Annule,
+            EntretienStatut::Absent,
+            EntretienStatut::AReprogrammer,
+        ], true);
+
+        if ($enSuspens
+            && $candidate->statut === CandidateStatut::EntretienPrevu
+            && ! $candidate->entretiens()
+                ->where('id', '!=', $entretien->id)
+                ->where('statut', EntretienStatut::Planifie->value)
+                ->exists()) {
+            $candidate->transitionTo(CandidateStatut::EntretienAPlanifier);
+        }
+    }
+
+    /**
+     * Décision à l'issue d'un entretien réalisé : accepte ou refuse le
+     * candidat. L'acceptation déclenche automatiquement l'ouverture de la
+     * recherche d'entreprise (Matching « En recherche »).
+     *
+     * @throws CycleBloqueException entretien non réalisé ou décision déjà prise
+     */
+    public function deciderApresEntretien(Entretien $entretien, bool $accepte, ?string $compteRendu = null): Candidate
+    {
+        if ($entretien->statut !== EntretienStatut::Realise) {
+            throw new CycleBloqueException('La décision ne peut être prise qu\'après un entretien marqué « Réalisé ».');
+        }
+
+        $candidate = $entretien->candidate;
+
+        if ($candidate === null || $candidate->statut->estFinal()) {
+            throw new CycleBloqueException('Décision finale déjà prise pour ce candidat.');
+        }
+
+        $entretien->forceFill(array_filter([
+            'resultat' => $accepte ? 'accepte' : 'refuse',
+            'compte_rendu' => $compteRendu,
+        ], fn ($v) => filled($v)))->save();
+
+        $candidate->transitionTo($accepte ? CandidateStatut::Accepte : CandidateStatut::Refuse);
+
+        return $candidate->refresh();
+    }
+
+    /* ----------------------------------------------------------------
+     |  Candidat accepté → Matching (automatique)
+     * ---------------------------------------------------------------- */
+
+    /**
+     * Déclencheur automatique : dès qu'un candidat est accepté, une recherche
+     * d'entreprise est ouverte au Matching (statut par défaut « En
+     * recherche », sans entreprise rattachée pour l'instant). Anti-doublon :
+     * aucun nouveau dossier si un matching actif ou accepté existe déjà.
+     */
+    public function ouvrirRechercheEntreprise(Candidate $candidate): ?Matching
+    {
+        if ($candidate->statut !== CandidateStatut::Accepte) {
+            return null;
+        }
+
+        $dejaEnCours = $candidate->matchings()
+            ->whereIn('statut', array_map(
+                fn (MatchingStatut $s) => $s->value,
+                [...self::MATCHING_ACTIFS, MatchingStatut::Accepte],
+            ))
+            ->exists();
+
+        if ($dejaEnCours) {
+            return null;
+        }
+
+        $matching = Matching::query()->create([
+            'candidate_id' => $candidate->id,
+            'need_id' => null,
+            'origine' => self::ORIGINE_CFA,
+            'statut' => MatchingStatut::EnRecherche->value,
+            'assigned_by' => Auth::id(),
+        ]);
+
+        self::notifierAutomatisme(
+            'Candidat accepté',
+            "Dossier Matching créé automatiquement pour {$candidate->nom_complet} (« En recherche »).",
+        );
+
+        return $matching;
+    }
+
+    /* ----------------------------------------------------------------
+     |  Candidat → Matching (rattachement d'un besoin entreprise)
      * ---------------------------------------------------------------- */
 
     /**
      * Envoie un candidat accepté vers le Matching sur un besoin entreprise.
+     * Si une recherche automatique sans entreprise est déjà ouverte, le
+     * besoin y est rattaché (pas de doublon) ; sinon un matching est créé.
      *
      * @throws CycleBloqueException candidat non accepté ou matching déjà existant
      */
@@ -92,6 +229,22 @@ class CycleApprenant
 
         if (Matching::query()->where('need_id', $need->id)->where('candidate_id', $candidate->id)->exists()) {
             throw new CycleBloqueException(self::MSG_MATCHING_EXISTANT);
+        }
+
+        // La recherche ouverte automatiquement (sans entreprise) est réutilisée.
+        $recherche = $candidate->matchings()
+            ->whereNull('need_id')
+            ->whereIn('statut', array_map(fn (MatchingStatut $s) => $s->value, self::MATCHING_ACTIFS))
+            ->first();
+
+        if ($recherche !== null) {
+            $recherche->forceFill([
+                'need_id' => $need->id,
+                'origine' => $origine,
+                'assigned_by' => Auth::id() ?? $recherche->assigned_by,
+            ])->save();
+
+            return $recherche->refresh();
         }
 
         return Matching::query()->create([
@@ -145,6 +298,21 @@ class CycleApprenant
                 throw new CycleBloqueException(self::MSG_MATCHING_EXISTANT);
             }
 
+            // La recherche ouverte automatiquement (sans entreprise) est réutilisée.
+            $recherche = $candidate->matchings()
+                ->whereNull('need_id')
+                ->whereIn('statut', array_map(fn (MatchingStatut $s) => $s->value, self::MATCHING_ACTIFS))
+                ->first();
+
+            if ($recherche !== null) {
+                $recherche->forceFill([
+                    'need_id' => $need->id,
+                    'origine' => self::ORIGINE_CANDIDAT,
+                ])->save();
+
+                return $recherche->refresh();
+            }
+
             return Matching::query()->create([
                 'need_id' => $need->id,
                 'candidate_id' => $candidate->id,
@@ -175,6 +343,10 @@ class CycleApprenant
 
         $need = $matching->need;
         $candidate = $matching->candidate;
+
+        if ($need === null || $need->company_id === null) {
+            throw new CycleBloqueException(self::MSG_MATCHING_SANS_ENTREPRISE);
+        }
 
         $existant = Contract::query()
             ->where('candidate_id', $candidate->id)
@@ -218,13 +390,23 @@ class CycleApprenant
             return null;
         }
 
-        return Admission::query()->firstOrCreate(
+        $admission = Admission::query()->firstOrCreate(
             ['contract_id' => $contract->id],
             [
                 'candidate_id' => $contract->candidate_id,
                 'statut' => AdmissionStatut::AVerifier->value,
             ],
         );
+
+        if ($admission->wasRecentlyCreated) {
+            self::notifierAutomatisme(
+                'Dossier OPCO créé',
+                'Admission créée automatiquement (« À vérifier ») pour '
+                .($contract->candidate?->nom_complet ?? 'l\'apprenant').'.',
+            );
+        }
+
+        return $admission;
     }
 
     /* ----------------------------------------------------------------
@@ -248,7 +430,7 @@ class CycleApprenant
             throw new CycleBloqueException('Impossible de déclarer une rupture : aucune admission officielle liée à un contrat.');
         }
 
-        return Rupture::query()->firstOrCreate(
+        $rupture = Rupture::query()->firstOrCreate(
             ['contract_id' => $contract->id],
             array_filter($attributs, fn ($v) => filled($v)) + [
                 'date_rupture' => now()->toDateString(),
@@ -257,6 +439,38 @@ class CycleApprenant
                 'created_by' => Auth::id(),
             ],
         );
+
+        if ($rupture->wasRecentlyCreated) {
+            self::notifierAutomatisme(
+                'Admission en rupture',
+                'Dossier Rupture créé automatiquement (« À traiter ») pour '
+                .($contract->candidate?->nom_complet ?? 'l\'apprenant').'.',
+            );
+        }
+
+        return $rupture;
+    }
+
+    /* ----------------------------------------------------------------
+     |  Notifications des automatismes
+     * ---------------------------------------------------------------- */
+
+    /**
+     * Notifie l'utilisateur qu'une étape a été créée automatiquement.
+     * Silencieux hors contexte web (migrations, seeders, files d'attente) :
+     * les automatismes ne doivent jamais échouer à cause de la notification.
+     */
+    public static function notifierAutomatisme(string $titre, string $corps): void
+    {
+        try {
+            Notification::make()
+                ->success()
+                ->title($titre)
+                ->body($corps)
+                ->send();
+        } catch (\Throwable) {
+            // Pas de session (console, job) : l'automatisme reste silencieux.
+        }
     }
 
     /* ----------------------------------------------------------------
@@ -297,6 +511,12 @@ class CycleApprenant
 
         $refuse = $candidate->statut === CandidateStatut::Refuse;
 
+        $entretienRealise = $candidate->entretiens()->where('statut', EntretienStatut::Realise->value)->exists();
+        $entretienPlanifie = $candidate->entretiens()->where('statut', EntretienStatut::Planifie->value)->exists();
+        $entretienEnSuspens = $candidate->entretiens()
+            ->whereIn('statut', [EntretienStatut::Absent->value, EntretienStatut::AReprogrammer->value, EntretienStatut::APlanifier->value])
+            ->exists();
+
         $etapes = [];
 
         $etapes[] = [
@@ -308,6 +528,26 @@ class CycleApprenant
                 default => self::ETAT_EN_COURS,
             },
             'detail' => $candidate->statut->getLabel(),
+        ];
+
+        $etapes[] = [
+            'cle' => 'entretien',
+            'libelle' => 'Entretien',
+            'etat' => match (true) {
+                $entretienRealise || $candidate->statut === CandidateStatut::Accepte => self::ETAT_TERMINEE,
+                $refuse => self::ETAT_BLOQUEE,
+                $entretienPlanifie => self::ETAT_EN_COURS,
+                $entretienEnSuspens => self::ETAT_EN_COURS,
+                default => self::ETAT_NON_DEMARREE,
+            },
+            'detail' => match (true) {
+                $entretienRealise => 'Entretien réalisé',
+                $candidate->statut === CandidateStatut::Accepte => 'Décision prise',
+                $refuse => 'Candidat refusé',
+                $entretienPlanifie => 'Entretien planifié',
+                $entretienEnSuspens => 'À planifier / reprogrammer',
+                default => 'Non démarré',
+            },
         ];
 
         $etapes[] = [

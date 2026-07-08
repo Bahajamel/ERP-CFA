@@ -53,7 +53,8 @@ class MatchingForm
                                 .($record->company ? ' — '.$record->company->raison_sociale : ''))
                             ->searchable()
                             ->preload()
-                            ->required(),
+                            ->helperText('Optionnel tant que la recherche démarre : rattachez l\'entreprise dès '
+                                .'qu\'elle est identifiée (obligatoire pour avancer au-delà d\'« En recherche »).'),
                         Select::make('origine')
                             ->label('Origine de l\'entreprise')
                             ->options([
