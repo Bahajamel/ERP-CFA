@@ -47,10 +47,6 @@ class PromotionForm
                                 $set('formation_id', (int) $formationId);
                                 $set('libelle', static::libelleAnnee((int) $annee));
                             }),
-                        TextInput::make('matiere')
-                            ->label('Matière')
-                            ->placeholder('Ex. Mathématiques, Développement web')
-                            ->maxLength(255),
                         Hidden::make('formation_id')
                             ->required(),
                         Hidden::make('libelle')

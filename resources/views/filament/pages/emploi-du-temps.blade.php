@@ -42,11 +42,13 @@
         .edt-vide { font-size: .75rem; color: rgb(156 163 175); text-align: center; margin: auto; }
 
         .edt-carte {
-            display: block; text-decoration: none; border-radius: .5rem; padding: .5rem .6rem .5rem .75rem;
+            display: block; width: 100%; text-align: left; font: inherit; cursor: pointer;
+            text-decoration: none; border-radius: .5rem; padding: .5rem .6rem .5rem .75rem;
             background: rgb(249 250 251); border: 1px solid rgb(229 231 235); border-left: 4px solid var(--edt-couleur, #6366f1);
             transition: box-shadow .15s ease;
         }
         .edt-carte:hover { box-shadow: 0 2px 8px rgb(0 0 0 / .12); }
+        .edt-carte:focus-visible { outline: 2px solid rgb(99 102 241); outline-offset: 1px; }
         .dark .edt-carte { background: rgb(31 41 55); border-color: rgb(55 65 81); }
         .edt-carte--annulee { opacity: .55; }
         .edt-carte--annulee .edt-matiere { text-decoration: line-through; }
@@ -70,8 +72,8 @@
 
     {{-- Barre d'outils : formation + navigation de semaine --}}
     <div class="edt-toolbar">
-        <select wire:model.live="formationId" aria-label="Formation">
-            @foreach ($formations as $id => $libelle)
+        <select wire:model.live="promotionId" aria-label="Classe">
+            @foreach ($classes as $id => $libelle)
                 <option value="{{ $id }}">{{ $libelle }}</option>
             @endforeach
         </select>
@@ -94,20 +96,21 @@
                 <div class="edt-jour-titre">
                     <span>{{ $jour->translatedFormat('l j/m') }}</span>
                     <a class="edt-ajouter"
-                       href="{{ \App\Filament\Resources\Seances\SeanceResource::getUrl('create', ['date' => $jour->toDateString()]) }}"
+                       href="{{ $this->lienCreation($jour->toDateString()) }}"
                        title="Ajouter une séance le {{ $jour->translatedFormat('j F') }}">+</a>
                 </div>
                 <div class="edt-seances">
                     @forelse ($seancesDuJour as $seance)
-                        <a class="edt-carte {{ $seance->statut === \App\Enums\SeanceStatut::Annulee ? 'edt-carte--annulee' : '' }}"
-                           style="--edt-couleur: {{ $couleurs[$seance->promotion_id] ?? '#6366f1' }}"
-                           href="{{ \App\Filament\Resources\Seances\SeanceResource::getUrl('edit', ['record' => $seance]) }}">
+                        <button type="button"
+                           class="edt-carte {{ $seance->statut === \App\Enums\SeanceStatut::Annulee ? 'edt-carte--annulee' : '' }}"
+                           style="--edt-couleur: {{ $couleurs[$seance->libelle] ?? '#6366f1' }}"
+                           wire:click="mountAction('voirSeance', { seance: {{ $seance->id }} })">
                             <div class="edt-heures">
                                 {{ substr($seance->heure_debut ?? '', 0, 5) ?: '—' }}
                                 – {{ substr($seance->heure_fin ?? '', 0, 5) ?: '—' }}
                             </div>
                             <div class="edt-matiere">
-                                {{ $seance->promotion?->matiere ?? $seance->libelle ?? 'Séance' }}
+                                {{ $seance->libelle ?? 'Séance' }}
                             </div>
                             <div class="edt-detail">
                                 {{ $seance->promotion?->libelle }}
@@ -116,7 +119,7 @@
                             <span class="edt-statut edt-statut--{{ $seance->statut->value }}">
                                 {{ $seance->statut->getLabel() }}
                             </span>
-                        </a>
+                        </button>
                     @empty
                         <span class="edt-vide">Aucune séance</span>
                     @endforelse

@@ -32,14 +32,13 @@ it('rattache les apprenants sélectionnés dès la création de la classe', func
     Livewire::test(CreatePromotion::class)
         ->fillForm([
             'formation_annee' => $formation->id.'|1', // « Formation — 1ère année »
-            'matiere' => 'Mathématiques',
             'annee_scolaire' => '2025-2026',
             'apprentis_ids' => $apprentis->pluck('id')->all(),
         ])
         ->call('create')
         ->assertHasNoFormErrors();
 
-    $promo = Promotion::firstWhere('matiere', 'Mathématiques');
+    $promo = Promotion::firstWhere('libelle', '1ère année');
 
     expect($promo)->not->toBeNull()
         ->and($promo->libelle)->toBe('1ère année')
@@ -66,21 +65,23 @@ it('met à jour la composition (ajout + retrait) à l\'édition de la classe', f
         ->and($nouveau->promotions()->whereKey($promo->id)->exists())->toBeTrue();
 });
 
-it('permet à un apprenant de suivre plusieurs classes (matières) de SA formation', function () {
+it('refuse de créer une cohorte en double (même formation, année et année scolaire)', function () {
     $formation = Formation::factory()->create();
-    $maths = Promotion::factory()->create(['formation_id' => $formation->id, 'libelle' => '1ère année', 'matiere' => 'Mathématiques']);
-    $anglais = Promotion::factory()->create(['formation_id' => $formation->id, 'libelle' => '1ère année', 'matiere' => 'Anglais']);
-    $apprenti = Candidate::factory()->dansClasse($maths)->create();
+    Promotion::factory()->create([
+        'formation_id' => $formation->id,
+        'libelle' => '1ère année',
+        'annee_scolaire' => '2025-2026',
+    ]);
 
-    // L'ajouter à la classe d'anglais ne le retire PAS de celle de maths.
-    Livewire::test(EditPromotion::class, ['record' => $anglais->getRouteKey()])
-        ->fillForm(['apprentis_ids' => [$apprenti->id]])
-        ->call('save')
-        ->assertHasNoFormErrors();
+    Livewire::test(CreatePromotion::class)
+        ->fillForm([
+            'formation_annee' => $formation->id.'|1',
+            'annee_scolaire' => '2025-2026',
+        ])
+        ->call('create')
+        ->assertHasFormErrors();
 
-    expect($apprenti->promotions()->count())->toBe(2)
-        ->and($maths->apprentis()->count())->toBe(1)
-        ->and($anglais->apprentis()->count())->toBe(1);
+    expect(Promotion::where('formation_id', $formation->id)->count())->toBe(1);
 });
 
 it('refuse un apprenant d\'un autre niveau (un 1ère année ne rejoint pas une classe de 2ème année)', function () {
@@ -97,7 +98,7 @@ it('refuse un apprenant d\'un autre niveau (un 1ère année ne rejoint pas une c
 
 it('ne propose que la cohorte du niveau (pas les apprenants d\'une autre année)', function () {
     $formation = Formation::factory()->create(['duree_mois' => 24]);
-    $premiereAnnee = Promotion::factory()->create(['formation_id' => $formation->id, 'libelle' => '1ère année', 'matiere' => 'Maths']);
+    $premiereAnnee = Promotion::factory()->create(['formation_id' => $formation->id, 'libelle' => '1ère année']);
     Candidate::factory()->dansClasse($premiereAnnee)->create(['nom' => 'CohortePremiere']);
     Candidate::factory()->create(['nom' => 'NouveauSansClasse', 'formation_visee_id' => $formation->id]);
 
@@ -138,17 +139,16 @@ it('un apprenant sans formation renseignée adopte celle de la classe', function
         ->and($apprenti->fresh()->formation_visee_id)->toBe($promo->formation_id);
 });
 
-it('affiche le nom complet d\'une classe : formation, année, matière et année scolaire', function () {
+it('affiche le nom complet d\'une classe : formation, année et année scolaire', function () {
     $formation = Formation::factory()->create(['libelle' => 'BTS MCO']);
     $promo = Promotion::factory()->create([
         'formation_id' => $formation->id,
         'libelle' => '1ère année',
-        'matiere' => 'Mathématiques',
         'annee_scolaire' => '2025-2026',
     ]);
 
-    expect($promo->nom_complet)->toBe('BTS MCO — 1ère année — Mathématiques (2025-2026)')
-        ->and(Promotion::factory()->create(['formation_id' => null, 'annee_scolaire' => null, 'libelle' => 'Groupe A', 'matiere' => null])->nom_complet)
+    expect($promo->nom_complet)->toBe('BTS MCO — 1ère année (2025-2026)')
+        ->and(Promotion::factory()->create(['formation_id' => null, 'annee_scolaire' => null, 'libelle' => 'Groupe A'])->nom_complet)
         ->toBe('Groupe A');
 });
 

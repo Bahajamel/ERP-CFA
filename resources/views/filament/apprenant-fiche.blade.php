@@ -91,14 +91,14 @@
             <dd>{{ $apprenant->telephone ?? '—' }}</dd>
         </div>
         <div class="fa-champ" style="grid-column: 1 / -1;">
-            <dt>Classes / matières suivies</dt>
+            <dt>Classe</dt>
             <dd>
                 @if ($apprenant->promotions->isEmpty())
                     <span class="fa-vide">Aucune classe</span>
                 @else
                     <div class="fa-badges">
                         @foreach ($apprenant->promotions as $classe)
-                            <span class="fa-badge">{{ $classe->matiere ?? $classe->libelle }} · {{ $classe->libelle }}</span>
+                            <span class="fa-badge">{{ $classe->nom_complet }}</span>
                         @endforeach
                     </div>
                 @endif

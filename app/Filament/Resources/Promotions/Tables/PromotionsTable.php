@@ -19,10 +19,6 @@ class PromotionsTable
                     ->label('Classe')
                     ->searchable()
                     ->sortable(),
-                TextColumn::make('matiere')
-                    ->label('Matière')
-                    ->searchable()
-                    ->placeholder('—'),
                 TextColumn::make('formation.libelle')
                     ->label('Formation')
                     ->badge()

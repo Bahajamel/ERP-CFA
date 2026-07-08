@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use App\Enums\DocumentType;
 use App\Enums\PresenceStatut;
 use App\Enums\SeanceStatut;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -62,6 +64,22 @@ class Seance extends Model
         return $this->hasMany(Presence::class);
     }
 
+    /** Documents rattachés à la séance (GED) — feuilles d'émargement scannées. */
+    public function documents(): MorphMany
+    {
+        return $this->morphMany(Document::class, 'documentable');
+    }
+
+    /** Dernière feuille d'émargement scannée (version courante), s'il y en a une. */
+    public function feuilleEmargement(): ?Document
+    {
+        return $this->documents()
+            ->where('type', DocumentType::FeuilleEmargement)
+            ->latest('version')
+            ->latest('id')
+            ->first();
+    }
+
     /** Génère une présence « non renseigné » par apprenti de la promotion. */
     public function genererPresences(): void
     {
@@ -71,6 +89,25 @@ class Seance extends Model
                 ['statut' => PresenceStatut::NonRenseigne->value],
             ),
         );
+    }
+
+    /**
+     * Compose la liste d'émargement de la séance : présences conservées/créées
+     * pour les apprenants cochés, retirées pour les autres — au sein d'une même
+     * cohorte, les options (matières) suivies peuvent différer.
+     */
+    public function composerParticipants(array $candidateIds): void
+    {
+        if ($candidateIds === []) {
+            return; // rien de coché → liste générée par défaut (toute la cohorte)
+        }
+
+        $this->presences()->whereNotIn('candidate_id', $candidateIds)->delete();
+
+        collect($candidateIds)->each(fn ($id) => $this->presences()->firstOrCreate(
+            ['candidate_id' => $id],
+            ['statut' => PresenceStatut::NonRenseigne->value],
+        ));
     }
 
     /** Reste-t-il des présences non renseignées ? (garde de validation, P1-14-5) */

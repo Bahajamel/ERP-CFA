@@ -80,6 +80,16 @@ it('n\'exige pas l\'attestation avant 30 ans', function () {
         ->assertRedirect(route('candidature.merci'));
 });
 
+it('exige l\'email ET le téléphone', function () {
+    $this->post(route('candidature.store'), candidaturePayload(['email' => '']))
+        ->assertSessionHasErrors('email');
+
+    $this->post(route('candidature.store'), candidaturePayload(['telephone' => '']))
+        ->assertSessionHasErrors('telephone');
+
+    expect(Candidate::count())->toBe(0);
+});
+
 it('refuse les caractères dangereux dans le nom et le téléphone (anti-XSS)', function () {
     $this->post(route('candidature.store'), candidaturePayload(['nom' => '<script>alert(1)</script>']))
         ->assertSessionHasErrors('nom');

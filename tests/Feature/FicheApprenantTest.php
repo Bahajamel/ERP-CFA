@@ -32,7 +32,7 @@ beforeEach(function () {
 function apprenantEnClasse(): array
 {
     $formation = Formation::factory()->create(['libelle' => 'CDA Fiche']);
-    $classe = Promotion::factory()->create(['formation_id' => $formation->id, 'libelle' => '1ère année', 'matiere' => 'Développement web']);
+    $classe = Promotion::factory()->create(['formation_id' => $formation->id, 'libelle' => '1ère année']);
     $apprenant = Candidate::factory()->create([
         'nom' => 'Okonkwo',
         'prenom' => 'Amara',
@@ -63,7 +63,7 @@ it('ouvre la fiche apprenant depuis la classe (relation manager)', function () {
         ->assertActionMounted(TestAction::make('ficheApprenant')->table($apprenant));
 });
 
-it('affiche l\'identité, la formation, les matières et les documents dans la fiche', function () {
+it('affiche l\'identité, la formation, la classe et les documents dans la fiche', function () {
     [$apprenant] = apprenantEnClasse();
 
     $document = $apprenant->documents()->create([
@@ -83,7 +83,7 @@ it('affiche l\'identité, la formation, les matières et les documents dans la f
         ->toContain('Amara Okonkwo')
         ->toContain('10/05/2004')
         ->toContain('CDA Fiche')
-        ->toContain('Développement web')
+        ->toContain('CDA Fiche — 1ère année')
         ->toContain('92 %')
         ->toContain('bulletin-s1.pdf')
         ->toContain('AO'); // initiales affichées tant qu'il n'y a pas de photo
