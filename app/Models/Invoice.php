@@ -58,6 +58,12 @@ class Invoice extends Model
         return $this->belongsTo(FinanceLine::class);
     }
 
+    /** Échéance de versement OPCO (décret 2025-585) couverte par cette facture. */
+    public function opcoPayment(): BelongsTo
+    {
+        return $this->belongsTo(OpcoPayment::class);
+    }
+
     public function payments(): HasMany
     {
         return $this->hasMany(FinancePayment::class)->latest('date_paiement');
@@ -110,7 +116,7 @@ class Invoice extends Model
     {
         if ($to === InvoiceStatut::Emise) {
             if ((float) $this->montant <= 0) {
-                return "Émission impossible : la facture doit porter un montant supérieur à zéro.";
+                return 'Émission impossible : la facture doit porter un montant supérieur à zéro.';
             }
 
             if (blank($this->destinataire)) {

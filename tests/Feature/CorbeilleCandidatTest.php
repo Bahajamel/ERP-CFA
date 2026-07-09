@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\CandidateStatut;
+use App\Enums\NeedStatut;
 use App\Filament\Resources\Candidates\Pages\ListCandidates;
 use App\Filament\Resources\Corbeille\CorbeilleResource;
 use App\Filament\Resources\Corbeille\Pages\ListCorbeille;
@@ -34,7 +35,7 @@ it('archive un candidat avec un motif et l\'auteur, sans le supprimer réellemen
 
 it('retire le candidat archivé de toutes les listes (plus de ligne orpheline)', function () {
     $candidate = Candidate::factory()->create(['statut' => CandidateStatut::Accepte]);
-    $need = Need::factory()->create();
+    $need = Need::factory()->create(['statut' => NeedStatut::ProfilsRecherches]);
     $matching = Matching::factory()->create(['candidate_id' => $candidate->id, 'need_id' => $need->id]);
 
     // Avant : la ligne matching est visible.
@@ -49,7 +50,7 @@ it('retire le candidat archivé de toutes les listes (plus de ligne orpheline)',
 
 it('restaure un candidat et efface le motif (ses lignes réapparaissent)', function () {
     $candidate = Candidate::factory()->create(['statut' => CandidateStatut::Accepte]);
-    $need = Need::factory()->create();
+    $need = Need::factory()->create(['statut' => NeedStatut::ProfilsRecherches]);
     Matching::factory()->create(['candidate_id' => $candidate->id, 'need_id' => $need->id]);
 
     $candidate->archiver('Erreur de saisie');
@@ -72,7 +73,7 @@ it('calcule les jours restants avant purge (~30 j à la suppression)', function 
 
 it('purge définitivement les candidats en corbeille depuis plus de 30 jours (et leurs dossiers)', function () {
     $ancien = Candidate::factory()->create(['statut' => CandidateStatut::Accepte]);
-    $need = Need::factory()->create();
+    $need = Need::factory()->create(['statut' => NeedStatut::ProfilsRecherches]);
     $matching = Matching::factory()->create(['candidate_id' => $ancien->id, 'need_id' => $need->id]);
     $ancien->archiver('Vieux dossier');
     // Antidater la suppression au-delà du délai de rétention.
