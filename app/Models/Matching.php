@@ -13,10 +13,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Validation\ValidationException;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
 
-class Matching extends Model
+class Matching extends Model implements HasMedia
 {
     use HasFactory;
+    use InteractsWithMedia;
     use LogsActivity;
     use ManagesState;
 
@@ -30,6 +33,22 @@ class Matching extends Model
             'next_action_at' => 'date',
             'statut' => MatchingStatut::class,
         ];
+    }
+
+    /**
+     * CV joint à la proposition envoyée à l'entreprise (traçabilité de la
+     * pièce réellement transmise : CV existant du candidat recopié, ou CV
+     * ajouté au moment de l'envoi vers Matching).
+     */
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection('cv')
+            ->singleFile()
+            ->acceptsMimeTypes([
+                'application/pdf',
+                'application/msword',
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            ]);
     }
 
     /** Statut terminal de refus (motif obligatoire à la transition). */

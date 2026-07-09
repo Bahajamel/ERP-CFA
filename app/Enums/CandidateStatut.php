@@ -23,6 +23,7 @@ enum CandidateStatut: string implements HasLabel, HasColor, HasIcon, HasStateTra
 
     case EntretienAPlanifier = 'entretien_a_planifier';
     case EntretienPrevu = 'entretien_prevu';
+    case EntretienRealise = 'entretien_realise';
     case Accepte = 'accepte';
     case Refuse = 'refuse';
 
@@ -31,6 +32,7 @@ enum CandidateStatut: string implements HasLabel, HasColor, HasIcon, HasStateTra
         return match ($this) {
             self::EntretienAPlanifier => 'Entretien à planifier',
             self::EntretienPrevu => 'Entretien prévu',
+            self::EntretienRealise => 'Entretien réalisé',
             self::Accepte => 'Accepté',
             self::Refuse => 'Refusé',
         };
@@ -41,6 +43,7 @@ enum CandidateStatut: string implements HasLabel, HasColor, HasIcon, HasStateTra
         return match ($this) {
             self::EntretienAPlanifier => 'gray',
             self::EntretienPrevu => 'warning',
+            self::EntretienRealise => 'info',
             self::Accepte => 'success',
             self::Refuse => 'danger',
         };
@@ -51,6 +54,7 @@ enum CandidateStatut: string implements HasLabel, HasColor, HasIcon, HasStateTra
         return match ($this) {
             self::EntretienAPlanifier => 'heroicon-o-clock',
             self::EntretienPrevu => 'heroicon-o-calendar-days',
+            self::EntretienRealise => 'heroicon-o-clipboard-document-check',
             self::Accepte => 'heroicon-o-check-badge',
             self::Refuse => 'heroicon-o-x-circle',
         };
@@ -59,13 +63,16 @@ enum CandidateStatut: string implements HasLabel, HasColor, HasIcon, HasStateTra
     /**
      * Les décisions finales sont terminales : aucun retour aux statuts
      * d'entretien. « Entretien prévu » peut revenir à « Entretien à
-     * planifier » (entretien annulé / à reprogrammer).
+     * planifier » (entretien annulé / à reprogrammer). « Entretien réalisé »
+     * (l'entretien a eu lieu) n'ouvre plus que la décision Accepté / Refusé.
+     * « Accepté » reste atteignable en amont pour l'exception administrateur.
      */
     public function transitions(): array
     {
         return match ($this) {
             self::EntretienAPlanifier => [self::EntretienPrevu, self::Accepte, self::Refuse],
-            self::EntretienPrevu => [self::EntretienAPlanifier, self::Accepte, self::Refuse],
+            self::EntretienPrevu => [self::EntretienAPlanifier, self::EntretienRealise, self::Accepte, self::Refuse],
+            self::EntretienRealise => [self::Accepte, self::Refuse],
             self::Accepte => [],
             self::Refuse => [],
         };
@@ -74,7 +81,7 @@ enum CandidateStatut: string implements HasLabel, HasColor, HasIcon, HasStateTra
     /** Statuts d'entretien (avant décision finale). */
     public static function statutsEntretien(): array
     {
-        return [self::EntretienAPlanifier, self::EntretienPrevu];
+        return [self::EntretienAPlanifier, self::EntretienPrevu, self::EntretienRealise];
     }
 
     /** La décision finale (Accepté / Refusé) est-elle prise ? */

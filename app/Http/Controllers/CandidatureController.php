@@ -3,6 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Enums\CandidateStatut;
+use App\Enums\DocumentSource;
+use App\Enums\DocumentStatut;
+use App\Enums\DocumentType;
 use App\Models\Candidate;
 use App\Models\Formation;
 use Illuminate\Http\RedirectResponse;
@@ -10,15 +13,29 @@ use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 /**
  * Formulaire public de candidature (sans accès à l'ERP) : le candidat saisit ses
  * informations et dépose ses pièces obligatoires. À l'envoi, un candidat est créé
- * dans l'ERP (statut « Dossier incomplet »), pièces rattachées à ses collections
- * média (cv, piece_identite, carte_vitale, attestation_projet).
+ * dans l'ERP (statut « Entretien à planifier »).
+ *
+ * Chaque pièce est stockée à deux titres, sans re-téléverser le fichier :
+ *  1. dans la collection média dédiée du candidat (cv, piece_identite,
+ *     carte_vitale, attestation_projet) — utilisée par la fiche, le CERFA, l'OPCO ;
+ *  2. comme document GED rattaché au candidat (copie du même fichier), pour
+ *     apparaître dans la section « Documents » du profil, typé et daté.
  */
 class CandidatureController extends Controller
 {
+    /** Type de document GED associé à chaque pièce du formulaire public. */
+    private const TYPES_DOCUMENT = [
+        'cv' => DocumentType::CvCandidat,
+        'piece_identite' => DocumentType::PieceIdentite,
+        'carte_vitale' => DocumentType::CarteVitale,
+        'attestation_projet' => DocumentType::Autre,
+    ];
+
     public function create(): View
     {
         return view('candidature.form', [
@@ -56,11 +73,35 @@ class CandidatureController extends Controller
         return redirect()->route('candidature.merci');
     }
 
+    /**
+     * Attache une pièce à sa collection média, puis en trace une copie dans la
+     * GED du candidat (section Documents) — typée, datée, téléchargeable.
+     */
     private function attacher(Candidate $candidate, ?UploadedFile $fichier, string $collection): void
     {
-        if ($fichier instanceof UploadedFile) {
-            $candidate->addMedia($fichier)->toMediaCollection($collection);
+        if (! $fichier instanceof UploadedFile) {
+            return;
         }
+
+        $media = $candidate->addMedia($fichier)->toMediaCollection($collection);
+
+        $this->tracerDansGed($candidate, $media, self::TYPES_DOCUMENT[$collection] ?? DocumentType::Autre);
+    }
+
+    /**
+     * Crée le document GED correspondant à une pièce déposée et y recopie le
+     * fichier déjà stocké (aucun nouveau téléversement, aucune perte).
+     */
+    private function tracerDansGed(Candidate $candidate, Media $media, DocumentType $type): void
+    {
+        $document = $candidate->documents()->create([
+            'type' => $type->value,
+            'statut' => DocumentStatut::Recu->value,
+            'source' => DocumentSource::Candidature->value,
+            'nom_fichier' => $type->getLabel(),
+        ]);
+
+        $media->copy($document, 'fichier');
     }
 
     /**

@@ -8,6 +8,7 @@ enum DocumentType: string implements HasLabel
 {
     case PieceIdentite = 'piece_identite';
     case CvCandidat = 'cv_candidat';
+    case CarteVitale = 'carte_vitale';
     case DiplomeBulletins = 'diplome_bulletins';
     case CvMaitreApprentissage = 'cv_maitre_apprentissage';
     case TestPositionnement = 'test_positionnement';
@@ -52,6 +53,7 @@ enum DocumentType: string implements HasLabel
         return match ($this) {
             self::PieceIdentite => "Pièce d'identité",
             self::CvCandidat => 'CV candidat',
+            self::CarteVitale => 'Carte Vitale / attestation sécurité sociale',
             self::DiplomeBulletins => 'Diplômes / bulletins',
             self::CvMaitreApprentissage => "CV maître d'apprentissage",
             self::TestPositionnement => 'Test de positionnement',
