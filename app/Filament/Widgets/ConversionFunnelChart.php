@@ -52,11 +52,7 @@ class ConversionFunnelChart extends ChartWidget
     {
         $candidats = Candidate::whereNot('statut', CandidateStatut::Refuse->value)->count();
         $admissionsValidees = Admission::where('statut', AdmissionStatut::Valide->value)->count();
-        $contratsSignes = Contract::whereIn('statut_contrat', [
-            ContractStatut::Signe->value,
-            ContractStatut::TransmisOpco->value,
-            ContractStatut::Actif->value,
-        ])->count();
+        $contratsSignes = Contract::whereIn('statut_contrat', ContractStatut::signes())->count();
         $opcoAcceptes = OpcoFile::where('statut', OpcoStatut::Accepte->value)->count();
 
         return [
@@ -97,7 +93,7 @@ class ConversionFunnelChart extends ChartWidget
                 'filters' => ['statut' => ['value' => AdmissionStatut::Valide->value]],
             ]),
             ContractResource::getUrl('index', [
-                'filters' => ['statut_contrat' => ['value' => ContractStatut::Signe->value]],
+                'filters' => ['statut_contrat' => ['value' => ContractStatut::Complet->value]],
             ]),
             OpcoFileResource::getUrl('index', [
                 'filters' => ['statut' => ['value' => OpcoStatut::Accepte->value]],

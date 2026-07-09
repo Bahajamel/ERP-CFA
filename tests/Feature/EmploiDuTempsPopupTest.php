@@ -58,7 +58,7 @@ it('affiche un panneau d\'informations clair dans le pop-up', function () {
 
     expect($html)
         ->toContain('Développement web')            // matière (titre du bandeau)
-        ->toContain($seance->promotion->nom_complet) // classe complète
+        ->toContain(e($seance->promotion->nom_complet)) // classe complète (Blade échappe l'apostrophe)
         ->toContain('Date')
         ->toContain('Horaires')
         ->toContain('Formateur')

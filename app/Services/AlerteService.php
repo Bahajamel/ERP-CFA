@@ -74,7 +74,7 @@ class AlerteService
         $n = 0;
 
         Contract::query()
-            ->where('statut_contrat', ContractStatut::EnvoyeSignature->value)
+            ->where('statut_contrat', ContractStatut::ManqueSignature->value)
             ->with('candidate')
             ->get()
             ->each(function (Contract $contract) use (&$n) {

@@ -68,7 +68,7 @@ it('rend l\'entonnoir avec des segments cliquables vers les listes filtrées', f
 });
 
 it('rend la courbe des contrats signés et compte le mois courant', function () {
-    Contract::factory()->create(['statut_contrat' => ContractStatut::Signe]);
+    Contract::factory()->create(['statut_contrat' => ContractStatut::Complet]);
 
     connecteAvecRole('Direction');
 

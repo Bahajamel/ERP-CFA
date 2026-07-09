@@ -41,7 +41,7 @@ class AdmissionFactory extends Factory
         $attributes = is_array($attributes) ? $attributes : [];
 
         $signe = [
-            'statut_contrat' => ContractStatut::Signe,
+            'statut_contrat' => ContractStatut::Complet,
             'statut_signature' => ContractSignatureStatut::Signe,
         ];
 

@@ -34,9 +34,8 @@ class ContratsSignesParMoisChart extends ChartWidget
 
     /** Statuts témoignant d'un contrat signé (ou au-delà). */
     private const STATUTS_SIGNES = [
-        ContractStatut::Signe->value,
-        ContractStatut::TransmisOpco->value,
-        ContractStatut::Actif->value,
+        ContractStatut::Complet->value,
+        ContractStatut::ACorriger->value,
     ];
 
     public static function canView(): bool
@@ -125,7 +124,7 @@ class ContratsSignesParMoisChart extends ChartWidget
         // Chaque point renvoie vers la liste des contrats signés (pas de filtre
         // mensuel sur la ressource Contrats — on ne la modifie pas ici).
         $url = ContractResource::getUrl('index', [
-            'filters' => ['statut_contrat' => ['value' => ContractStatut::Signe->value]],
+            'filters' => ['statut_contrat' => ['value' => ContractStatut::Complet->value]],
         ]);
 
         return array_fill(0, 12, $url);

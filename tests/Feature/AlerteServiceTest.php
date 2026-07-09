@@ -36,7 +36,7 @@ it('crée une alerte pour un dossier d\'admission incomplet, de façon idempoten
 });
 
 it('alerte sur un contrat envoyé pour signature', function () {
-    $contract = Contract::factory()->create(['statut_contrat' => ContractStatut::EnvoyeSignature]);
+    $contract = Contract::factory()->create(['statut_contrat' => ContractStatut::ManqueSignature]);
 
     (new AlerteService)->genererAlertes();
 

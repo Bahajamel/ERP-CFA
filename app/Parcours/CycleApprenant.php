@@ -90,7 +90,7 @@ class CycleApprenant
     ];
 
     /** Statuts contrat considérés comme actifs (anti-doublon candidat × entreprise). */
-    public const CONTRATS_ACTIFS_EXCLUS = [ContractStatut::Rompu, ContractStatut::Archive];
+    public const CONTRATS_ACTIFS_EXCLUS = [ContractStatut::Rompu];
 
     /**
      * Le dossier OPCO vaut-il « créé ou transmis pour validation » ?
@@ -471,7 +471,7 @@ class CycleApprenant
             'code_rncp' => $formation?->code_rncp,
             'rythme' => $need->rythme,
             'date_debut' => $need->date_demarrage,
-            'statut_contrat' => ContractStatut::Brouillon->value,
+            'statut_contrat' => ContractStatut::EnCours->value,
         ]);
     }
 
@@ -598,7 +598,7 @@ class CycleApprenant
     public function etapes(Candidate $candidate): array
     {
         $contrat = $candidate->contracts()
-            ->where('statut_contrat', '!=', ContractStatut::Archive->value)
+            ->where('statut_contrat', '!=', ContractStatut::Rompu->value)
             ->latest('id')
             ->first();
 

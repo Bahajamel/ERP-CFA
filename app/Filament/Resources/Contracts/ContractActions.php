@@ -41,8 +41,8 @@ class ContractActions
             ->color('success')
             ->requiresConfirmation()
             ->modalDescription('Confirmer la signature du contrat ? Un document contractuel ou une signature marquée « signée » est requis.')
-            ->visible(fn (Contract $record) => $record->statut_contrat->canTransitionTo(ContractStatut::Signe))
-            ->action(fn (Contract $record) => self::executer($record, ContractStatut::Signe));
+            ->visible(fn (Contract $record) => $record->statut_contrat->canTransitionTo(ContractStatut::Complet))
+            ->action(fn (Contract $record) => self::executer($record, ContractStatut::Complet));
     }
 
     /**

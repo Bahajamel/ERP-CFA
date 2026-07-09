@@ -29,7 +29,7 @@ function contratSignable(array $attrs = []): Contract
 
     return Contract::factory()->create(array_merge([
         'candidate_id' => $candidate->id,
-        'statut_contrat' => ContractStatut::EnvoyeSignature,
+        'statut_contrat' => ContractStatut::ManqueSignature,
         'statut_signature' => ContractSignatureStatut::NonSigne,
         'date_debut' => now(),
     ], $attrs));
@@ -108,21 +108,21 @@ it('signe le contrat et archive la preuve quand toutes les parties ont signé', 
     expect($request->fresh()->statut)->toBe(SignatureRequestStatut::Signee)
         ->and($request->fresh()->completed_at)->not->toBeNull()
         ->and($contract->fresh()->statut_signature)->toBe(ContractSignatureStatut::Signe)
-        ->and($contract->fresh()->statut_contrat)->toBe(ContractStatut::Signe)
+        ->and($contract->fresh()->statut_contrat)->toBe(ContractStatut::Complet)
         ->and($contract->fresh()->opcoFile()->exists())->toBeTrue()
         ->and($contract->documents()->where('type', DocumentType::Contrat->value)->exists())->toBeTrue();
 });
 
 it('signe le contrat et ouvre le dossier OPCO même s\'il n\'était pas « Envoyé pour signature »', function () {
     // Cas réel du bug : contrat encore en amont (jamais passé par « Envoyé »).
-    $contract = contratSignable(['statut_contrat' => ContractStatut::Brouillon]);
+    $contract = contratSignable(['statut_contrat' => ContractStatut::EnCours]);
     $service = serviceSimu();
     $request = $service->envoyer($contract);
 
     $service->simulerSignatureComplete($request);
 
     $fresh = $contract->fresh();
-    expect($fresh->statut_contrat)->toBe(ContractStatut::Signe)
+    expect($fresh->statut_contrat)->toBe(ContractStatut::Complet)
         ->and($fresh->statut_signature)->toBe(ContractSignatureStatut::Signe)
         ->and($fresh->opcoFile()->exists())->toBeTrue();
 });

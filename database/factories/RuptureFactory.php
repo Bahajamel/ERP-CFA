@@ -19,7 +19,7 @@ class RuptureFactory extends Factory
     public function definition(): array
     {
         return [
-            'contract_id' => Contract::factory()->state(['statut_contrat' => ContractStatut::Actif]),
+            'contract_id' => Contract::factory()->state(['statut_contrat' => ContractStatut::Complet]),
             'date_rupture' => fake()->dateTimeBetween('-3 months', 'now')->format('Y-m-d'),
             'motif' => fake()->randomElement(RuptureMotif::cases()),
             'initiative' => fake()->randomElement(['Employeur', 'Apprenti', 'Commun accord']),

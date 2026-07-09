@@ -39,11 +39,7 @@ class AdmissionForm
                                 'id',
                                 fn (Builder $query, ?Admission $record): Builder => $query
                                     ->where(fn (Builder $q) => $q
-                                        ->whereIn('statut_contrat', [
-                                            ContractStatut::Signe->value,
-                                            ContractStatut::TransmisOpco->value,
-                                            ContractStatut::Actif->value,
-                                        ])
+                                        ->whereIn('statut_contrat', ContractStatut::signes())
                                         ->orWhere('statut_signature', ContractSignatureStatut::Signe->value))
                                     ->whereHas('opcoFile', fn (Builder $q) => $q->whereNotIn('statut', [
                                         OpcoStatut::NonCree->value,

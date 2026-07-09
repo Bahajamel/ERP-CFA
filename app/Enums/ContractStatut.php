@@ -7,70 +7,71 @@ use App\StateMachine\HasStateTransitions;
 use Filament\Support\Contracts\HasColor;
 use Filament\Support\Contracts\HasLabel;
 
+/**
+ * Statut d'un contrat d'apprentissage — volontairement resserré à 4 états de
+ * travail, plus « Rompu » réservé à la rupture d'apprenti (section Ruptures) :
+ *
+ *  - « En cours » : contrat créé (souvent auto depuis le Matching), en cours
+ *    de complétion / de préparation, pas encore signé ;
+ *  - « Manque la signature » : CERFA et convention complets, en attente de la
+ *    signature des trois parties ;
+ *  - « Complet » : documents complets ET signés → le dossier OPCO s'ouvre
+ *    automatiquement ;
+ *  - « À corriger » : le dossier est revenu de l'OPCO avec un refus ; il
+ *    repasse ici pour correction avant nouvelle transmission ;
+ *  - « Rompu » : rupture anticipée du contrat d'apprentissage (piloté par la
+ *    section Ruptures, jamais saisi à la main).
+ */
 enum ContractStatut: string implements HasLabel, HasColor, HasStateTransitions
 {
     use DefinesTransitions;
 
-    case Brouillon = 'brouillon';
-    case InfosManquantes = 'infos_manquantes';
-    case PretAVerifier = 'pret_a_verifier';
-    case EnvoyeSignature = 'envoye_signature';
-    case Signe = 'signe';
-    case TransmisOpco = 'transmis_opco';
-    case Actif = 'actif';
+    case EnCours = 'en_cours';
+    case ManqueSignature = 'manque_signature';
+    case Complet = 'complet';
+    case ACorriger = 'a_corriger';
     case Rompu = 'rompu';
-    case Archive = 'archive';
 
     public function getLabel(): string
     {
         return match ($this) {
-            self::Brouillon => 'Brouillon',
-            self::InfosManquantes => 'Informations manquantes',
-            self::PretAVerifier => 'Prêt à vérifier',
-            self::EnvoyeSignature => 'Envoyé pour signature',
-            self::Signe => 'Signé',
-            self::TransmisOpco => 'Transmis OPCO',
-            self::Actif => 'Actif',
+            self::EnCours => 'En cours',
+            self::ManqueSignature => 'Manque la signature',
+            self::Complet => 'Complet',
+            self::ACorriger => 'À corriger',
             self::Rompu => 'Rompu',
-            self::Archive => 'Archivé',
         };
     }
 
     public function getColor(): string
     {
         return match ($this) {
-            self::Brouillon => 'gray',
-            self::InfosManquantes => 'danger',
-            self::PretAVerifier => 'warning',
-            self::EnvoyeSignature => 'info',
-            self::Signe => 'success',
-            self::TransmisOpco => 'info',
-            self::Actif => 'success',
+            self::EnCours => 'gray',
+            self::ManqueSignature => 'info',
+            self::Complet => 'success',
+            self::ACorriger => 'warning',
             self::Rompu => 'danger',
-            self::Archive => 'gray',
         };
     }
 
     /**
-     * Contrats « en cours » : apprentissage engagé (signé jusqu'à actif).
+     * Contrats signés (apprentissage engagé) : « Complet » et « À corriger »
+     * (ce dernier a été signé puis renvoyé par l'OPCO). Sert aux statistiques
+     * « contrats signés / actifs ».
      */
-    public static function enCours(): array
+    public static function signes(): array
     {
-        return [self::Signe->value, self::TransmisOpco->value, self::Actif->value];
+        return [self::Complet->value, self::ACorriger->value];
     }
 
     public function transitions(): array
     {
         return match ($this) {
-            self::Brouillon => [self::InfosManquantes, self::PretAVerifier],
-            self::InfosManquantes => [self::PretAVerifier, self::Brouillon],
-            self::PretAVerifier => [self::EnvoyeSignature, self::InfosManquantes],
-            self::EnvoyeSignature => [self::Signe, self::InfosManquantes],
-            self::Signe => [self::TransmisOpco, self::Rompu],
-            self::TransmisOpco => [self::Actif, self::Rompu],
-            self::Actif => [self::Rompu, self::Archive],
-            self::Rompu => [self::Archive],
-            self::Archive => [],
+            self::EnCours => [self::ManqueSignature, self::Rompu],
+            self::ManqueSignature => [self::Complet, self::EnCours, self::Rompu],
+            self::Complet => [self::ACorriger, self::Rompu],
+            self::ACorriger => [self::Complet, self::ManqueSignature, self::Rompu],
+            self::Rompu => [],
         };
     }
 }

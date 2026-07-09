@@ -24,8 +24,8 @@ function dossierOpco(OpcoStatut $statut, ContractSignatureStatut $signature = Co
     $contract = Contract::factory()->create([
         'statut_signature' => $signature,
         'statut_contrat' => $signature === ContractSignatureStatut::Signe
-            ? \App\Enums\ContractStatut::Signe
-            : \App\Enums\ContractStatut::EnvoyeSignature,
+            ? \App\Enums\ContractStatut::Complet
+            : \App\Enums\ContractStatut::ManqueSignature,
     ]);
 
     return OpcoFile::factory()->create([

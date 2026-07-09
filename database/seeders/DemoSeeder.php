@@ -257,28 +257,28 @@ class DemoSeeder extends Seeder
             'candidate_id' => $candidates[0]->id, 'company_id' => $companies[0]['model']->id, 'formation_id' => $devWeb->id,
             'code_rncp' => $devWeb->code_rncp, 'date_debut' => now()->addMonth()->startOfMonth(), 'date_fin' => now()->addMonths(19)->startOfMonth(),
             'tuteur_id' => $companies[0]['tuteur']->id, 'rythme' => $devWeb->rythme_defaut, 'lieu_formation' => 'CFA - Site principal',
-            'statut_signature' => ContractSignatureStatut::Signe, 'statut_contrat' => ContractStatut::TransmisOpco,
+            'statut_signature' => ContractSignatureStatut::Signe, 'statut_contrat' => ContractStatut::Complet,
         ]);
         // Contrat 1 : signé + actif, OPCO accepté
         $contrat1 = Contract::create([
             'candidate_id' => $candidates[7]->id, 'company_id' => $companies[1]['model']->id, 'formation_id' => $commerce->id,
             'code_rncp' => $commerce->code_rncp, 'date_debut' => now()->subMonths(2)->startOfMonth(), 'date_fin' => now()->addMonths(22)->startOfMonth(),
             'tuteur_id' => $companies[1]['tuteur']->id, 'rythme' => $commerce->rythme_defaut, 'lieu_formation' => 'CFA - Site principal',
-            'statut_signature' => ContractSignatureStatut::Signe, 'statut_contrat' => ContractStatut::Actif,
+            'statut_signature' => ContractSignatureStatut::Signe, 'statut_contrat' => ContractStatut::Complet,
         ]);
         // Contrat 2 : en préparation (brouillon)
         $contrat2 = Contract::create([
             'candidate_id' => $candidates[2]->id, 'company_id' => $companies[3]['model']->id, 'formation_id' => $commerce->id,
             'code_rncp' => $commerce->code_rncp, 'date_debut' => now()->addMonths(2)->startOfMonth(),
             'tuteur_id' => $companies[3]['tuteur']->id, 'rythme' => $commerce->rythme_defaut, 'lieu_formation' => 'CFA - Site principal',
-            'statut_signature' => ContractSignatureStatut::NonSigne, 'statut_contrat' => ContractStatut::Brouillon,
+            'statut_signature' => ContractSignatureStatut::NonSigne, 'statut_contrat' => ContractStatut::EnCours,
         ]);
         // Contrat 3 : envoyé pour signature
         $contrat3 = Contract::create([
             'candidate_id' => $candidates[5]->id, 'company_id' => $companies[0]['model']->id, 'formation_id' => $devWeb->id,
             'code_rncp' => $devWeb->code_rncp, 'date_debut' => now()->addMonths(2)->startOfMonth(),
             'tuteur_id' => $companies[0]['tuteur']->id, 'rythme' => $devWeb->rythme_defaut, 'lieu_formation' => 'CFA - Site principal',
-            'statut_signature' => ContractSignatureStatut::Envoye, 'statut_contrat' => ContractStatut::EnvoyeSignature,
+            'statut_signature' => ContractSignatureStatut::Envoye, 'statut_contrat' => ContractStatut::ManqueSignature,
         ]);
 
         // -------- Dossiers OPCO --------
@@ -405,7 +405,7 @@ class DemoSeeder extends Seeder
             'candidate_id' => $yanis->id, 'company_id' => $companies[2]['model']->id, 'formation_id' => $cyber->id,
             'code_rncp' => $cyber->code_rncp, 'date_debut' => now()->subMonths(3)->startOfMonth(), 'date_fin' => now()->addMonths(21)->startOfMonth(),
             'tuteur_id' => null, 'rythme' => $cyber->rythme_defaut, 'lieu_formation' => 'CFA - Site principal',
-            'statut_signature' => ContractSignatureStatut::Signe, 'statut_contrat' => ContractStatut::Actif,
+            'statut_signature' => ContractSignatureStatut::Signe, 'statut_contrat' => ContractStatut::Complet,
         ]);
         OpcoFile::create([
             'contract_id' => $contratRisque->id, 'opco_id' => $opco2i->id, 'date_depot' => now()->subMonths(2),

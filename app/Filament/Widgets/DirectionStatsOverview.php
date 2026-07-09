@@ -52,11 +52,7 @@ class DirectionStatsOverview extends StatsOverviewWidget
             NeedStatut::EntretienPrevu->value,
             NeedStatut::CandidatRetenu->value,
         ])->count();
-        $contratsSignes = Contract::whereIn('statut_contrat', [
-            ContractStatut::Signe->value,
-            ContractStatut::TransmisOpco->value,
-            ContractStatut::Actif->value,
-        ])->count();
+        $contratsSignes = Contract::whereIn('statut_contrat', ContractStatut::signes())->count();
         $opcoBloques = OpcoFile::whereIn('statut', OpcoStatut::bloques())->count();
         $montantAttendu = (float) OpcoFile::sum('montant_prevu');
         $montantVerse = (float) OpcoPayment::where('statut', PaymentStatut::Verse->value)->sum('montant_prevu');
