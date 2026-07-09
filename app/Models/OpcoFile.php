@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\ContractSignatureStatut;
+use App\Enums\ContractStatut;
 use App\Enums\OpcoStatut;
 use App\Enums\PaymentStatut;
 use App\Enums\TaskPriorite;
@@ -67,10 +68,40 @@ class OpcoFile extends Model
         // Même déclencheur pour une mise à jour directe du statut (formulaire,
         // import…) hors machine à états : idempotent via firstOrCreate.
         static::updated(function (self $dossier): void {
-            if ($dossier->wasChanged('statut') && CycleApprenant::opcoOuvreAdmission($dossier->statut)) {
+            if (! $dossier->wasChanged('statut')) {
+                return;
+            }
+
+            if (CycleApprenant::opcoOuvreAdmission($dossier->statut)) {
                 app(CycleApprenant::class)->ouvrirAdmission($dossier);
             }
+
+            // Dossier rejeté par l'OPCO → le contrat repasse en « À corriger »
+            // dans la section Contrats (correction avant nouvelle transmission).
+            if ($dossier->statut === OpcoStatut::Rejete) {
+                $dossier->retournerContratPourCorrection();
+            }
         });
+    }
+
+    /**
+     * Renvoie le contrat en « À corriger » (section Contrats) suite à un rejet
+     * OPCO. Silencieux si la transition n'est pas permise : la cohérence ne
+     * doit jamais empêcher l'enregistrement du rejet.
+     */
+    public function retournerContratPourCorrection(): void
+    {
+        $contract = $this->contract;
+
+        if ($contract === null || ! $contract->statut_contrat->canTransitionTo(ContractStatut::ACorriger)) {
+            return;
+        }
+
+        try {
+            $contract->transitionTo(ContractStatut::ACorriger, 'Dossier OPCO rejeté : '.$this->motif_rejet);
+        } catch (\Throwable) {
+            // La cohérence n'empêche jamais l'enregistrement du rejet OPCO.
+        }
     }
 
     public function getActivitylogOptions(): LogOptions
@@ -208,6 +239,9 @@ class OpcoFile extends Model
                 'statut' => TaskStatut::AFaire->value,
                 'source' => 'auto',
             ]);
+
+            // Le contrat repasse en « À corriger » dans la section Contrats.
+            $this->retournerContratPourCorrection();
         }
 
         // Acceptation OPCO : on génère l'échéancier de versement (décret 2025-585).

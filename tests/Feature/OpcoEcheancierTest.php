@@ -14,7 +14,7 @@ function dossierAvecMontant(float $montant, int $dureeMois): OpcoFile
     $contract = Contract::factory()->create([
         'date_debut' => now(),
         'date_fin' => now()->addMonths($dureeMois),
-        'statut_contrat' => \App\Enums\ContractStatut::Signe,
+        'statut_contrat' => \App\Enums\ContractStatut::Complet,
         'statut_signature' => \App\Enums\ContractSignatureStatut::Signe,
     ]);
 

@@ -26,7 +26,7 @@ class OpcoFileFactory extends Factory
             // Cycle apprenant : un dossier OPCO n'existe qu'apres signature du
             // contrat par les trois parties.
             'contract_id' => Contract::factory()->state([
-                'statut_contrat' => ContractStatut::Signe,
+                'statut_contrat' => ContractStatut::Complet,
                 'statut_signature' => ContractSignatureStatut::Signe,
             ]),
             'opco_id' => Opco::factory(),

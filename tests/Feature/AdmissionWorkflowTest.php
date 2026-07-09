@@ -55,7 +55,7 @@ it('ne crée plus d\'admission à la création du candidat (fin de la pré-admis
 
 it('ouvre automatiquement l\'admission « À vérifier » quand le dossier OPCO est créé/transmis', function () {
     $contract = Contract::factory()->create([
-        'statut_contrat' => ContractStatut::Signe,
+        'statut_contrat' => ContractStatut::Complet,
         'statut_signature' => ContractSignatureStatut::Signe,
     ]);
 
@@ -84,7 +84,7 @@ it('n\'ouvre qu\'une seule admission par contrat (transitions OPCO rejouées)', 
 
 it('refuse de créer une admission si le contrat n\'est pas signé par les trois parties', function () {
     $contract = Contract::factory()->create([
-        'statut_contrat' => ContractStatut::Brouillon,
+        'statut_contrat' => ContractStatut::EnCours,
         'statut_signature' => ContractSignatureStatut::NonSigne,
     ]);
 
@@ -94,7 +94,7 @@ it('refuse de créer une admission si le contrat n\'est pas signé par les trois
 
 it('refuse de créer une admission tant que le dossier OPCO n\'est pas créé ou transmis', function () {
     $contract = Contract::factory()->create([
-        'statut_contrat' => ContractStatut::Signe,
+        'statut_contrat' => ContractStatut::Complet,
         'statut_signature' => ContractSignatureStatut::Signe,
     ]);
     $contract->ouvrirDossierOpco(); // reste « À préparer »

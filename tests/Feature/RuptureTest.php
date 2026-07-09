@@ -26,7 +26,7 @@ function contratActif(): Contract
 {
     $candidate = Candidate::factory()->create(['statut' => CandidateStatut::Accepte]);
     $contract = Contract::factory()->create([
-        'statut_contrat' => ContractStatut::Actif,
+        'statut_contrat' => ContractStatut::Complet,
         'statut_signature' => ContractSignatureStatut::Signe,
         'candidate_id' => $candidate->id,
     ]);

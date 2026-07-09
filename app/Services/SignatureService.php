@@ -173,9 +173,9 @@ class SignatureService
         // ex. jamais passé par « Envoyé pour signature »), on force la cohérence
         // depuis un état pré-signature et on ouvre le dossier OPCO explicitement,
         // pour que le suivi du financement démarre systématiquement (P0-08-4/09).
-        if ($contract->statut_contrat->canTransitionTo(ContractStatut::Signe)) {
+        if ($contract->statut_contrat->canTransitionTo(ContractStatut::Complet)) {
             try {
-                $contract->transitionTo(ContractStatut::Signe, 'Signature électronique de toutes les parties.');
+                $contract->transitionTo(ContractStatut::Complet, 'Signature électronique de toutes les parties.');
             } catch (\Throwable) {
                 // Cohérence forcée ci-dessous.
             }
@@ -183,15 +183,17 @@ class SignatureService
             $contract->refresh();
         }
 
-        $preSignature = [
-            ContractStatut::Brouillon,
-            ContractStatut::InfosManquantes,
-            ContractStatut::PretAVerifier,
-            ContractStatut::EnvoyeSignature,
+        // États non encore « Complet » (le contrat n'est pas passé par la
+        // machine à états, ex. jamais « Manque la signature ») : on force la
+        // cohérence puis on ouvre le dossier OPCO explicitement.
+        $preComplet = [
+            ContractStatut::EnCours,
+            ContractStatut::ManqueSignature,
+            ContractStatut::ACorriger,
         ];
 
-        if (in_array($contract->statut_contrat, $preSignature, true)) {
-            $contract->forceFill(['statut_contrat' => ContractStatut::Signe->value])->saveQuietly();
+        if (in_array($contract->statut_contrat, $preComplet, true)) {
+            $contract->forceFill(['statut_contrat' => ContractStatut::Complet->value])->saveQuietly();
             $contract->ouvrirDossierOpco();
         }
 

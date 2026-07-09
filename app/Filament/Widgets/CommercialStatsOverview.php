@@ -50,7 +50,7 @@ class CommercialStatsOverview extends StatsOverviewWidget
         $contratsSignes = Candidate::where('commercial_id', $userId)
             ->whereHas('contracts', fn ($q) => $q->whereIn(
                 'statut_contrat',
-                \App\Enums\ContractStatut::enCours(),
+                \App\Enums\ContractStatut::signes(),
             ))->count();
 
         $besoinsOuverts = Need::query()->ouverts()->count();

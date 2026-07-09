@@ -147,7 +147,7 @@ it('crée AUTOMATIQUEMENT le contrat prérempli quand le matching passe à « Ac
         ->and($contract->tuteur_id)->toBe($matching->need->tuteur_id)
         ->and($contract->code_rncp)->toBe($matching->need->formation->code_rncp)
         // Premier statut par défaut de la section Contrats.
-        ->and($contract->statut_contrat)->toBe(ContractStatut::Brouillon)
+        ->and($contract->statut_contrat)->toBe(ContractStatut::EnCours)
         ->and(Contract::query()->count())->toBe(1);
 });
 
@@ -201,7 +201,7 @@ it('autorise un nouveau contrat après rupture du précédent (même couple)', f
 
 it('refuse un dossier OPCO tant que le contrat n\'est pas signé par les trois parties', function () {
     $contract = Contract::factory()->create([
-        'statut_contrat' => ContractStatut::EnvoyeSignature,
+        'statut_contrat' => ContractStatut::ManqueSignature,
         'statut_signature' => ContractSignatureStatut::NonSigne,
     ]);
 
@@ -211,11 +211,11 @@ it('refuse un dossier OPCO tant que le contrat n\'est pas signé par les trois p
 
 it('ouvre le dossier OPCO automatiquement à la signature du contrat (préparation)', function () {
     $contract = Contract::factory()->create([
-        'statut_contrat' => ContractStatut::EnvoyeSignature,
+        'statut_contrat' => ContractStatut::ManqueSignature,
         'statut_signature' => ContractSignatureStatut::Signe,
     ]);
 
-    $contract->transitionTo(ContractStatut::Signe);
+    $contract->transitionTo(ContractStatut::Complet);
 
     expect($contract->opcoFile)->not->toBeNull()
         ->and($contract->opcoFile->statut)->toBe(OpcoStatut::APreparer);
@@ -245,7 +245,7 @@ it('résume le parcours dans la timeline : étapes, états et étape courante', 
     // Après signature du contrat et dépôt OPCO : admission en cours.
     $contract = cycle()->creerContratDepuisMatching($matching);
     $contract->forceFill([
-        'statut_contrat' => ContractStatut::Signe,
+        'statut_contrat' => ContractStatut::Complet,
         'statut_signature' => ContractSignatureStatut::Signe,
     ])->save();
     $contract->ouvrirDossierOpco();
