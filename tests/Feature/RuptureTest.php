@@ -15,7 +15,9 @@ use App\Models\FinanceLine;
 use App\Models\OpcoFile;
 use App\Models\Rupture;
 use App\Models\User;
+use App\StateMachine\InvalidTransitionException;
 use Database\Seeders\RolePermissionSeeder;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 
@@ -30,8 +32,8 @@ function contratActif(): Contract
         'statut_signature' => ContractSignatureStatut::Signe,
         'candidate_id' => $candidate->id,
     ]);
-    // Dossier OPCO déposé → l'admission officielle « À vérifier » s'ouvre.
-    OpcoFile::factory()->create(['contract_id' => $contract->id, 'statut' => OpcoStatut::Depose, 'motif_rejet' => null]);
+    // Dossier OPCO accepté → l'admission officielle « À vérifier » s'ouvre.
+    OpcoFile::factory()->create(['contract_id' => $contract->id, 'statut' => OpcoStatut::Accepte, 'motif_rejet' => null]);
     FinanceLine::factory()->create(['contract_id' => $contract->id]);
 
     return $contract;
@@ -77,7 +79,7 @@ it('ne crée qu\'un seul dossier de rupture par contrat (unicité)', function ()
     Rupture::factory()->create(['contract_id' => $contract->id]);
 
     expect(fn () => Rupture::factory()->create(['contract_id' => $contract->id]))
-        ->toThrow(Illuminate\Database\QueryException::class);
+        ->toThrow(QueryException::class);
 });
 
 it('suit le traitement administratif : à traiter → documents générés → clôturée', function () {
@@ -100,7 +102,7 @@ it('refuse une transition de traitement non autorisée', function () {
 
     // Clôturée est terminale : aucun retour possible.
     expect(fn () => $rupture->fresh()->transitionTo(RuptureStatut::ATraiter))
-        ->toThrow(App\StateMachine\InvalidTransitionException::class);
+        ->toThrow(InvalidTransitionException::class);
 });
 
 it('réserve le module rupture aux profils autorisés', function () {

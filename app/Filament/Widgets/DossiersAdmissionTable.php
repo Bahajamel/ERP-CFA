@@ -10,8 +10,8 @@ use Filament\Tables\Table;
 use Filament\Widgets\TableWidget as BaseWidget;
 
 /**
- * Dashboard admission / administratif (P0-12-3) : la file des dossiers d'admission
- * à traiter, avec le nombre de pièces obligatoires manquantes. Ligne cliquable.
+ * Dashboard admission / administratif (P0-12-3) : la file des dossiers
+ * d'admission à valider (OPCO accepté). Ligne cliquable vers le dossier.
  */
 class DossiersAdmissionTable extends BaseWidget
 {
@@ -31,7 +31,7 @@ class DossiersAdmissionTable extends BaseWidget
         return $table
             ->query(
                 Admission::query()
-                    ->with('candidate.media')
+                    ->with(['candidate', 'contract.opcoFile'])
                     ->where('statut', AdmissionStatut::AVerifier->value)
                     ->latest()
             )
@@ -46,11 +46,10 @@ class DossiersAdmissionTable extends BaseWidget
                 TextColumn::make('statut')
                     ->label('Statut')
                     ->badge(),
-                TextColumn::make('cv')
-                    ->label('CV')
-                    ->state(fn (Admission $record): string => $record->cvManquant() ? 'CV manquant' : 'CV fourni')
+                TextColumn::make('contract.opcoFile.statut')
+                    ->label('Dossier OPCO')
                     ->badge()
-                    ->color(fn (string $state): string => $state === 'CV fourni' ? 'success' : 'danger')
+                    ->placeholder('—')
                     ->alignCenter(),
                 TextColumn::make('created_at')
                     ->label('Créé le')
