@@ -6,31 +6,35 @@ use App\Enums\CandidateStatut;
 use App\Enums\DocumentSource;
 use App\Enums\DocumentStatut;
 use App\Enums\DocumentType;
+use App\Enums\EntretienMode;
+use App\Enums\EntretienStatut;
+use App\Filament\Resources\Entretiens\EntretienResource;
 use App\Livret\LivrablesArchive;
 use App\Models\Candidate;
 use App\Models\Matching;
 use App\Models\Need;
-use Illuminate\Support\Arr;
 use App\Parcours\CycleApprenant;
 use App\Parcours\CycleBloqueException;
 use App\StateMachine\InvalidTransitionException;
 use Filament\Actions\Action;
+use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
-use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
-use Filament\Actions\ForceDeleteBulkAction;
-use Filament\Actions\RestoreBulkAction;
 use Filament\Actions\ViewAction;
+use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TimePicker;
 use Filament\Notifications\Notification;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
-use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Collection;
+use Illuminate\Validation\ValidationException;
 
 class CandidatesTable
 {
@@ -75,7 +79,6 @@ class CandidatesTable
                 SelectFilter::make('formation_visee_id')
                     ->label('Formation visée')
                     ->relationship('formationVisee', 'libelle'),
-                TrashedFilter::make(),
             ])
             ->recordActions([
                 Action::make('changerStatut')
@@ -121,25 +124,25 @@ class CandidatesTable
                     ->modalDescription('L\'entretien apparaîtra dans la section Entretiens et le candidat passera '
                         .'automatiquement à « Entretien prévu ».')
                     ->schema([
-                        \Filament\Forms\Components\DatePicker::make('date_entretien')
+                        DatePicker::make('date_entretien')
                             ->label('Date')->displayFormat('d/m/Y')->native(false)->required(),
-                        \Filament\Forms\Components\TimePicker::make('heure_debut')
+                        TimePicker::make('heure_debut')
                             ->label('Heure de début')->seconds(false)->required(),
-                        \Filament\Forms\Components\TimePicker::make('heure_fin')
+                        TimePicker::make('heure_fin')
                             ->label('Heure de fin')->seconds(false)->required()->after('heure_debut'),
                         Select::make('mode')
                             ->label('Mode')
-                            ->options(\App\Enums\EntretienMode::class)
-                            ->default(\App\Enums\EntretienMode::Presentiel->value)
+                            ->options(EntretienMode::class)
+                            ->default(EntretienMode::Presentiel->value)
                             ->required(),
                     ])
                     ->action(function (Candidate $record, array $data): void {
                         try {
                             $entretien = $record->entretiens()->create($data + [
-                                'statut' => \App\Enums\EntretienStatut::Planifie->value,
+                                'statut' => EntretienStatut::Planifie->value,
                                 'responsable_id' => auth()->id(),
                             ]);
-                        } catch (\Illuminate\Validation\ValidationException $e) {
+                        } catch (ValidationException $e) {
                             Notification::make()->danger()->title('Planification impossible')
                                 ->body(collect($e->errors())->flatten()->first())->send();
 
@@ -159,7 +162,7 @@ class CandidatesTable
                     ->color('warning')
                     ->visible(fn (Candidate $record): bool => ! $record->statut->estFinal()
                         && $record->entretienActif() !== null)
-                    ->url(fn (Candidate $record): string => \App\Filament\Resources\Entretiens\EntretienResource::getUrl(
+                    ->url(fn (Candidate $record): string => EntretienResource::getUrl(
                         'edit',
                         ['record' => $record->entretienActif()],
                     )),
@@ -289,12 +292,59 @@ class CandidatesTable
                     }),
                 ViewAction::make(),
                 EditAction::make(),
+                // Suppression = archivage en corbeille, motif OBLIGATOIRE. Le
+                // candidat et ses dossiers quittent toutes les listes ; purge
+                // définitive automatique après 30 jours (restauration possible).
+                Action::make('supprimer')
+                    ->label('Supprimer')
+                    ->icon('heroicon-o-trash')
+                    ->color('danger')
+                    ->requiresConfirmation()
+                    ->modalHeading(fn (Candidate $record): string => "Supprimer {$record->nom_complet} ?")
+                    ->modalDescription('Le candidat et tous ses dossiers (matching, entretiens, contrat, '
+                        .'admission, dossier OPCO…) seront retirés de toutes les listes et placés dans la '
+                        .'Corbeille pendant '.Candidate::DELAI_PURGE_JOURS.' jours. Vous pourrez le restaurer '
+                        .'avant la suppression définitive automatique.')
+                    ->modalSubmitActionLabel('Placer dans la corbeille')
+                    ->schema([
+                        Textarea::make('motif_suppression')
+                            ->label('Motif de suppression')
+                            ->required()
+                            ->rows(3)
+                            ->placeholder('ex : doublon, candidature annulée, erreur de saisie…'),
+                    ])
+                    ->action(function (Candidate $record, array $data): void {
+                        $record->archiver($data['motif_suppression']);
+
+                        Notification::make()->success()
+                            ->title('Candidat placé dans la corbeille')
+                            ->body('Restaurable pendant '.Candidate::DELAI_PURGE_JOURS.' jours (section Corbeille).')
+                            ->send();
+                    }),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
-                    DeleteBulkAction::make(),
-                    ForceDeleteBulkAction::make(),
-                    RestoreBulkAction::make(),
+                    BulkAction::make('supprimerLot')
+                        ->label('Supprimer')
+                        ->icon('heroicon-o-trash')
+                        ->color('danger')
+                        ->requiresConfirmation()
+                        ->modalDescription('Les candidats sélectionnés seront placés dans la Corbeille ('
+                            .Candidate::DELAI_PURGE_JOURS.' jours) avant suppression définitive.')
+                        ->schema([
+                            Textarea::make('motif_suppression')
+                                ->label('Motif de suppression')
+                                ->required()
+                                ->rows(3),
+                        ])
+                        ->action(function (Collection $records, array $data): void {
+                            $records->each(fn (Candidate $c) => $c->archiver($data['motif_suppression']));
+
+                            Notification::make()->success()
+                                ->title($records->count().' candidat(s) placé(s) dans la corbeille')
+                                ->send();
+                        })
+                        ->deselectRecordsAfterCompletion(),
                 ]),
             ])
             ->defaultSort('created_at', 'desc')

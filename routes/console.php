@@ -13,3 +13,6 @@ Schedule::command('opco:flag-echeances')->dailyAt('06:00');
 
 // Alertes proactives transverses (dossiers, signatures, OPCO, échéances).
 Schedule::command('app:generer-alertes')->dailyAt('06:15');
+
+// Corbeille candidats : purge définitive après 30 jours de rétention.
+Schedule::command('candidats:purger-corbeille')->dailyAt('03:00');

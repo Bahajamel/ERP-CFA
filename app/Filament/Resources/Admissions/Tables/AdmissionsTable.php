@@ -21,7 +21,10 @@ class AdmissionsTable
     public static function configure(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(fn (Builder $query) => $query->with(['candidate.media', 'contract.company', 'contract.opcoFile']))
+            ->modifyQueryUsing(fn (Builder $query) => $query
+                ->with(['candidate.media', 'contract.company', 'contract.opcoFile'])
+                // Masque les admissions dont le candidat a été supprimé (corbeille).
+                ->whereHas('candidate'))
             ->columns([
                 TextColumn::make('candidate.nom_complet')
                     ->label('Apprenti')

@@ -21,6 +21,8 @@ class EntretiensTable
     public static function configure(Table $table): Table
     {
         return $table
+            // Masque les entretiens dont le candidat a été supprimé (corbeille).
+            ->modifyQueryUsing(fn (Builder $query) => $query->whereHas('candidate'))
             ->columns([
                 TextColumn::make('candidate.nom_complet')
                     ->label('Candidat')
