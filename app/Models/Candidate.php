@@ -404,6 +404,50 @@ class Candidate extends Model implements HasMedia
         return $this->hasMany(Presence::class);
     }
 
+    /** Les notes de l'apprenant (bulletins). */
+    public function evaluations(): HasMany
+    {
+        return $this->hasMany(Evaluation::class);
+    }
+
+    /**
+     * Moyennes par matière (pondérées par coefficient), sur 20.
+     *
+     * @return array<int, array{matiere: string, moyenne: float, coefficient: float, nb: int}>
+     */
+    public function moyennesParMatiere(): array
+    {
+        return $this->evaluations()
+            ->get()
+            ->groupBy('matiere')
+            ->map(function ($notes, $matiere): array {
+                $poids = $notes->sum(fn (Evaluation $e) => (float) $e->coefficient);
+                $somme = $notes->sum(fn (Evaluation $e) => $e->noteSur20() * (float) $e->coefficient);
+
+                return [
+                    'matiere' => $matiere,
+                    'moyenne' => $poids > 0 ? round($somme / $poids, 2) : 0.0,
+                    'coefficient' => $poids,
+                    'nb' => $notes->count(),
+                ];
+            })
+            ->sortBy('matiere')
+            ->values()
+            ->all();
+    }
+
+    /** Moyenne générale (moyenne des moyennes de matières), sur 20, ou null si aucune note. */
+    public function moyenneGenerale(): ?float
+    {
+        $matieres = $this->moyennesParMatiere();
+
+        if ($matieres === []) {
+            return null;
+        }
+
+        return round(collect($matieres)->avg('moyenne'), 2);
+    }
+
     /**
      * Assiduité de l'apprenti sur une période (EPIC-14, P1-14-4).
      * Retourne : séances renseignées, présents, absences injustifiées, taux (%).

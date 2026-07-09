@@ -7,6 +7,7 @@ use App\Enums\DocumentType;
 use App\Enums\PresenceStatut;
 use App\Models\Candidate;
 use App\Models\Presence;
+use App\Scolarite\BulletinGenerator;
 use Filament\Actions\Action;
 use Filament\Forms\Components\FileUpload;
 use Filament\Notifications\Notification;
@@ -73,9 +74,73 @@ class FicheApprenant
                     Notification::make()->success()->title('Fiche apprenant mise à jour')->send();
                 }
             })
+            // Actions scolarité du pop-up : saisir une note, générer / importer
+            // le bulletin (au plus près de l'apprenant, dans la scolarité).
+            ->extraModalFooterActions(fn (Candidate $record): array => self::actionsScolarite($record))
             ->modalSubmitActionLabel('Enregistrer')
             ->modalCancelActionLabel('Fermer')
             ->modalWidth('3xl');
+    }
+
+    /** @return array<int, Action> */
+    private static function actionsScolarite(Candidate $record): array
+    {
+        $estAdmin = Auth::user()?->hasRole('Administrateur') ?? false;
+
+        return [
+            // Bulletin généré depuis les notes (téléchargé + archivé en GED).
+            Action::make('genererBulletin')
+                ->label('Bulletin de notes')
+                ->icon('heroicon-o-document-arrow-down')
+                ->color('success')
+                ->visible(fn (): bool => $record->evaluations()->exists())
+                ->action(function () use ($record) {
+                    $generateur = app(BulletinGenerator::class);
+                    $document = $generateur->archiver($record, Auth::id());
+
+                    Notification::make()->success()
+                        ->title('Bulletin généré')
+                        ->body('Version '.$document->version.' archivée dans les documents.')
+                        ->send();
+
+                    return response()->streamDownload(
+                        fn () => print($generateur->pdf($record)),
+                        'bulletin-'.$record->nom_complet.'.pdf',
+                        ['Content-Type' => 'application/pdf'],
+                    );
+                }),
+
+            // Import d'un bulletin externe — réservé à l'administrateur.
+            Action::make('importerBulletin')
+                ->label('Importer un bulletin')
+                ->icon('heroicon-o-arrow-up-tray')
+                ->color('gray')
+                ->visible($estAdmin)
+                ->modalHeading('Importer un bulletin')
+                ->schema([
+                    FileUpload::make('fichier')
+                        ->label('Bulletin (PDF)')
+                        ->acceptedFileTypes(['application/pdf'])
+                        ->maxSize(10240)
+                        ->disk('public')
+                        ->storeFileNamesIn('nom_original')
+                        ->required(),
+                ])
+                ->action(function (array $data) use ($record): void {
+                    $document = app(BulletinGenerator::class)->importer(
+                        $record,
+                        $data['fichier'],
+                        $data['nom_original'] ?? null,
+                        Auth::id(),
+                    );
+
+                    Notification::make()->success()
+                        ->title('Bulletin importé')
+                        ->body('Version '.$document->version.' archivée dans les documents.')
+                        ->send();
+                })
+                ->modalSubmitActionLabel('Importer'),
+        ];
     }
 
     /** Taux de présence global de l'apprenant (présences renseignées uniquement). */

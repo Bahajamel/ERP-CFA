@@ -71,6 +71,11 @@ class ClasseDemoSeeder extends Seeder
         foreach (Formation::all() as $formation) {
             $matieres = self::MATIERES[$formation->libelle] ?? ['Cours magistral', 'Travaux pratiques', 'Anglais professionnel'];
 
+            // Catalogue de la formation : renseigne son programme s'il est vide.
+            if (blank($formation->matieres)) {
+                $formation->update(['matieres' => $matieres]);
+            }
+
             $libelles = ['1ère année'];
             if (($formation->duree_mois ?? 12) > 12) {
                 $libelles[] = '2ème année';
@@ -93,6 +98,37 @@ class ClasseDemoSeeder extends Seeder
 
                 // La 2ème année démarre le programme décalé → emploi du temps distinct.
                 $this->planifierEmploiDuTemps($classe, $formateur, $matieres, $rang, $matieresConnues);
+
+                // Quelques notes pour rendre les bulletins démontrables.
+                $this->saisirNotes($classe, array_slice($matieres, 0, 4), $formateur);
+            }
+        }
+    }
+
+    /** Deux notes par apprenant sur les premières matières (bulletins de démo). */
+    private function saisirNotes(Promotion $classe, array $matieres, ?User $formateur): void
+    {
+        if ($classe->evaluations()->exists()) {
+            return; // idempotent
+        }
+
+        $types = [\App\Enums\EvaluationType::Devoir, \App\Enums\EvaluationType::Controle, \App\Enums\EvaluationType::Examen];
+
+        foreach ($classe->apprentis as $apprenti) {
+            foreach ($matieres as $i => $matiere) {
+                for ($n = 0; $n < 2; $n++) {
+                    \App\Models\Evaluation::create([
+                        'candidate_id' => $apprenti->id,
+                        'promotion_id' => $classe->id,
+                        'matiere' => $matiere,
+                        'type' => $types[($i + $n) % count($types)]->value,
+                        'note' => fake()->randomFloat(1, 8, 19),
+                        'bareme' => 20,
+                        'coefficient' => $i === 0 ? 2 : 1,
+                        'date' => now()->subDays(fake()->numberBetween(5, 60))->toDateString(),
+                        'author_id' => $formateur?->id,
+                    ]);
+                }
             }
         }
     }

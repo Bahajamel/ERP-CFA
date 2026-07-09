@@ -56,6 +56,12 @@ class Promotion extends Model
         return $this->hasMany(Seance::class);
     }
 
+    /** Les notes saisies dans cette classe. */
+    public function evaluations(): HasMany
+    {
+        return $this->hasMany(Evaluation::class);
+    }
+
     /**
      * Compose la classe : rattache les apprentis cochés et détache les autres.
      * Un apprenant peut suivre PLUSIEURS classes (matières), mais toutes au sein
