@@ -6,9 +6,12 @@ use App\Enums\ContractStatut;
 use App\Models\Candidate;
 use App\Models\CompanyContact;
 use App\Models\Contract;
+use App\Services\ContractDocumentService;
+use App\Support\AdresseBan;
 use App\Support\RemunerationApprenti;
 use Closure;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
@@ -123,11 +126,64 @@ class ContractForm
                             ->afterOrEqual('date_debut')
                             ->live(onBlur: true)
                             ->afterStateUpdated(fn (Set $set, Get $get) => self::preRemplirSalaire($set, $get)),
+                        TextInput::make('duree_formation_heures')
+                            ->label('Durée de formation')
+                            ->numeric()
+                            ->minValue(0)
+                            ->suffix('heures')
+                            ->placeholder('ex : 800')
+                            ->helperText('Nombre d\'heures total en CFA (Article 2 de la convention).'),
+                        TextInput::make('cout_formation')
+                            ->label('Coût de la formation')
+                            ->numeric()
+                            ->minValue(0)
+                            ->step('0.01')
+                            ->suffix('€ net de taxe')
+                            ->placeholder('ex : 8000')
+                            ->helperText('Prix de la prestation, net de taxe (Article 4 — prise en charge OPCO).'),
+                    ]),
+                Section::make('Lieu principal de formation')
+                    ->description('Adresse intelligente (Base Adresse Nationale) : recherchez le lieu, les champs se '
+                        .'complètent seuls. La saisie manuelle reste possible. Utilisé dans le CERFA et la convention.')
+                    ->icon('heroicon-o-map-pin')
+                    ->columns(2)
+                    ->schema([
+                        Select::make('lieu_formation_recherche')
+                            ->label('Rechercher une adresse')
+                            ->placeholder('Tapez une adresse ou une ville…')
+                            ->searchable()
+                            ->live()
+                            ->dehydrated(false)
+                            ->getSearchResultsUsing(fn (string $search): array => app(AdresseBan::class)->options($search))
+                            ->getOptionLabelUsing(fn ($value): ?string => AdresseBan::decode($value)['label'] ?? null)
+                            ->afterStateUpdated(function ($state, Set $set): void {
+                                $data = AdresseBan::decode($state);
+
+                                if ($data === null) {
+                                    return;
+                                }
+
+                                $set('lieu_formation', $data['adresse'] ?? $data['label']);
+                                $set('lieu_formation_code_postal', $data['code_postal']);
+                                $set('lieu_formation_ville', $data['ville']);
+                                $set('lieu_formation_latitude', $data['latitude']);
+                                $set('lieu_formation_longitude', $data['longitude']);
+                            })
+                            ->helperText('Autocomplétion France. Saisie manuelle possible ci-dessous.')
+                            ->columnSpanFull(),
                         TextInput::make('lieu_formation')
-                            ->label('Lieu de formation')
-                            ->placeholder('ex : CFA de Lyon, 15 rue Garibaldi')
+                            ->label('Adresse (voie)')
+                            ->placeholder('ex : 15 rue Garibaldi')
                             ->required()
                             ->columnSpanFull(),
+                        TextInput::make('lieu_formation_code_postal')
+                            ->label('Code postal')
+                            ->placeholder('ex : 69003'),
+                        TextInput::make('lieu_formation_ville')
+                            ->label('Ville')
+                            ->placeholder('ex : Lyon'),
+                        Hidden::make('lieu_formation_latitude'),
+                        Hidden::make('lieu_formation_longitude'),
                     ]),
                 Section::make('Rémunération')
                     ->description('Minimum légal calculé automatiquement depuis l\'âge de l\'apprenti et les dates '
@@ -179,11 +235,27 @@ class ContractForm
                             ->options(fn (?Contract $record): array => $record ? self::statutOptions($record) : [])
                             ->required(),
                     ]),
-                Section::make('CERFA (contrat d\'apprentissage)')
-                    ->description('Contrat d\'apprentissage entre le CFA et l\'entreprise (CERFA FA13). Déposez le document (PDF).')
+                Section::make('Documents du contrat — tour de contrôle')
+                    ->description('CERFA + convention de formation : complétude, état documentaire et informations '
+                        .'manquantes. Générez les documents depuis les actions en haut de page.')
+                    ->icon('heroicon-o-clipboard-document-check')
+                    ->visibleOn('edit')
+                    ->schema([
+                        Placeholder::make('completude')
+                            ->hiddenLabel()
+                            ->content(fn (Contract $record): HtmlString => new HtmlString(
+                                view('filament.contracts.completude', [
+                                    'etat' => app(ContractDocumentService::class)->completude($record),
+                                ])->render(),
+                            )),
+                    ]),
+                Section::make('CERFA signé (dépôt manuel)')
+                    ->description('Le CERFA pré-rempli se génère via l\'action « Générer le CERFA ». Déposez ici le '
+                        .'CERFA signé par les trois parties (PDF), une fois la signature obtenue.')
+                    ->collapsed()
                     ->schema([
                         SpatieMediaLibraryFileUpload::make('cerfa')
-                            ->label('Document CERFA')
+                            ->label('CERFA signé')
                             ->collection('cerfa')
                             ->acceptedFileTypes(['application/pdf'])
                             ->downloadable()
