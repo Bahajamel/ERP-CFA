@@ -51,6 +51,12 @@ class CycleApprenant
 
     public const MSG_MATCHING_EXISTANT = 'Un matching existe déjà pour ce candidat et ce besoin.';
 
+    public const MSG_CV_OBLIGATOIRE = 'Un CV est obligatoire pour envoyer une proposition à une offre.';
+
+    public const MSG_DEJA_PROPOSE = 'Ce candidat a déjà été proposé à cette offre.';
+
+    public const MSG_DEJA_EN_RECHERCHE = 'Ce candidat est déjà en recherche entreprise.';
+
     public const MSG_MATCHING_NON_ACCEPTE = 'Impossible de créer un contrat : le matching n\'est pas accepté.';
 
     public const MSG_MATCHING_SANS_ENTREPRISE = 'Impossible de créer un contrat : aucune entreprise n\'est rattachée à ce matching.';
@@ -119,6 +125,17 @@ class CycleApprenant
         if ($entretien->statut === EntretienStatut::Planifie) {
             if ($candidate->statut === CandidateStatut::EntretienAPlanifier) {
                 $candidate->transitionTo(CandidateStatut::EntretienPrevu);
+            }
+
+            return;
+        }
+
+        // L'entretien a eu lieu : le candidat passe à « Entretien réalisé »
+        // (l'équipe CFA doit maintenant décider : Accepté ou Refusé). Pas de
+        // départ automatique vers le Matching à ce stade.
+        if ($entretien->statut === EntretienStatut::Realise) {
+            if ($candidate->statut === CandidateStatut::EntretienPrevu) {
+                $candidate->transitionTo(CandidateStatut::EntretienRealise);
             }
 
             return;
@@ -217,16 +234,47 @@ class CycleApprenant
      * ---------------------------------------------------------------- */
 
     /**
-     * Envoie un candidat accepté vers le Matching sur un besoin entreprise.
-     * Si une recherche automatique sans entreprise est déjà ouverte, le
-     * besoin y est rattaché (pas de doublon) ; sinon un matching est créé.
+     * Envoie un candidat accepté vers le Matching.
+     *
+     *  - sans offre (`$need === null`) : garantit une recherche « En
+     *    recherche » ouverte (réutilise l'existante — anti-doublon — ou la
+     *    crée). Le candidat cherche encore une entreprise ;
+     *  - avec une offre : rattache le besoin à la recherche (statut « En
+     *    recherche » conservé — l'entreprise est identifiée mais la
+     *    proposition n'est pas encore envoyée).
+     *
+     * Pour envoyer une **proposition** à une offre (CV requis, statut
+     * « Proposition envoyée »), utiliser {@see self::proposerSurOffre()}.
      *
      * @throws CycleBloqueException candidat non accepté ou matching déjà existant
      */
-    public function envoyerVersMatching(Candidate $candidate, Need $need, string $origine = self::ORIGINE_CFA): Matching
+    public function envoyerVersMatching(Candidate $candidate, ?Need $need = null, string $origine = self::ORIGINE_CFA): Matching
     {
         if ($candidate->statut !== CandidateStatut::Accepte) {
             throw new CycleBloqueException(self::MSG_CANDIDAT_NON_ACCEPTE);
+        }
+
+        // Sans offre : une seule recherche active par candidat (idempotent).
+        if ($need === null) {
+            $existant = $candidate->matchings()
+                ->whereIn('statut', array_map(
+                    fn (MatchingStatut $s) => $s->value,
+                    [...self::MATCHING_ACTIFS, MatchingStatut::Accepte],
+                ))
+                ->latest('id')
+                ->first();
+
+            if ($existant !== null) {
+                return $existant;
+            }
+
+            return Matching::query()->create([
+                'candidate_id' => $candidate->id,
+                'need_id' => null,
+                'origine' => self::ORIGINE_CFA,
+                'statut' => MatchingStatut::EnRecherche->value,
+                'assigned_by' => Auth::id(),
+            ]);
         }
 
         if (Matching::query()->where('need_id', $need->id)->where('candidate_id', $candidate->id)->exists()) {
@@ -254,6 +302,59 @@ class CycleApprenant
             'candidate_id' => $candidate->id,
             'origine' => $origine,
             'statut' => MatchingStatut::EnRecherche->value,
+            'assigned_by' => Auth::id(),
+        ]);
+    }
+
+    /**
+     * Envoie une **proposition** d'un candidat accepté sur une offre précise :
+     * le CV est obligatoire (existant au profil ou ajouté au moment de
+     * l'envoi), le matching passe à « Proposition envoyée » et `cv_envoye`
+     * est marqué. Réutilise la recherche automatique ouverte à l'acceptation
+     * plutôt que d'en créer une seconde (anti-doublon).
+     *
+     * @param  bool  $cvDisponible  le candidat dispose d'un CV (existant ou nouvellement ajouté)
+     *
+     * @throws CycleBloqueException candidat non accepté, CV manquant, ou candidat déjà proposé à cette offre
+     */
+    public function proposerSurOffre(Candidate $candidate, Need $need, bool $cvDisponible, string $origine = self::ORIGINE_CFA): Matching
+    {
+        if ($candidate->statut !== CandidateStatut::Accepte) {
+            throw new CycleBloqueException(self::MSG_CANDIDAT_NON_ACCEPTE);
+        }
+
+        // Garde métier (backend, pas seulement l'interface) : pas de proposition sans CV.
+        if (! $cvDisponible) {
+            throw new CycleBloqueException(self::MSG_CV_OBLIGATOIRE);
+        }
+
+        if (Matching::query()->where('need_id', $need->id)->where('candidate_id', $candidate->id)->exists()) {
+            throw new CycleBloqueException(self::MSG_DEJA_PROPOSE);
+        }
+
+        $recherche = $candidate->matchings()
+            ->whereNull('need_id')
+            ->whereIn('statut', array_map(fn (MatchingStatut $s) => $s->value, self::MATCHING_ACTIFS))
+            ->first();
+
+        if ($recherche !== null) {
+            $recherche->forceFill([
+                'need_id' => $need->id,
+                'origine' => $origine,
+                'cv_envoye' => true,
+                'statut' => MatchingStatut::PropositionEnvoyee->value,
+                'assigned_by' => Auth::id() ?? $recherche->assigned_by,
+            ])->save();
+
+            return $recherche->refresh();
+        }
+
+        return Matching::query()->create([
+            'candidate_id' => $candidate->id,
+            'need_id' => $need->id,
+            'origine' => $origine,
+            'cv_envoye' => true,
+            'statut' => MatchingStatut::PropositionEnvoyee->value,
             'assigned_by' => Auth::id(),
         ]);
     }

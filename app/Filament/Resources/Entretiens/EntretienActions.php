@@ -157,7 +157,8 @@ class EntretienActions
 
                 Notification::make()->success()
                     ->title('Entretien réalisé')
-                    ->body('Prenez maintenant la décision : accepter ou refuser le candidat.')
+                    ->body('Le candidat passe à « Entretien réalisé ». Prenez maintenant la décision : '
+                        .'accepter ou refuser le candidat.')
                     ->send();
             });
     }

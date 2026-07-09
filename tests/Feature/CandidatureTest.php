@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\CandidateStatut;
+use App\Enums\DocumentType;
 use App\Models\Candidate;
 use App\Models\Formation;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -53,6 +54,21 @@ it('crée un candidat « Entretien à planifier » avec ses pièces (collections
         ->and($candidate->getFirstMedia('cv'))->not->toBeNull()
         ->and($candidate->getFirstMedia('piece_identite'))->not->toBeNull()
         ->and($candidate->getFirstMedia('carte_vitale'))->not->toBeNull();
+});
+
+it('trace les pièces déposées comme documents GED du candidat (section Documents)', function () {
+    $this->post(route('candidature.store'), candidaturePayload())
+        ->assertRedirect(route('candidature.merci'));
+
+    $candidate = Candidate::where('email', 'lea.martin@example.test')->first();
+
+    // CV + pièce d'identité + carte vitale → 3 documents typés et téléchargeables.
+    expect($candidate->documents()->count())->toBe(3)
+        ->and($candidate->documents()->where('type', DocumentType::CvCandidat->value)->whereHas('media')->exists())->toBeTrue()
+        ->and($candidate->documents()->where('type', DocumentType::PieceIdentite->value)->whereHas('media')->exists())->toBeTrue()
+        ->and($candidate->documents()->where('type', DocumentType::CarteVitale->value)->whereHas('media')->exists())->toBeTrue()
+        // Le CV est détecté (collection média ET document GED).
+        ->and($candidate->hasCv())->toBeTrue();
 });
 
 it('refuse une candidature sans CV', function () {

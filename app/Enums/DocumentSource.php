@@ -10,12 +10,14 @@ enum DocumentSource: string implements HasLabel, HasColor
 {
     case Manuel = 'manuel';
     case LivretRs = 'livretrs';
+    case Candidature = 'candidature';
 
     public function getLabel(): string
     {
         return match ($this) {
             self::Manuel => 'Déposé manuellement',
             self::LivretRs => 'Généré par LivretRS',
+            self::Candidature => 'Candidature en ligne',
         };
     }
 
@@ -24,6 +26,7 @@ enum DocumentSource: string implements HasLabel, HasColor
         return match ($this) {
             self::Manuel => 'gray',
             self::LivretRs => 'info',
+            self::Candidature => 'success',
         };
     }
 }

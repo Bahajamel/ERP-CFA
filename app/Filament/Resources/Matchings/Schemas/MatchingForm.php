@@ -71,6 +71,13 @@ class MatchingForm
                             ->live(),
                         Toggle::make('cv_envoye')
                             ->label('CV envoyé'),
+                        \Filament\Forms\Components\SpatieMediaLibraryFileUpload::make('cv')
+                            ->label('CV transmis à l\'entreprise')
+                            ->collection('cv')
+                            ->downloadable()
+                            ->openable()
+                            ->helperText('CV réellement joint à la proposition (traçabilité).')
+                            ->columnSpanFull(),
                         DatePicker::make('date_entretien')
                             ->label('Date d\'entretien entreprise')
                             ->displayFormat('d/m/Y')

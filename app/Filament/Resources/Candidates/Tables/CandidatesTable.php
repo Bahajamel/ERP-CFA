@@ -3,9 +3,14 @@
 namespace App\Filament\Resources\Candidates\Tables;
 
 use App\Enums\CandidateStatut;
+use App\Enums\DocumentSource;
+use App\Enums\DocumentStatut;
+use App\Enums\DocumentType;
 use App\Livret\LivrablesArchive;
 use App\Models\Candidate;
+use App\Models\Matching;
 use App\Models\Need;
+use Illuminate\Support\Arr;
 use App\Parcours\CycleApprenant;
 use App\Parcours\CycleBloqueException;
 use App\StateMachine\InvalidTransitionException;
@@ -16,9 +21,12 @@ use Filament\Actions\EditAction;
 use Filament\Actions\ForceDeleteBulkAction;
 use Filament\Actions\RestoreBulkAction;
 use Filament\Actions\ViewAction;
+use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TrashedFilter;
@@ -162,24 +170,71 @@ class CandidatesTable
                     // Étape suivante du cycle : uniquement pour les candidats acceptés.
                     ->visible(fn (Candidate $record): bool => $record->statut === CandidateStatut::Accepte)
                     ->modalHeading(fn (Candidate $record): string => "Envoyer {$record->nom_complet} vers le Matching")
+                    ->modalDescription('Sans offre : le candidat part « En recherche » d\'entreprise. '
+                        .'Avec une offre : une proposition est envoyée (un CV est alors obligatoire).')
                     ->schema([
                         Select::make('need_id')
-                            ->label('Besoin entreprise')
+                            ->label('Offres proposées')
                             ->options(fn (): array => Need::query()->ouverts()->with('company')->get()
                                 ->mapWithKeys(fn (Need $n): array => [
                                     $n->id => $n->intitule_poste.($n->company ? ' — '.$n->company->raison_sociale : ''),
                                 ])->all())
                             ->searchable()
-                            ->required()
-                            ->helperText('Besoins ouverts uniquement. Si le candidat a trouvé son entreprise '
-                                .'lui-même, utilisez « Entreprise trouvée par le candidat » dans le module Matching.'),
+                            ->live()
+                            ->helperText('Optionnel : laissez vide pour lancer une recherche d\'entreprise. '
+                                .'Choisissez une offre pour envoyer une proposition (CV requis).'),
+                        // CV requis uniquement si une offre est sélectionnée.
+                        Radio::make('cv_source')
+                            ->label('CV à joindre à la proposition')
+                            ->options(fn (Candidate $record): array => array_filter([
+                                'existant' => $record->hasCv() ? 'Utiliser le CV existant du candidat' : null,
+                                'nouveau' => 'Ajouter un nouveau CV',
+                            ]))
+                            ->default(fn (Candidate $record): string => $record->hasCv() ? 'existant' : 'nouveau')
+                            ->visible(fn (Get $get): bool => filled($get('need_id')))
+                            ->required(fn (Get $get): bool => filled($get('need_id')))
+                            ->live(),
+                        FileUpload::make('cv_nouveau')
+                            ->label('Nouveau CV')
+                            ->disk('public')
+                            ->directory('cv-propositions')
+                            ->acceptedFileTypes([
+                                'application/pdf',
+                                'application/msword',
+                                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                            ])
+                            ->maxSize(5120)
+                            ->helperText('PDF, DOC ou DOCX (5 Mo max).')
+                            ->visible(fn (Get $get): bool => filled($get('need_id')) && $get('cv_source') === 'nouveau')
+                            ->required(fn (Get $get): bool => filled($get('need_id')) && $get('cv_source') === 'nouveau'),
                     ])
                     ->action(function (Candidate $record, array $data): void {
+                        $needId = $data['need_id'] ?? null;
+
                         try {
-                            app(CycleApprenant::class)->envoyerVersMatching($record, Need::query()->findOrFail($data['need_id']));
+                            // Cas 1 : aucune offre → recherche d'entreprise (« En recherche »).
+                            if (blank($needId)) {
+                                app(CycleApprenant::class)->envoyerVersMatching($record, null);
+                                Notification::make()->success()
+                                    ->title('Candidat en recherche d\'entreprise')
+                                    ->body('Un dossier Matching « En recherche » est ouvert (aucune offre associée).')
+                                    ->send();
+
+                                return;
+                            }
+
+                            // Cas 2 : offre sélectionnée → proposition (CV obligatoire).
+                            $need = Need::query()->findOrFail($needId);
+                            self::resoudreCvProposition($record, $data);
+
+                            $matching = app(CycleApprenant::class)
+                                ->proposerSurOffre($record, $need, cvDisponible: $record->fresh()->hasCv());
+
+                            self::joindreCvAuMatching($record, $matching);
+
                             Notification::make()->success()
-                                ->title('Candidat envoyé au Matching')
-                                ->body('Un matching « En recherche » a été créé pour ce besoin.')
+                                ->title('Proposition envoyée')
+                                ->body('Matching « Proposition envoyée » créé pour ce candidat sur l\'offre choisie.')
                                 ->send();
                         } catch (CycleBloqueException $e) {
                             Notification::make()->danger()->title('Envoi impossible')->body($e->getMessage())->send();
@@ -240,5 +295,51 @@ class CandidatesTable
             ->emptyStateHeading('Aucun candidat pour le moment')
             ->emptyStateDescription('Créez votre premier candidat : il démarre en « Entretien à planifier ». '
                 .'Planifiez son entretien, puis acceptez-le ou refusez-le — l\'acceptation ouvre automatiquement le Matching.');
+    }
+
+    /**
+     * Résout le CV d'une proposition : si l'utilisateur a ajouté un nouveau
+     * CV, il devient le CV du candidat (collection « cv » + document GED), donc
+     * disponible et tracé au profil. Le CV existant, lui, est réutilisé tel quel.
+     */
+    private static function resoudreCvProposition(Candidate $record, array $data): void
+    {
+        if (($data['cv_source'] ?? null) !== 'nouveau') {
+            return;
+        }
+
+        $chemin = collect(Arr::wrap($data['cv_nouveau'] ?? []))->first();
+
+        if (blank($chemin)) {
+            return;
+        }
+
+        $media = $record->addMediaFromDisk($chemin, 'public')->toMediaCollection('cv');
+
+        $document = $record->documents()->create([
+            'type' => DocumentType::CvCandidat->value,
+            'statut' => DocumentStatut::Recu->value,
+            'source' => DocumentSource::Manuel->value,
+            'nom_fichier' => 'CV candidat',
+            'uploaded_by' => auth()->id(),
+        ]);
+
+        $media->copy($document, 'fichier');
+    }
+
+    /**
+     * Joint au dossier Matching une copie du CV réellement transmis
+     * (traçabilité de la proposition). Silencieux si aucun CV exploitable ou
+     * si le matching en porte déjà un.
+     */
+    private static function joindreCvAuMatching(Candidate $record, Matching $matching): void
+    {
+        $media = $record->fresh()->cvMedia();
+
+        if ($media === null || $matching->getFirstMedia('cv') !== null) {
+            return;
+        }
+
+        $media->copy($matching, 'cv');
     }
 }

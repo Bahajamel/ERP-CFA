@@ -212,6 +212,25 @@ class Candidate extends Model implements HasMedia
     }
 
     /**
+     * Fichier média du CV du candidat (collection « cv » en priorité, sinon
+     * document GED de type CV), pour le recopier ailleurs — ex. joindre le CV
+     * réellement transmis au dossier Matching. Null si aucun CV.
+     */
+    public function cvMedia(): ?\Spatie\MediaLibrary\MediaCollections\Models\Media
+    {
+        if (($media = $this->getFirstMedia('cv')) !== null) {
+            return $media;
+        }
+
+        return $this->documents()
+            ->where('type', DocumentType::CvCandidat->value)
+            ->whereHas('media')
+            ->latest()
+            ->first()
+            ?->getFirstMedia('fichier');
+    }
+
+    /**
      * Métadonnées du CV pour l'affichage (nom du fichier, type, date d'ajout,
      * URL), quelle que soit la source (média « cv » ou document GED de type CV).
      * Le fichier n'est jamais dupliqué : la pré-admission réutilise la même pièce.

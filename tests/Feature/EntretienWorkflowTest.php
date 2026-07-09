@@ -161,6 +161,53 @@ it('interdit tout retour aux statuts d\'entretien après une décision finale', 
         ->toThrow(ValidationException::class);
 });
 
+it('passe le candidat à « Entretien réalisé » quand l\'entretien est réalisé', function () {
+    $candidat = candidatAPlanifier();
+    $entretien = Entretien::factory()->planifie()->create(['candidate_id' => $candidat->id]);
+
+    expect($candidat->fresh()->statut)->toBe(CandidateStatut::EntretienPrevu);
+
+    $entretien->transitionTo(EntretienStatut::Realise);
+
+    // L'entretien a eu lieu : décision (Accepté / Refusé) en attente.
+    expect($candidat->fresh()->statut)->toBe(CandidateStatut::EntretienRealise);
+});
+
+it('n\'envoie pas au Matching au statut « Entretien réalisé » (décision en attente)', function () {
+    $candidat = candidatAPlanifier();
+    $entretien = Entretien::factory()->planifie()->create(['candidate_id' => $candidat->id]);
+    $entretien->transitionTo(EntretienStatut::Realise);
+
+    expect($candidat->fresh()->statut)->toBe(CandidateStatut::EntretienRealise)
+        ->and(Matching::query()->where('candidate_id', $candidat->id)->exists())->toBeFalse();
+});
+
+it('ne propose depuis « Entretien réalisé » que les décisions Accepté ou Refusé', function () {
+    $candidat = candidatAPlanifier();
+    $entretien = Entretien::factory()->planifie()->create(['candidate_id' => $candidat->id]);
+    $entretien->transitionTo(EntretienStatut::Realise);
+
+    $transitions = $candidat->fresh()->allowedTransitions();
+
+    expect($transitions)->toEqualCanonicalizing([CandidateStatut::Accepte, CandidateStatut::Refuse]);
+});
+
+it('accepte le candidat depuis « Entretien réalisé » et ouvre le Matching', function () {
+    $candidat = candidatAPlanifier();
+    $entretien = Entretien::factory()->planifie()->create(['candidate_id' => $candidat->id]);
+    $entretien->transitionTo(EntretienStatut::Realise);
+
+    expect($candidat->fresh()->statut)->toBe(CandidateStatut::EntretienRealise);
+
+    $candidat = cycleEntretiens()->deciderApresEntretien($entretien, accepte: true);
+
+    expect($candidat->statut)->toBe(CandidateStatut::Accepte)
+        ->and(Matching::query()
+            ->where('candidate_id', $candidat->id)
+            ->where('statut', MatchingStatut::EnRecherche->value)
+            ->exists())->toBeTrue();
+});
+
 /*
 |--------------------------------------------------------------------------
 | Décision après entretien réalisé → déclencheurs automatiques
