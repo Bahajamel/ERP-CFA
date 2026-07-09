@@ -120,11 +120,17 @@ class CerfaApprentissage
         $adrEmployeur = $this->adresse($co?->adresse, $co?->code_postal, $co?->ville);
         $adrApprenti = $this->adresse($cand?->adresse, $cand?->code_postal, $cand?->ville);
 
+        $adrCfa = $this->adresse($cfa->adresse, $cfa->code_postal, $cfa->ville);
+
         $d = [
             // EMPLOYEUR
             'employeur_type_prive' => true,
             'employeur_denomination' => $co?->raison_sociale,
             'employeur_siret' => $this->siret($co?->siret),
+            // Type d'employeur (notice CERFA) : 12 = entreprise inscrite au RCS,
+            // cas de la très grande majorité des entreprises privées.
+            'employeur_type' => '12',
+            'employeur_adr_num' => $adrEmployeur['num'],
             'employeur_adr_voie' => $adrEmployeur['voie'],
             'employeur_adr_cp' => $adrEmployeur['cp'],
             'employeur_adr_commune' => $adrEmployeur['commune'],
@@ -137,6 +143,7 @@ class CerfaApprentissage
             'apprenti_naiss_jj' => $naiss['jj'],
             'apprenti_naiss_mm' => $naiss['mm'],
             'apprenti_naiss_aaaa' => $naiss['aaaa'],
+            'apprenti_adr_num' => $adrApprenti['num'],
             'apprenti_adr_voie' => $adrApprenti['voie'],
             'apprenti_adr_cp' => $adrApprenti['cp'],
             'apprenti_adr_commune' => $adrApprenti['commune'],
@@ -165,9 +172,10 @@ class CerfaApprentissage
             'cfa_denomination' => $cfa->raison_sociale ?: $cfa->nom,
             'cfa_uai' => $cfa->numero_uai,
             'cfa_siret' => $this->siret($cfa->siret),
-            'cfa_adr_voie' => $cfa->adresse,
-            'cfa_adr_cp' => $cfa->code_postal,
-            'cfa_adr_commune' => $cfa->ville,
+            'cfa_adr_num' => $adrCfa['num'],
+            'cfa_adr_voie' => $adrCfa['voie'],
+            'cfa_adr_cp' => $adrCfa['cp'],
+            'cfa_adr_commune' => $adrCfa['commune'],
             'fait_a' => $cfa->ville,
         ];
 
@@ -225,23 +233,47 @@ class CerfaApprentissage
     }
 
     /**
-     * Décompose une adresse en voie / code postal / commune. Les champs
-     * dédiés priment ; sinon on tente d'extraire le code postal (5 chiffres)
-     * et la commune de la chaîne complète (« 12 rue X, 75001 Paris »).
+     * Décompose une adresse en numéro / voie / code postal / commune, pour
+     * remplir les cases dédiées du CERFA. Les champs code postal / ville
+     * dédiés priment ; sinon on extrait le code postal (5 chiffres) et la
+     * commune de la chaîne complète (« 12 rue X, 75001 Paris »). Le numéro
+     * de voirie en tête (« 69 chemin Mallet », « 12 bis rue X ») est
+     * toujours séparé de la voie.
      *
-     * @return array{voie: ?string, cp: ?string, commune: ?string}
+     * @return array{num: ?string, voie: ?string, cp: ?string, commune: ?string}
      */
     private function adresse(?string $complet, ?string $cp, ?string $ville): array
     {
         if (filled($cp) || filled($ville)) {
-            return ['voie' => $complet, 'cp' => $cp, 'commune' => $ville];
+            return $this->separerNumero($complet) + ['cp' => $cp, 'commune' => $ville];
         }
 
         if (filled($complet) && preg_match('/^(.*?)[,\s]+(\d{5})\s+(.+)$/', trim($complet), $m)) {
-            return ['voie' => trim($m[1], " ,"), 'cp' => $m[2], 'commune' => trim($m[3])];
+            return $this->separerNumero(trim($m[1], ' ,')) + ['cp' => $m[2], 'commune' => trim($m[3])];
         }
 
-        return ['voie' => $complet, 'cp' => null, 'commune' => null];
+        return $this->separerNumero($complet) + ['cp' => null, 'commune' => null];
+    }
+
+    /**
+     * Sépare le numéro de voirie en tête de la voie : « 69 chemin Mallet »
+     * → num « 69 », voie « chemin Mallet ». Gère bis / ter / quater.
+     *
+     * @return array{num: ?string, voie: ?string}
+     */
+    private function separerNumero(?string $voie): array
+    {
+        if (blank($voie)) {
+            return ['num' => null, 'voie' => null];
+        }
+
+        // Numéro en tête (+ éventuel B / bis / ter / quater), suivi d'un
+        // séparateur (espace ou virgule) puis du nom de voie.
+        if (preg_match('/^\s*(\d+[a-dA-D]?(?:\s*(?:bis|ter|quater))?)[\s,]+(.+)$/iu', trim($voie), $m)) {
+            return ['num' => trim($m[1]), 'voie' => trim($m[2], " ,")];
+        }
+
+        return ['num' => null, 'voie' => trim($voie, " ,")];
     }
 
     /** Découpe une date en jj / mm / aaaa (chaînes vides si absente). */
