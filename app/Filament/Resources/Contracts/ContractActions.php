@@ -10,6 +10,7 @@ use App\Jobs\GenererLivrablesJob;
 use App\Livret\LivretRsClient;
 use App\Models\CfaProfile;
 use App\Models\Contract;
+use App\Services\ContractDocumentService;
 use App\Services\SignatureService;
 use App\StateMachine\InvalidTransitionException;
 use Filament\Actions\Action;
@@ -216,6 +217,96 @@ class ContractActions
                     'Content-Type' => 'application/pdf',
                 ]);
             });
+    }
+
+    /**
+     * Générer le CERFA pré-rempli et l'enregistrer dans la GED du contrat
+     * (section Documents). Signale les informations manquantes sans bloquer.
+     */
+    public static function genererCerfa(): Action
+    {
+        return Action::make('genererCerfa')
+            ->label('Générer le CERFA')
+            ->icon(Heroicon::OutlinedDocumentText)
+            ->color('primary')
+            ->visible(fn () => auth()->user()?->can('access_contracts') ?? false)
+            ->requiresConfirmation()
+            ->modalHeading('Générer le CERFA (contrat d\'apprentissage)')
+            ->modalDescription('Le CERFA pré-rempli sera enregistré dans les documents du contrat, prêt à imprimer / signer.')
+            ->action(function (Contract $record): void {
+                $service = app(ContractDocumentService::class);
+                $manquants = $service->champsManquantsCerfa($record);
+                $service->genererCerfa($record);
+
+                self::notifierGeneration('CERFA', $manquants);
+            });
+    }
+
+    /**
+     * Générer la convention de formation (Annexe n°2) pré-remplie et
+     * l'enregistrer dans la GED du contrat. Cohérente avec le CERFA (mêmes
+     * données). Signale les informations manquantes sans bloquer.
+     */
+    public static function genererConvention(): Action
+    {
+        return Action::make('genererConvention')
+            ->label('Générer la convention')
+            ->icon(Heroicon::OutlinedDocumentDuplicate)
+            ->color('primary')
+            ->visible(fn () => auth()->user()?->can('access_contracts') ?? false)
+            ->requiresConfirmation()
+            ->modalHeading('Générer la convention de formation')
+            ->modalDescription('La convention de formation par apprentissage sera enregistrée dans les documents du '
+                .'contrat, cohérente avec le CERFA.')
+            ->action(function (Contract $record): void {
+                $service = app(ContractDocumentService::class);
+                $manquants = $service->champsManquantsConvention($record);
+                $service->genererConvention($record);
+
+                self::notifierGeneration('Convention', $manquants);
+            });
+    }
+
+    /**
+     * Vérifier l'état documentaire du contrat avant génération : score de
+     * complétude, état de chaque document et informations manquantes.
+     */
+    public static function verifierDocuments(): Action
+    {
+        return Action::make('verifierDocuments')
+            ->label('Vérifier avant génération')
+            ->icon(Heroicon::OutlinedShieldCheck)
+            ->color('gray')
+            ->modalHeading(fn (Contract $record): string => 'Documents du contrat — '
+                .($record->candidate?->nom_complet ?? 'contrat'))
+            ->modalSubmitAction(false)
+            ->modalCancelActionLabel('Fermer')
+            ->modalContent(fn (Contract $record) => view('filament.contracts.completude', [
+                'etat' => app(ContractDocumentService::class)->completude($record),
+            ]));
+    }
+
+    /** Notifie la génération d'un document, en listant les champs manquants. */
+    private static function notifierGeneration(string $document, array $manquants): void
+    {
+        if (filled($manquants)) {
+            Notification::make()
+                ->warning()
+                ->title($document.' généré — informations à compléter')
+                ->body('Le document contient des zones à compléter ('.count($manquants).') : '
+                    .implode(', ', array_slice($manquants, 0, 6)).(count($manquants) > 6 ? '…' : '.').' '
+                    .'Complétez le contrat puis régénérez.')
+                ->persistent()
+                ->send();
+
+            return;
+        }
+
+        Notification::make()
+            ->success()
+            ->title($document.' généré avec succès')
+            ->body('Le document est disponible dans la section « Documents » du contrat.')
+            ->send();
     }
 
     private static function executer(Contract $record, ContractStatut $cible, ?string $comment = null): void

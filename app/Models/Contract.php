@@ -81,9 +81,32 @@ class Contract extends Model implements HasMedia
             'date_debut' => 'date',
             'date_fin' => 'date',
             'salaire_mensuel_brut' => 'decimal:2',
+            'cout_formation' => 'decimal:2',
+            'duree_formation_heures' => 'integer',
+            'lieu_formation_latitude' => 'decimal:7',
+            'lieu_formation_longitude' => 'decimal:7',
             'statut_signature' => ContractSignatureStatut::class,
             'statut_contrat' => ContractStatut::class,
         ];
+    }
+
+    /**
+     * Lieu principal de formation, sur une ligne lisible (voie, CP ville) —
+     * utilisé par la convention et le CERFA. Null si rien n'est renseigné.
+     */
+    public function lieuFormationLisible(): ?string
+    {
+        $ligne = trim(implode(' ', array_filter([
+            $this->lieu_formation_code_postal,
+            $this->lieu_formation_ville,
+        ])));
+
+        $complet = trim(implode(', ', array_filter([
+            $this->lieu_formation,
+            $ligne !== '' ? $ligne : null,
+        ])));
+
+        return $complet !== '' ? $complet : null;
     }
 
     /**

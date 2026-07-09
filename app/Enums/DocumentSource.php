@@ -11,6 +11,7 @@ enum DocumentSource: string implements HasLabel, HasColor
     case Manuel = 'manuel';
     case LivretRs = 'livretrs';
     case Candidature = 'candidature';
+    case Genere = 'genere';
 
     public function getLabel(): string
     {
@@ -18,6 +19,7 @@ enum DocumentSource: string implements HasLabel, HasColor
             self::Manuel => 'Déposé manuellement',
             self::LivretRs => 'Généré par LivretRS',
             self::Candidature => 'Candidature en ligne',
+            self::Genere => 'Généré automatiquement',
         };
     }
 
@@ -27,6 +29,7 @@ enum DocumentSource: string implements HasLabel, HasColor
             self::Manuel => 'gray',
             self::LivretRs => 'info',
             self::Candidature => 'success',
+            self::Genere => 'primary',
         };
     }
 }
