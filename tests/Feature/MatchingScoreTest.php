@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\CandidateStatut;
+use App\Enums\NeedStatut;
 use App\Matching\CompatibilityScorer;
 use App\Models\Candidate;
 use App\Models\Formation;
@@ -70,7 +71,10 @@ it('classe les candidats compatibles par score décroissant', function () {
 
 it('exclut les candidats déjà proposés sur ce besoin', function () {
     $formation = Formation::factory()->create();
-    $need = Need::factory()->create(['formation_id' => $formation->id]);
+    // Besoin ouvert explicite : la factory tire un statut aléatoire (parfois
+    // clôturé), ce qui, combiné à un matching « Accepté », déclenche la garde
+    // « besoin clôturé ». On fige donc un statut ouvert pour un test stable.
+    $need = Need::factory()->create(['formation_id' => $formation->id, 'statut' => NeedStatut::ProfilsEnvoyes]);
     $propose = Candidate::factory()->create([
         'formation_visee_id' => $formation->id,
         'statut' => CandidateStatut::Accepte,

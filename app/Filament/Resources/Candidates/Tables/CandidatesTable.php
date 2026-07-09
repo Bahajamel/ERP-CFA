@@ -175,14 +175,21 @@ class CandidatesTable
                     ->schema([
                         Select::make('need_id')
                             ->label('Offres proposées')
-                            ->options(fn (): array => Need::query()->ouverts()->with('company')->get()
+                            // Intelligence : on ne propose que les besoins ouverts dont la
+                            // « Formation visée » correspond à celle du candidat (une offre
+                            // d'une autre formation n'a aucun sens ici).
+                            ->options(fn (Candidate $record): array => $record->offresProposables()
                                 ->mapWithKeys(fn (Need $n): array => [
                                     $n->id => $n->intitule_poste.($n->company ? ' — '.$n->company->raison_sociale : ''),
                                 ])->all())
                             ->searchable()
                             ->live()
-                            ->helperText('Optionnel : laissez vide pour lancer une recherche d\'entreprise. '
-                                .'Choisissez une offre pour envoyer une proposition (CV requis).'),
+                            ->helperText(fn (Candidate $record): string => $record->formationVisee
+                                ? 'Offres ouvertes pour la formation « '.$record->formationVisee->libelle.' ». '
+                                    .'Laissez vide pour une recherche d\'entreprise ; choisissez une offre pour envoyer une proposition (CV requis).'
+                                : 'Aucune formation visée sur la fiche : toutes les offres ouvertes sont proposées. '
+                                    .'Laissez vide pour une recherche d\'entreprise ; choisissez une offre pour envoyer une proposition (CV requis).')
+                            ->placeholder('Aucune offre ouverte pour cette formation — laissez vide'),
                         // CV requis uniquement si une offre est sélectionnée.
                         Radio::make('cv_source')
                             ->label('CV à joindre à la proposition')
