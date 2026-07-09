@@ -220,8 +220,9 @@ class ContractActions
     }
 
     /**
-     * Générer le CERFA pré-rempli et l'enregistrer dans la GED du contrat
-     * (section Documents). Signale les informations manquantes sans bloquer.
+     * Générer le CERFA pré-rempli : il est enregistré dans les documents du
+     * contrat ET téléchargé immédiatement (un seul geste). Signale les
+     * informations manquantes sans bloquer.
      */
     public static function genererCerfa(): Action
     {
@@ -230,22 +231,21 @@ class ContractActions
             ->icon(Heroicon::OutlinedDocumentText)
             ->color('primary')
             ->visible(fn () => auth()->user()?->can('access_contracts') ?? false)
-            ->requiresConfirmation()
-            ->modalHeading('Générer le CERFA (contrat d\'apprentissage)')
-            ->modalDescription('Le CERFA pré-rempli sera enregistré dans les documents du contrat, prêt à imprimer / signer.')
-            ->action(function (Contract $record): void {
+            ->action(function (Contract $record) {
                 $service = app(ContractDocumentService::class);
                 $manquants = $service->champsManquantsCerfa($record);
-                $service->genererCerfa($record);
+                $document = $service->genererCerfa($record);
 
                 self::notifierGeneration('CERFA', $manquants);
+
+                return self::telecharger($document);
             });
     }
 
     /**
-     * Générer la convention de formation (Annexe n°2) pré-remplie et
-     * l'enregistrer dans la GED du contrat. Cohérente avec le CERFA (mêmes
-     * données). Signale les informations manquantes sans bloquer.
+     * Générer la convention de formation (Annexe n°2) pré-remplie : enregistrée
+     * dans les documents du contrat ET téléchargée immédiatement. Cohérente
+     * avec le CERFA (mêmes données). Signale les informations manquantes.
      */
     public static function genererConvention(): Action
     {
@@ -254,17 +254,31 @@ class ContractActions
             ->icon(Heroicon::OutlinedDocumentDuplicate)
             ->color('primary')
             ->visible(fn () => auth()->user()?->can('access_contracts') ?? false)
-            ->requiresConfirmation()
-            ->modalHeading('Générer la convention de formation')
-            ->modalDescription('La convention de formation par apprentissage sera enregistrée dans les documents du '
-                .'contrat, cohérente avec le CERFA.')
-            ->action(function (Contract $record): void {
+            ->action(function (Contract $record) {
                 $service = app(ContractDocumentService::class);
                 $manquants = $service->champsManquantsConvention($record);
-                $service->genererConvention($record);
+                $document = $service->genererConvention($record);
 
                 self::notifierGeneration('Convention', $manquants);
+
+                return self::telecharger($document);
             });
+    }
+
+    /** Télécharge le fichier d'un document généré (PDF), sans le supprimer. */
+    private static function telecharger(\App\Models\Document $document): ?StreamedResponse
+    {
+        $media = $document->getFirstMedia('fichier');
+
+        if ($media === null) {
+            return null;
+        }
+
+        return response()->streamDownload(
+            fn () => print(file_get_contents($media->getPath())),
+            $media->file_name,
+            ['Content-Type' => 'application/pdf'],
+        );
     }
 
     /**

@@ -28,8 +28,10 @@ class ContractForm
     public static function configure(Schema $schema): Schema
     {
         return $schema
+            ->columns(2)
             ->components([
                 Section::make('Parties au contrat')
+                    ->columnSpan(1)
                     ->columns(2)
                     ->schema([
                         Select::make('candidate_id')
@@ -103,6 +105,7 @@ class ContractForm
                             }),
                     ]),
                 Section::make('Détails du contrat')
+                    ->columnSpan(1)
                     ->columns(2)
                     ->schema([
                         TextInput::make('code_rncp')
@@ -146,6 +149,7 @@ class ContractForm
                     ->description('Adresse intelligente (Base Adresse Nationale) : recherchez le lieu, les champs se '
                         .'complètent seuls. La saisie manuelle reste possible. Utilisé dans le CERFA et la convention.')
                     ->icon('heroicon-o-map-pin')
+                    ->columnSpan(1)
                     ->columns(2)
                     ->schema([
                         Select::make('lieu_formation_recherche')
@@ -189,6 +193,7 @@ class ContractForm
                     ->description('Minimum légal calculé automatiquement depuis l\'âge de l\'apprenti et les dates '
                         .'du contrat (grille apprentissage, % du SMIC). À partir de 21 ans, le minimum conventionnel '
                         .'de branche peut être plus favorable.')
+                    ->columnSpan(1)
                     ->columns(2)
                     ->schema([
                         Placeholder::make('bareme_legal')
@@ -229,30 +234,18 @@ class ContractForm
                     ->description('Faire évoluer le statut applique les règles métier : garde de signature, '
                         .'ouverture automatique du dossier OPCO à la signature, etc.')
                     ->visibleOn('edit')
+                    ->columnSpan(1)
                     ->schema([
                         Select::make('statut_contrat')
                             ->label('Statut')
                             ->options(fn (?Contract $record): array => $record ? self::statutOptions($record) : [])
                             ->required(),
                     ]),
-                Section::make('Documents du contrat — tour de contrôle')
-                    ->description('CERFA + convention de formation : complétude, état documentaire et informations '
-                        .'manquantes. Générez les documents depuis les actions en haut de page.')
-                    ->icon('heroicon-o-clipboard-document-check')
-                    ->visibleOn('edit')
-                    ->schema([
-                        Placeholder::make('completude')
-                            ->hiddenLabel()
-                            ->content(fn (Contract $record): HtmlString => new HtmlString(
-                                view('filament.contracts.completude', [
-                                    'etat' => app(ContractDocumentService::class)->completude($record),
-                                ])->render(),
-                            )),
-                    ]),
                 Section::make('CERFA signé (dépôt manuel)')
-                    ->description('Le CERFA pré-rempli se génère via l\'action « Générer le CERFA ». Déposez ici le '
+                    ->description('Le CERFA pré-rempli se génère via le menu « Documents ». Déposez ici le '
                         .'CERFA signé par les trois parties (PDF), une fois la signature obtenue.')
                     ->collapsed()
+                    ->columnSpan(1)
                     ->schema([
                         SpatieMediaLibraryFileUpload::make('cerfa')
                             ->label('CERFA signé')
@@ -261,6 +254,23 @@ class ContractForm
                             ->downloadable()
                             ->openable()
                             ->columnSpanFull(),
+                    ]),
+                // Panneau « tour de contrôle » en pleine largeur (dernière carte)
+                // pour éviter tout vide à côté d'une section courte.
+                Section::make('Documents du contrat — tour de contrôle')
+                    ->description('CERFA + convention de formation : complétude, état documentaire et informations '
+                        .'manquantes. Générez les documents depuis le menu « Documents » en haut de page.')
+                    ->icon('heroicon-o-clipboard-document-check')
+                    ->visibleOn('edit')
+                    ->columnSpanFull()
+                    ->schema([
+                        Placeholder::make('completude')
+                            ->hiddenLabel()
+                            ->content(fn (Contract $record): HtmlString => new HtmlString(
+                                view('filament.contracts.completude', [
+                                    'etat' => app(ContractDocumentService::class)->completude($record),
+                                ])->render(),
+                            )),
                     ]),
             ]);
     }
