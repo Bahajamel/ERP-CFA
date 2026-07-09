@@ -26,7 +26,7 @@ it('lance la génération en tâche de fond depuis le hub', function () {
     $contract = Contract::factory()->create([
         'candidate_id' => $candidate->id,
         'statut_signature' => ContractSignatureStatut::Signe,
-        'statut_contrat' => ContractStatut::Signe,
+        'statut_contrat' => ContractStatut::Complet,
     ]);
 
     Livewire::actingAs($admin)
@@ -51,7 +51,7 @@ it('refuse la génération pour un contrat non signé (dossier incomplet)', func
     $contract = Contract::factory()->create([
         'candidate_id' => Candidate::factory()->create()->id,
         'statut_signature' => ContractSignatureStatut::NonSigne,
-        'statut_contrat' => ContractStatut::Brouillon,
+        'statut_contrat' => ContractStatut::EnCours,
     ]);
 
     Livewire::actingAs($admin)

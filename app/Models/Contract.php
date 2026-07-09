@@ -6,6 +6,7 @@ use App\Enums\ContractSignatureStatut;
 use App\Enums\ContractStatut;
 use App\Enums\DocumentType;
 use App\Enums\OpcoStatut;
+use App\Parcours\CycleApprenant;
 use App\StateMachine\ManagesState;
 use BackedEnum;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -15,6 +16,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Validation\ValidationException;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\MediaLibrary\HasMedia;
@@ -36,6 +38,11 @@ class Contract extends Model implements HasMedia
 
     protected $guarded = [];
 
+    /** Statut par défaut d'un nouveau contrat (cohérent quel que soit le SGBD). */
+    protected $attributes = [
+        'statut_contrat' => 'en_cours',
+    ];
+
     /**
      * Anti-doublon (cycle apprenant) : un seul contrat actif par couple
      * candidat × entreprise — les contrats rompus ou archivés n'empêchent
@@ -47,22 +54,22 @@ class Contract extends Model implements HasMedia
             $doublon = static::query()
                 ->where('candidate_id', $contract->candidate_id)
                 ->where('company_id', $contract->company_id)
-                ->whereNotIn('statut_contrat', [ContractStatut::Rompu->value, ContractStatut::Archive->value])
+                ->whereNotIn('statut_contrat', [ContractStatut::Rompu->value])
                 ->exists();
 
             if ($doublon) {
-                throw \Illuminate\Validation\ValidationException::withMessages([
+                throw ValidationException::withMessages([
                     'company_id' => 'Un contrat est déjà en cours pour ce candidat et cette entreprise.',
                 ]);
             }
         });
 
-        // Cycle apprenant : un contrat qui devient « Signé » / « Transmis
-        // OPCO » par écriture directe (formulaire, import) ouvre aussi son
-        // dossier OPCO — même déclencheur que la machine à états (idempotent).
+        // Cycle apprenant : un contrat qui passe « Complet » (signé) par
+        // écriture directe (formulaire, import) ouvre aussi son dossier OPCO —
+        // même déclencheur que la machine à états (idempotent).
         static::updated(function (self $contract): void {
             if ($contract->wasChanged('statut_contrat')
-                && in_array($contract->statut_contrat, [ContractStatut::Signe, ContractStatut::TransmisOpco], true)
+                && $contract->statut_contrat === ContractStatut::Complet
                 && $contract->estSigne()) {
                 $contract->ouvrirDossierOpco();
             }
@@ -117,9 +124,9 @@ class Contract extends Model implements HasMedia
     {
         return $this->statut_signature === ContractSignatureStatut::Signe
             || in_array($this->statut_contrat, [
-                ContractStatut::Signe,
-                ContractStatut::TransmisOpco,
-                ContractStatut::Actif,
+                ContractStatut::Complet,
+                // « À corriger » = signé puis renvoyé par l'OPCO : reste un contrat signé.
+                ContractStatut::ACorriger,
             ], true);
     }
 
@@ -129,10 +136,14 @@ class Contract extends Model implements HasMedia
      */
     public function ouvrirDossierOpco(): void
     {
-        $dossier = $this->opcoFile()->firstOrCreate([], ['statut' => OpcoStatut::APreparer->value]);
+        $dossier = $this->opcoFile()->firstOrCreate([], [
+            'statut' => OpcoStatut::APreparer->value,
+            // OPCO pré-rempli depuis l'entreprise (déduit du SIRET) : pas de ressaisie.
+            'opco_id' => $this->company?->opco_id,
+        ]);
 
         if ($dossier->wasRecentlyCreated) {
-            \App\Parcours\CycleApprenant::notifierAutomatisme(
+            CycleApprenant::notifierAutomatisme(
                 'Contrat signé',
                 'Dossier OPCO créé automatiquement (« À préparer ») pour '
                 .($this->candidate?->nom_complet ?? 'l\'apprenant').'.',
@@ -228,10 +239,10 @@ class Contract extends Model implements HasMedia
      */
     public function guardTransition(BackedEnum $from, BackedEnum $to): ?string
     {
-        if ($to === ContractStatut::Signe
+        if ($to === ContractStatut::Complet
             && $this->statut_signature !== ContractSignatureStatut::Signe
             && ! $this->aDocumentContractuel()) {
-            return 'Passage à « Signé » impossible : associez un document contractuel signé '
+            return 'Passage à « Complet » impossible : associez un document contractuel signé '
                 .'(contrat / CERFA / convention) ou marquez la signature comme signée.';
         }
 
@@ -241,14 +252,14 @@ class Contract extends Model implements HasMedia
     /** Effets de bord des transitions : signature, dossier OPCO, commentaire. */
     protected function afterTransition(BackedEnum $from, BackedEnum $to, ?string $comment): void
     {
-        // Cohérence : atteindre « Signé » fixe le statut de signature.
-        if ($to === ContractStatut::Signe && $this->statut_signature !== ContractSignatureStatut::Signe) {
+        // Cohérence : atteindre « Complet » fixe le statut de signature.
+        if ($to === ContractStatut::Complet && $this->statut_signature !== ContractSignatureStatut::Signe) {
             $this->forceFill(['statut_signature' => ContractSignatureStatut::Signe])->saveQuietly();
         }
 
-        // Dès la signature (et à la transmission), on ouvre automatiquement le
-        // dossier OPCO pour lancer le suivi du financement et des paiements.
-        if (in_array($to, [ContractStatut::Signe, ContractStatut::TransmisOpco], true)) {
+        // « Complet » (signé) → ouverture automatique du dossier OPCO pour
+        // lancer le suivi du financement et des paiements.
+        if ($to === ContractStatut::Complet) {
             $this->ouvrirDossierOpco();
         }
 

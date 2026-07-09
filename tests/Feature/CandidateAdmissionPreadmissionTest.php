@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\AvailabilityType;
 use App\Enums\DocumentStatut;
 use App\Enums\DocumentType;
 use App\Filament\Resources\Admissions\AdmissionResource;
@@ -38,9 +39,9 @@ it('rend le CV du candidat accessible depuis son admission officielle', function
     $candidate = candidatAvecCvMedia();
     $admission = Admission::factory()->create(['candidate_id' => $candidate->id]);
 
-    // Le CV posé côté candidat est disponible côté admission via la relation.
+    // Le CV vit côté candidat (pas une pièce d'admission) mais reste consultable
+    // depuis l'admission via la relation candidate.
     expect($admission->candidate->hasCv())->toBeTrue()
-        ->and($admission->cvManquant())->toBeFalse()
         ->and($candidate->cvUrl())->not->toBeNull();
 });
 
@@ -72,7 +73,7 @@ it('n\'expose aucune gestion documentaire (checklist) dans le module Admissions'
 it('gère les périodes de disponibilité du candidat', function () {
     $candidate = Candidate::factory()->create();
     $candidate->availabilities()->create([
-        'type' => App\Enums\AvailabilityType::Disponible->value,
+        'type' => AvailabilityType::Disponible->value,
         'immediate' => true,
     ]);
 

@@ -1,31 +1,22 @@
 <?php
 
-use App\Enums\AdmissionStatut;
 use App\Enums\ContractStatut;
 use App\Enums\OpcoStatut;
 use App\Enums\PaymentStatut;
 use App\Enums\TaskStatut;
-use App\Models\Admission;
 use App\Models\Contract;
 use App\Models\OpcoFile;
 use App\Models\OpcoPayment;
 use App\Models\Task;
+use App\Models\User;
 use App\Services\AlerteService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
-function admissionIncomplete(): Admission
-{
-    $admission = Admission::factory()->create(['statut' => AdmissionStatut::AVerifier]);
-    $admission->genererChecklistObligatoire();
-
-    return $admission;
-}
-
-it('crée une alerte pour un dossier d\'admission incomplet, de façon idempotente', function () {
-    $admission = admissionIncomplete();
-    $cle = "admission:incomplete:{$admission->id}";
+it('crée une alerte de signature de contrat, de façon idempotente', function () {
+    $contract = Contract::factory()->create(['statut_contrat' => ContractStatut::ManqueSignature]);
+    $cle = "contrat:signature:{$contract->id}";
 
     (new AlerteService)->genererAlertes();
     expect(Task::where('cle', $cle)->count())->toBe(1);
@@ -36,7 +27,7 @@ it('crée une alerte pour un dossier d\'admission incomplet, de façon idempoten
 });
 
 it('alerte sur un contrat envoyé pour signature', function () {
-    $contract = Contract::factory()->create(['statut_contrat' => ContractStatut::EnvoyeSignature]);
+    $contract = Contract::factory()->create(['statut_contrat' => ContractStatut::ManqueSignature]);
 
     (new AlerteService)->genererAlertes();
 
@@ -79,16 +70,20 @@ it('passe les tâches dont l\'échéance est dépassée en retard', function () 
 });
 
 it('notifie in-app la personne concernée par l\'alerte', function () {
-    $admission = admissionIncomplete();
-    $commercial = $admission->candidate->commercial;
+    $responsable = User::factory()->create();
+    OpcoFile::factory()->create([
+        'statut' => OpcoStatut::Depose,
+        'date_depot' => now()->subDays(40),
+        'responsable_correction_id' => $responsable->id,
+    ]);
 
     (new AlerteService)->genererAlertes();
 
-    expect($commercial->notifications()->count())->toBeGreaterThan(0);
+    expect($responsable->notifications()->count())->toBeGreaterThan(0);
 });
 
 it('exécute la commande de génération des alertes', function () {
-    admissionIncomplete();
+    Contract::factory()->create(['statut_contrat' => ContractStatut::ManqueSignature]);
 
     $this->artisan('app:generer-alertes')->assertSuccessful();
 });

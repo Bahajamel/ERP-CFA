@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\FinanceLineStatut;
 use App\Enums\InvoiceStatut;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -57,6 +58,12 @@ class FinanceLine extends Model
         return $this->belongsTo(Contract::class);
     }
 
+    /** Dossier OPCO à l'origine de la ligne (génération automatique). */
+    public function opcoFile(): BelongsTo
+    {
+        return $this->belongsTo(OpcoFile::class);
+    }
+
     public function invoices(): HasMany
     {
         return $this->hasMany(Invoice::class)->latest();
@@ -102,5 +109,48 @@ class FinanceLine extends Model
     public function estBloque(): bool
     {
         return (float) $this->montant_bloque > 0;
+    }
+
+    /** Une des factures de la ligne est-elle échue et impayée ? */
+    public function aFactureEnRetard(): bool
+    {
+        return $this->invoices->contains(fn (Invoice $invoice) => $invoice->estEnRetard());
+    }
+
+    /**
+     * Statut « santé » calculé de la ligne (jamais stocké) — voir
+     * {@see FinanceLineStatut} pour l'ordre de priorité.
+     */
+    public function statut(): FinanceLineStatut
+    {
+        if ($this->estBloque()) {
+            return FinanceLineStatut::Bloquee;
+        }
+
+        if ($this->aFactureEnRetard()) {
+            return FinanceLineStatut::EnRetard;
+        }
+
+        $facturable = $this->montantFacturable();
+        $facture = $this->montantFacture();
+        $encaisse = $this->montantEncaisse();
+
+        if ($facturable > 0 && $encaisse >= round($facturable, 2)) {
+            return FinanceLineStatut::Soldee;
+        }
+
+        if ($facture <= 0) {
+            return FinanceLineStatut::ABacturer;
+        }
+
+        if ($encaisse > 0 && $encaisse < $facture) {
+            return FinanceLineStatut::EncaissementEnCours;
+        }
+
+        if ($facture < round($facturable, 2)) {
+            return FinanceLineStatut::PartiellementFacturee;
+        }
+
+        return FinanceLineStatut::EncaissementEnCours;
     }
 }

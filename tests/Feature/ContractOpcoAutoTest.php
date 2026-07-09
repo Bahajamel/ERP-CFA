@@ -10,27 +10,27 @@ uses(RefreshDatabase::class);
 
 it('ouvre automatiquement le dossier OPCO dès la signature du contrat', function () {
     $contract = Contract::factory()->create([
-        'statut_contrat' => ContractStatut::EnvoyeSignature,
+        'statut_contrat' => ContractStatut::ManqueSignature,
         'statut_signature' => ContractSignatureStatut::Signe, // satisfait la garde de signature
     ]);
 
     expect($contract->opcoFile()->exists())->toBeFalse();
 
-    $contract->transitionTo(ContractStatut::Signe);
+    $contract->transitionTo(ContractStatut::Complet);
 
     $opco = $contract->fresh()->opcoFile;
     expect($opco)->not->toBeNull()
         ->and($opco->statut)->toBe(OpcoStatut::APreparer);
 });
 
-it('ne crée pas de doublon de dossier OPCO à la transmission', function () {
+it('ne crée pas de doublon de dossier OPCO (idempotent)', function () {
     $contract = Contract::factory()->create([
-        'statut_contrat' => ContractStatut::EnvoyeSignature,
+        'statut_contrat' => ContractStatut::ManqueSignature,
         'statut_signature' => ContractSignatureStatut::Signe,
     ]);
 
-    $contract->transitionTo(ContractStatut::Signe);       // crée le dossier OPCO
-    $contract->transitionTo(ContractStatut::TransmisOpco); // ne doit pas en recréer
+    $contract->transitionTo(ContractStatut::Complet); // crée le dossier OPCO
+    $contract->ouvrirDossierOpco();                   // rejoué : ne doit pas en recréer
 
     expect($contract->opcoFile()->count())->toBe(1);
 });

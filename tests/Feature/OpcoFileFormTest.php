@@ -20,7 +20,7 @@ it('fait évoluer le statut du dossier OPCO depuis le formulaire d\'édition (vi
     $this->actingAs($user);
 
     $contract = Contract::factory()->create([
-        'statut_contrat' => ContractStatut::Signe,
+        'statut_contrat' => ContractStatut::Complet,
         'statut_signature' => ContractSignatureStatut::Signe,
     ]);
     $opco = OpcoFile::create([

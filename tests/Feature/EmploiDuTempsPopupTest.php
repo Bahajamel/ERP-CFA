@@ -60,8 +60,9 @@ it('affiche les infos et la liste des apprenants prévus (sans émargement)', fu
     ])->render();
 
     expect($html)
-        ->toContain('Développement web')                 // matière
-        ->toContain(e($seance->promotion->nom_complet))  // classe complète (échappée par Blade)
+        ->toContain('Développement web')                 // matière (titre du bandeau)
+        ->toContain(e($seance->promotion->nom_complet))  // classe complète (Blade échappe l'apostrophe)
+        ->toContain('Date')
         ->toContain('Horaires')
         ->toContain('Formateur')
         ->toContain('Apprenants prévus')              // section liste

@@ -2,14 +2,13 @@
 
 namespace App\Services;
 
-use App\Enums\AdmissionStatut;
 use App\Enums\ContractStatut;
 use App\Enums\InvoiceStatut;
 use App\Enums\OpcoStatut;
 use App\Enums\PaymentStatut;
+use App\Enums\QualiopiStatut;
 use App\Enums\TaskPriorite;
 use App\Enums\TaskStatut;
-use App\Models\Admission;
 use App\Models\Contract;
 use App\Models\Invoice;
 use App\Models\OpcoFile;
@@ -30,8 +29,7 @@ class AlerteService
     /** Génère toutes les alertes et retourne le nombre de nouvelles créées. */
     public function genererAlertes(): int
     {
-        $nouvelles = $this->admissionsIncompletes()
-            + $this->contratsASigner()
+        $nouvelles = $this->contratsASigner()
             + $this->opcoSansRetour()
             + $this->echeancesAVenir()
             + $this->facturesEnRetard()
@@ -42,39 +40,12 @@ class AlerteService
         return $nouvelles;
     }
 
-    private function admissionsIncompletes(): int
-    {
-        $n = 0;
-
-        Admission::query()
-            ->where('statut', AdmissionStatut::AVerifier->value)
-            ->with('candidate.media')
-            ->get()
-            ->each(function (Admission $admission) use (&$n) {
-                // Pré-admission : le seul document requis est le CV.
-                if (! $admission->cvManquant()) {
-                    return;
-                }
-
-                $n += (int) $this->creerAlerte(
-                    cle: "admission:incomplete:{$admission->id}",
-                    titre: 'Pré-admission incomplète — '.($admission->candidate?->nom_complet ?? 'candidat'),
-                    description: 'Le CV du candidat est manquant.',
-                    assigneeId: $admission->candidate?->commercial_id,
-                    taskable: $admission,
-                    priorite: TaskPriorite::Normale,
-                );
-            });
-
-        return $n;
-    }
-
     private function contratsASigner(): int
     {
         $n = 0;
 
         Contract::query()
-            ->where('statut_contrat', ContractStatut::EnvoyeSignature->value)
+            ->where('statut_contrat', ContractStatut::ManqueSignature->value)
             ->with('candidate')
             ->get()
             ->each(function (Contract $contract) use (&$n) {
@@ -189,7 +160,7 @@ class AlerteService
         $n = 0;
 
         QualiopiIndicator::query()
-            ->where('statut', \App\Enums\QualiopiStatut::NonConforme->value)
+            ->where('statut', QualiopiStatut::NonConforme->value)
             ->get()
             ->each(function (QualiopiIndicator $indicateur) use (&$n) {
                 $n += (int) $this->creerAlerte(

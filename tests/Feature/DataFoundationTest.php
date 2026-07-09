@@ -74,7 +74,7 @@ it('relie le contrat à son dossier OPCO et à ses parties', function () {
     // Contrat signé : condition (déterministe) de création du dossier OPCO.
     $contract = Contract::factory()->create([
         'statut_signature' => \App\Enums\ContractSignatureStatut::Signe,
-        'statut_contrat' => \App\Enums\ContractStatut::Signe,
+        'statut_contrat' => \App\Enums\ContractStatut::Complet,
     ]);
     $opcoFile = OpcoFile::factory()->create(['contract_id' => $contract->id]);
 

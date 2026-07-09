@@ -82,7 +82,6 @@ class ContractDocumentService
         $cand = $contract->candidate;
         $co = $contract->company;
         $formation = $contract->formation ?? $cand?->formationVisee;
-        $cfa = CfaProfile::current();
 
         $manquants = [];
 
@@ -94,10 +93,28 @@ class ContractDocumentService
         $this->exiger($manquants, blank($contract->date_debut), 'Date de début du contrat');
         $this->exiger($manquants, blank($contract->date_fin), 'Date de fin du contrat');
         $this->exiger($manquants, blank($contract->lieuFormationLisible()), 'Lieu principal de formation');
-        $this->exiger($manquants, blank($cfa->raison_sociale) && blank($cfa->nom), 'Identité du CFA (raison sociale)');
+        $this->exiger($manquants, $contract->opcoFile?->opco === null && $co?->opco === null, 'OPCO (opérateur de compétences)');
+
+        // Identité du CFA : renseignée une seule fois dans Paramètres CFA.
+        return array_merge($manquants, $this->champsManquantsCfa());
+    }
+
+    /**
+     * Informations d'identité du CFA manquantes. Elles ne se saisissent PAS sur
+     * chaque contrat mais une seule fois dans « Paramètres CFA » — d'où la
+     * mention explicite, pour ne pas chercher un champ inexistant sur le contrat.
+     *
+     * @return list<string>
+     */
+    public function champsManquantsCfa(): array
+    {
+        $cfa = CfaProfile::current();
+
+        $manquants = [];
+
+        $this->exiger($manquants, blank($cfa->raison_sociale) && blank($cfa->nom), 'Raison sociale du CFA');
         $this->exiger($manquants, blank($cfa->siret), 'SIRET du CFA');
         $this->exiger($manquants, blank($cfa->representant_nom), 'Représentant légal du CFA');
-        $this->exiger($manquants, $contract->opcoFile?->opco === null && $co?->opco === null, 'OPCO (opérateur de compétences)');
 
         return $manquants;
     }
@@ -129,6 +146,11 @@ class ContractDocumentService
     {
         $manquantsCerfa = $this->champsManquantsCerfa($contract);
         $manquantsConv = $this->champsManquantsConvention($contract);
+        $manquantsCfa = $this->champsManquantsCfa();
+
+        // Sur les cartes des documents, on n'affiche que les champs du dossier
+        // (l'identité du CFA a sa propre bannière + lien vers Paramètres CFA).
+        $manquantsConvDossier = array_values(array_diff($manquantsConv, $manquantsCfa));
 
         $docCerfa = $this->dernierDocument($contract, DocumentType::Cerfa);
         $docConv = $this->dernierDocument($contract, DocumentType::Convention);
@@ -142,7 +164,7 @@ class ContractDocumentService
 
         $convention = [
             'etat' => $this->etatDocument($contract, $docConv),
-            'manquants' => $manquantsConv,
+            'manquants' => $manquantsConvDossier,
             'document' => $docConv,
             'genere_le' => $docConv?->updated_at?->format('d/m/Y H:i'),
         ];
@@ -160,6 +182,10 @@ class ContractDocumentService
             'score' => min(100, $scoreDonnees + $scoreDocs),
             'cerfa' => $cerfa,
             'convention' => $convention,
+            'cfa' => [
+                'manquants' => $manquantsCfa,
+                'url' => route('filament.admin.pages.parametres-cfa'),
+            ],
             'message' => $this->message($cerfa, $convention),
         ];
     }

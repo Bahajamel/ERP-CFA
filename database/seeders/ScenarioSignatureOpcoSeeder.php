@@ -75,7 +75,7 @@ class ScenarioSignatureOpcoSeeder extends Seeder
             'date_debut' => now()->addWeeks(2)->startOfDay(),
             'date_fin' => now()->addWeeks(2)->addMonths(24)->startOfDay(),
             'lieu_formation' => 'CFA — Site principal',
-            'statut_contrat' => ContractStatut::EnvoyeSignature,
+            'statut_contrat' => ContractStatut::ManqueSignature,
             'statut_signature' => ContractSignatureStatut::NonSigne,
         ]);
 

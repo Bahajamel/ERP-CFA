@@ -63,7 +63,7 @@ class CycleApprenant
 
     public const MSG_CONTRAT_NON_SIGNE = 'Le dossier OPCO ne peut pas être créé tant que le contrat n\'est pas signé par les trois parties.';
 
-    public const MSG_OPCO_MANQUANT = 'Impossible de créer une admission : le dossier OPCO n\'est pas encore créé ou transmis.';
+    public const MSG_OPCO_MANQUANT = 'Impossible de créer une admission : le dossier OPCO n\'est pas encore accepté par l\'OPCO.';
 
     public const MSG_RETOUR_ENTRETIEN = 'Impossible de revenir au statut « Entretien prévu » après une décision finale.';
 
@@ -90,16 +90,17 @@ class CycleApprenant
     ];
 
     /** Statuts contrat considérés comme actifs (anti-doublon candidat × entreprise). */
-    public const CONTRATS_ACTIFS_EXCLUS = [ContractStatut::Rompu, ContractStatut::Archive];
+    public const CONTRATS_ACTIFS_EXCLUS = [ContractStatut::Rompu];
 
     /**
-     * Le dossier OPCO vaut-il « créé ou transmis pour validation » ?
-     * (Tout état au-delà de la préparation ouvre l'admission officielle —
-     * un refus OPCO ultérieur ne la supprime jamais.)
+     * Le dossier OPCO est-il accepté (financement validé) ? Seule l'acceptation
+     * de l'OPCO transfère le dossier vers l'admission officielle pour validation
+     * finale — un dossier déposé, en attente ou rejeté n'y arrive jamais. Le
+     * rejet renvoie le contrat en « À corriger » (section Contrats), pas ici.
      */
     public static function opcoOuvreAdmission(OpcoStatut $statut): bool
     {
-        return ! in_array($statut, [OpcoStatut::NonCree, OpcoStatut::APreparer], true);
+        return in_array($statut, [OpcoStatut::Accepte, OpcoStatut::Cloture], true);
     }
 
     /* ----------------------------------------------------------------
@@ -471,7 +472,7 @@ class CycleApprenant
             'code_rncp' => $formation?->code_rncp,
             'rythme' => $need->rythme,
             'date_debut' => $need->date_demarrage,
-            'statut_contrat' => ContractStatut::Brouillon->value,
+            'statut_contrat' => ContractStatut::EnCours->value,
         ]);
     }
 
@@ -503,8 +504,8 @@ class CycleApprenant
 
         if ($admission->wasRecentlyCreated) {
             self::notifierAutomatisme(
-                'Dossier OPCO créé',
-                'Admission créée automatiquement (« À vérifier ») pour '
+                'Dossier OPCO accepté',
+                'Admission ouverte automatiquement pour validation finale (« À vérifier ») : '
                 .($contract->candidate?->nom_complet ?? 'l\'apprenant').'.',
             );
         }
@@ -598,7 +599,7 @@ class CycleApprenant
     public function etapes(Candidate $candidate): array
     {
         $contrat = $candidate->contracts()
-            ->where('statut_contrat', '!=', ContractStatut::Archive->value)
+            ->where('statut_contrat', '!=', ContractStatut::Rompu->value)
             ->latest('id')
             ->first();
 

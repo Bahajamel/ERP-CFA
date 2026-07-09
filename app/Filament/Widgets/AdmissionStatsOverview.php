@@ -37,10 +37,9 @@ class AdmissionStatsOverview extends StatsOverviewWidget
 
     /** Statuts de contrat avant signature (à finaliser par l'administratif). */
     private const CONTRATS_A_TRAITER = [
-        ContractStatut::Brouillon->value,
-        ContractStatut::InfosManquantes->value,
-        ContractStatut::PretAVerifier->value,
-        ContractStatut::EnvoyeSignature->value,
+        ContractStatut::EnCours->value,
+        ContractStatut::ManqueSignature->value,
+        ContractStatut::ACorriger->value,
     ];
 
     /** Dossiers OPCO en attente d'action (préparation / dépôt / correction). */

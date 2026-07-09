@@ -4,10 +4,12 @@ namespace App\Filament\Resources\Admissions\Schemas;
 
 use App\Enums\ContractSignatureStatut;
 use App\Enums\ContractStatut;
+use App\Enums\DocumentType;
 use App\Enums\OpcoStatut;
 use App\Filament\Resources\Admissions\AdmissionActions;
 use App\Models\Admission;
 use App\Models\Contract;
+use App\Models\Document;
 use App\Parcours\CycleApprenant;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
@@ -25,29 +27,25 @@ class AdmissionForm
         return $schema
             ->components([
                 Section::make('Admission officielle')
-                    ->description('Dernière étape du cycle d\'entrée : le candidat est accepté, l\'entreprise '
-                        .'trouvée, le contrat signé par les trois parties et le dossier OPCO créé ou transmis. '
-                        .'Le statut évolue via les actions de workflow, pas manuellement.')
+                    ->description('Dernière étape du cycle : le dossier OPCO a été accepté, il ne reste qu\'à '
+                        .'valider l\'admission pour inscrire officiellement l\'apprenant au CFA (avec son contrat '
+                        .'et sa convention). Le statut évolue via les actions de workflow, pas manuellement.')
                     ->columns(1)
                     ->schema([
                         Select::make('contract_id')
                             ->label('Contrat signé (apprenti — entreprise)')
                             // Prérequis du cycle : contrat signé par les trois parties
-                            // ET dossier OPCO créé/transmis, sans admission existante.
+                            // ET dossier OPCO accepté, sans admission existante.
                             ->relationship(
                                 'contract',
                                 'id',
                                 fn (Builder $query, ?Admission $record): Builder => $query
                                     ->where(fn (Builder $q) => $q
-                                        ->whereIn('statut_contrat', [
-                                            ContractStatut::Signe->value,
-                                            ContractStatut::TransmisOpco->value,
-                                            ContractStatut::Actif->value,
-                                        ])
+                                        ->whereIn('statut_contrat', ContractStatut::signes())
                                         ->orWhere('statut_signature', ContractSignatureStatut::Signe->value))
-                                    ->whereHas('opcoFile', fn (Builder $q) => $q->whereNotIn('statut', [
-                                        OpcoStatut::NonCree->value,
-                                        OpcoStatut::APreparer->value,
+                                    ->whereHas('opcoFile', fn (Builder $q) => $q->whereIn('statut', [
+                                        OpcoStatut::Accepte->value,
+                                        OpcoStatut::Cloture->value,
                                     ]))
                                     ->where(fn (Builder $q) => $q
                                         ->whereDoesntHave('admission')
@@ -61,39 +59,12 @@ class AdmissionForm
                             ->preload()
                             ->required()
                             ->disabledOn('edit')
-                            ->helperText('Seuls les contrats signés par les trois parties dont le dossier OPCO '
-                                .'est créé ou transmis pour validation sont proposés. L\'admission démarre « À vérifier ».'),
+                            ->helperText('Seuls les contrats signés dont le dossier OPCO est accepté sont proposés. '
+                                .'L\'admission démarre « À vérifier ».'),
                         Textarea::make('commentaire')
                             ->label('Commentaire')
                             ->placeholder('ex : Points à vérifier avant validation…')
                             ->rows(3),
-                    ]),
-
-                // Alerte : le rejet / la correction OPCO ne supprime jamais
-                // l'admission, mais le dossier doit être traité.
-                Section::make('Action requise sur le dossier OPCO')
-                    ->visibleOn('edit')
-                    ->visible(fn (?Admission $record): bool => in_array(
-                        $record?->contract?->opcoFile?->statut,
-                        [OpcoStatut::Rejete, OpcoStatut::EnCorrection],
-                        true,
-                    ))
-                    ->icon('heroicon-o-exclamation-triangle')
-                    ->iconColor('danger')
-                    ->schema([
-                        Placeholder::make('alerte_opco')
-                            ->hiddenLabel()
-                            ->content(fn (?Admission $record): HtmlString => new HtmlString(
-                                '<span class="text-danger-600 font-medium">Le dossier OPCO est « '
-                                .e($record?->contract?->opcoFile?->statut?->getLabel() ?? '')
-                                .' » : une action est nécessaire côté OPCO.</span>'
-                                .($record?->contract?->opcoFile?->motif_rejet
-                                    ? '<br><span class="text-sm text-gray-500">Motif : '
-                                        .e($record->contract->opcoFile->motif_rejet).'</span>'
-                                    : '')
-                                .'<br><span class="text-sm text-gray-500">L\'admission reste ouverte : '
-                                .'corrigez et redéposez le dossier dans le module OPCO.</span>'
-                            )),
                     ]),
 
                 // Vision claire du chemin déjà accompli (cycle apprenant).
@@ -145,41 +116,17 @@ class AdmissionForm
                             ->columnSpanFull(),
                     ]),
 
-                Section::make('Pièces du candidat')
-                    ->description('Les pièces fournies dans la fiche candidat sont réutilisées ici — '
-                        .'aucun nouvel upload n\'est nécessaire.')
+                // Contrat + convention : les pièces qui font foi de l'inscription.
+                Section::make('Documents contractuels')
+                    ->description('Le contrat (CERFA) et la convention de formation qui accompagnent l\'inscription '
+                        .'officielle de l\'apprenant. Générés dans la section Contrats.')
                     ->visibleOn('edit')
                     ->schema([
-                        Placeholder::make('cv')
-                            ->label('CV')
-                            ->content(function (?Admission $record): HtmlString {
-                                $info = $record?->candidate?->cvInfo();
-
-                                if ($info === null) {
-                                    return new HtmlString(
-                                        '<span class="text-danger-600 font-medium">⚠ Aucun CV fourni pour ce candidat.</span>'
-                                        .'<br><span class="text-sm text-gray-500">Ajoutez-le dans la fiche candidat '
-                                        .'pour pouvoir valider cette admission.</span>'
-                                    );
-                                }
-
-                                $nom = e($info['name']);
-                                $type = e(strtoupper($info['extension'] ?: 'fichier'));
-                                $date = $info['added_at']?->format('d/m/Y') ?? '—';
-                                $url = e($info['url']);
-
-                                return new HtmlString(
-                                    '<div class="flex flex-col gap-1">'
-                                    .'<div class="flex items-center gap-2">'
-                                    .'<span class="font-medium">📄 '.$nom.'</span>'
-                                    .'<span class="text-xs rounded bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5">'.$type.'</span>'
-                                    .'</div>'
-                                    .'<span class="text-sm text-gray-500">Ajouté le '.$date.'</span>'
-                                    .'<a href="'.$url.'" target="_blank" rel="noopener" '
-                                    .'class="text-primary-600 hover:underline font-medium">Consulter / télécharger le CV</a>'
-                                    .'</div>'
-                                );
-                            }),
+                        Placeholder::make('documents_contractuels')
+                            ->hiddenLabel()
+                            ->content(fn (?Admission $record): HtmlString => new HtmlString(
+                                self::rendreDocumentsContractuels($record?->contract)
+                            )),
                     ]),
 
                 // Actions de workflow en bas du dossier.
@@ -189,5 +136,50 @@ class AdmissionForm
                 ])
                     ->visibleOn('edit'),
             ]);
+    }
+
+    /**
+     * Rend la liste des documents contractuels (CERFA/contrat + convention)
+     * du contrat, avec lien de consultation. Renvoie un message d'aiguillage
+     * vers la section Contrats pour ceux qui manquent encore.
+     */
+    private static function rendreDocumentsContractuels(?Contract $contract): string
+    {
+        if ($contract === null) {
+            return '<span class="text-sm text-gray-500">—</span>';
+        }
+
+        $attendus = [
+            DocumentType::Cerfa->value => 'Contrat (CERFA)',
+            DocumentType::Convention->value => 'Convention de formation',
+        ];
+
+        $documents = $contract->documents()
+            ->whereIn('type', array_keys($attendus))
+            ->latest()
+            ->get()
+            ->keyBy(fn (Document $d): string => $d->type->value);
+
+        $lignes = [];
+
+        foreach ($attendus as $type => $libelle) {
+            $doc = $documents->get($type);
+            $url = $doc?->getFirstMediaUrl('fichier');
+
+            if ($doc !== null && $url !== '') {
+                $lignes[] = '<div class="flex items-center gap-2">'
+                    .'<span class="font-medium">📄 '.e($libelle).'</span>'
+                    .'<a href="'.e($url).'" target="_blank" rel="noopener" '
+                    .'class="text-primary-600 hover:underline text-sm font-medium">Consulter</a>'
+                    .'</div>';
+            } else {
+                $lignes[] = '<div class="flex items-center gap-2 text-gray-500">'
+                    .'<span>⏳ '.e($libelle).'</span>'
+                    .'<span class="text-sm">à générer dans la section Contrats</span>'
+                    .'</div>';
+            }
+        }
+
+        return '<div class="flex flex-col gap-1">'.implode('', $lignes).'</div>';
     }
 }

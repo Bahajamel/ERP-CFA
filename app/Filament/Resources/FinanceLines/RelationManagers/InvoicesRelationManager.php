@@ -5,8 +5,11 @@ namespace App\Filament\Resources\FinanceLines\RelationManagers;
 use App\Enums\DocumentStatut;
 use App\Enums\DocumentType;
 use App\Enums\InvoiceStatut;
+use App\Enums\TaskPriorite;
+use App\Enums\TaskStatut;
 use App\Filament\Resources\FinanceLines\Tables\FinanceLinesTable;
 use App\Finance\InvoiceGenerator;
+use App\Models\FinanceLine;
 use App\Models\Invoice;
 use App\StateMachine\InvalidTransitionException;
 use Filament\Actions\Action;
@@ -183,6 +186,15 @@ class InvoicesRelationManager extends RelationManager
                             ->body("Document interne v{$document->version} (sans valeur comptable).")
                             ->send();
                     }),
+                Action::make('relancer')
+                    ->label('Relancer')
+                    ->icon('heroicon-o-bell-alert')
+                    ->color('warning')
+                    ->tooltip('Créer une tâche de relance pour cet impayé')
+                    ->visible(fn (Invoice $record): bool => $record->estEnRetard())
+                    ->requiresConfirmation()
+                    ->modalDescription('Créer une tâche de relance pour cette facture échue impayée ?')
+                    ->action(fn (Invoice $record) => $this->relancerImpaye($record)),
                 Action::make('annuler')
                     ->label('Annuler')
                     ->icon('heroicon-o-x-circle')
@@ -214,7 +226,7 @@ class InvoicesRelationManager extends RelationManager
      */
     protected function importerFacture(array $data): void
     {
-        /** @var \App\Models\FinanceLine $line */
+        /** @var FinanceLine $line */
         $line = $this->getOwnerRecord();
 
         $invoice = $line->invoices()->create([
@@ -243,6 +255,34 @@ class InvoicesRelationManager extends RelationManager
             ->success()
             ->title('Facture importée')
             ->body('Facture '.$data['numero'].' rattachée et archivée dans la GED.')
+            ->send();
+    }
+
+    /**
+     * Relance d'impayé : crée (idempotent) une tâche de relance rattachée à la
+     * facture, assignée à son émetteur. Même clé que l'alerte automatique pour
+     * éviter les doublons.
+     */
+    protected function relancerImpaye(Invoice $record): void
+    {
+        $tache = $record->tasks()->firstOrCreate(
+            ['cle' => $record->cleRelance()],
+            [
+                'titre' => 'Relancer la facture impayée '.($record->numero ?: '#'.$record->id),
+                'description' => 'Facture échue le '.$record->date_echeance?->format('d/m/Y')
+                    .' — reste '.FinanceLinesTable::euros($record->resteAPayer()).' à encaisser.',
+                'assignee_id' => $record->created_by,
+                'due_date' => now(),
+                'priorite' => TaskPriorite::Haute->value,
+                'statut' => TaskStatut::AFaire->value,
+                'source' => 'manuelle',
+            ],
+        );
+
+        Notification::make()
+            ->{$tache->wasRecentlyCreated ? 'success' : 'info'}()
+            ->title($tache->wasRecentlyCreated ? 'Relance créée' : 'Relance déjà en cours')
+            ->body('Tâche de relance dans la section Tâches.')
             ->send();
     }
 }

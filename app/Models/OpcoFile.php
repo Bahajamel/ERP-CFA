@@ -3,20 +3,23 @@
 namespace App\Models;
 
 use App\Enums\ContractSignatureStatut;
+use App\Enums\ContractStatut;
 use App\Enums\OpcoStatut;
 use App\Enums\PaymentStatut;
 use App\Enums\TaskPriorite;
 use App\Enums\TaskStatut;
 use App\Parcours\CycleApprenant;
+use App\Services\FinanceService;
 use App\StateMachine\ManagesState;
 use BackedEnum;
-use Illuminate\Validation\ValidationException;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\ValidationException;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
@@ -61,16 +64,48 @@ class OpcoFile extends Model
         static::created(function (self $dossier): void {
             if (CycleApprenant::opcoOuvreAdmission($dossier->statut)) {
                 app(CycleApprenant::class)->ouvrirAdmission($dossier);
+                app(FinanceService::class)->synchroniserDepuisOpco($dossier);
             }
         });
 
         // Même déclencheur pour une mise à jour directe du statut (formulaire,
         // import…) hors machine à états : idempotent via firstOrCreate.
         static::updated(function (self $dossier): void {
-            if ($dossier->wasChanged('statut') && CycleApprenant::opcoOuvreAdmission($dossier->statut)) {
+            if (! $dossier->wasChanged('statut')) {
+                return;
+            }
+
+            if (CycleApprenant::opcoOuvreAdmission($dossier->statut)) {
                 app(CycleApprenant::class)->ouvrirAdmission($dossier);
+                app(FinanceService::class)->synchroniserDepuisOpco($dossier);
+            }
+
+            // Dossier rejeté par l'OPCO → le contrat repasse en « À corriger »
+            // dans la section Contrats (correction avant nouvelle transmission).
+            if ($dossier->statut === OpcoStatut::Rejete) {
+                $dossier->retournerContratPourCorrection();
             }
         });
+    }
+
+    /**
+     * Renvoie le contrat en « À corriger » (section Contrats) suite à un rejet
+     * OPCO. Silencieux si la transition n'est pas permise : la cohérence ne
+     * doit jamais empêcher l'enregistrement du rejet.
+     */
+    public function retournerContratPourCorrection(): void
+    {
+        $contract = $this->contract;
+
+        if ($contract === null || ! $contract->statut_contrat->canTransitionTo(ContractStatut::ACorriger)) {
+            return;
+        }
+
+        try {
+            $contract->transitionTo(ContractStatut::ACorriger, 'Dossier OPCO rejeté : '.$this->motif_rejet);
+        } catch (\Throwable) {
+            // La cohérence n'empêche jamais l'enregistrement du rejet OPCO.
+        }
     }
 
     public function getActivitylogOptions(): LogOptions
@@ -90,6 +125,22 @@ class OpcoFile extends Model
     public function opco(): BelongsTo
     {
         return $this->belongsTo(Opco::class);
+    }
+
+    /** Ligne financière générée automatiquement depuis ce dossier OPCO. */
+    public function financeLine(): HasOne
+    {
+        return $this->hasOne(FinanceLine::class);
+    }
+
+    /**
+     * OPCO effectif du dossier : celui rattaché au dossier, sinon celui de
+     * l'entreprise du contrat (déduit du SIRET dans Entreprises partenaires).
+     * Évite un « — » alors que l'OPCO de l'entreprise est déjà connu.
+     */
+    public function opcoEffectif(): ?Opco
+    {
+        return $this->opco ?? $this->contract?->company?->opco;
     }
 
     public function responsableCorrection(): BelongsTo
@@ -208,6 +259,9 @@ class OpcoFile extends Model
                 'statut' => TaskStatut::AFaire->value,
                 'source' => 'auto',
             ]);
+
+            // Le contrat repasse en « À corriger » dans la section Contrats.
+            $this->retournerContratPourCorrection();
         }
 
         // Acceptation OPCO : on génère l'échéancier de versement (décret 2025-585).
@@ -220,6 +274,8 @@ class OpcoFile extends Model
         // ensuite, même si l'OPCO rejette ou demande correction).
         if (CycleApprenant::opcoOuvreAdmission($to)) {
             app(CycleApprenant::class)->ouvrirAdmission($this);
+            // Ligne financière ouverte automatiquement (montant accepté repris).
+            app(FinanceService::class)->synchroniserDepuisOpco($this);
         }
 
         if (filled($comment)) {

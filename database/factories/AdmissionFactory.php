@@ -8,6 +8,7 @@ use App\Enums\ContractStatut;
 use App\Enums\OpcoStatut;
 use App\Models\Admission;
 use App\Models\Contract;
+use App\Parcours\CycleApprenant;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -30,9 +31,9 @@ class AdmissionFactory extends Factory
 
     /**
      * Une admission officielle exige un contrat signé par les trois parties
-     * dont le dossier OPCO est créé/transmis (invariants backend du cycle) :
-     * la factory construit toute la chaîne valide, y compris pour les appels
-     * historiques `create(['candidate_id' => X])`. Comme l'ouverture du
+     * dont le dossier OPCO est accepté (invariants backend du cycle) : la
+     * factory construit toute la chaîne valide, y compris pour les appels
+     * historiques `create(['candidate_id' => X])`. Comme l'acceptation du
      * dossier OPCO déclenche déjà l'admission automatique, on réutilise le
      * dossier existant (une seule admission par contrat).
      */
@@ -41,7 +42,7 @@ class AdmissionFactory extends Factory
         $attributes = is_array($attributes) ? $attributes : [];
 
         $signe = [
-            'statut_contrat' => ContractStatut::Signe,
+            'statut_contrat' => ContractStatut::Complet,
             'statut_signature' => ContractSignatureStatut::Signe,
         ];
 
@@ -53,9 +54,12 @@ class AdmissionFactory extends Factory
 
         unset($attributes['contract_id'], $attributes['candidate_id']);
 
-        // Prérequis du cycle : dossier OPCO créé/transmis. Son hook `created`
-        // ouvre déjà l'admission « À vérifier » — firstOrCreate la retrouve.
-        $contract->opcoFile()->firstOrCreate([], ['statut' => OpcoStatut::PretDepot->value]);
+        // Prérequis du cycle : dossier OPCO accepté. On garantit le statut puis
+        // on ouvre explicitement l'admission (idempotent) : quel que soit le
+        // dossier préexistant, la chaîne est cohérente.
+        $opco = $contract->opcoFile()->firstOrCreate([], ['statut' => OpcoStatut::Accepte->value]);
+        $opco->forceFill(['statut' => OpcoStatut::Accepte->value])->saveQuietly();
+        app(CycleApprenant::class)->ouvrirAdmission($opco);
 
         $admission = Admission::query()->firstOrCreate(
             ['contract_id' => $contract->id],

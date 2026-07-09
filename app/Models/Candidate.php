@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\CandidateStatut;
 use App\Enums\DocumentType;
+use App\Enums\EntretienStatut;
 use App\Enums\PresenceStatut;
 use App\Matching\CompatibilityScorer;
 use App\Parcours\CycleApprenant;
@@ -20,11 +21,13 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class Candidate extends Model implements HasMedia
 {
@@ -38,6 +41,9 @@ class Candidate extends Model implements HasMedia
 
     protected $guarded = [];
 
+    /** Délai de rétention en corbeille avant purge définitive automatique. */
+    public const DELAI_PURGE_JOURS = 30;
+
     protected function casts(): array
     {
         return [
@@ -45,6 +51,46 @@ class Candidate extends Model implements HasMedia
             'date_disponibilite' => 'date',
             'statut' => CandidateStatut::class,
         ];
+    }
+
+    /**
+     * Archive le candidat en corbeille : trace le motif (obligatoire) et
+     * l'auteur, puis soft-delete. Il disparaît alors de toutes les listes
+     * (ses dossiers sont masqués via `whereHas('candidate')`) et reste
+     * restaurable 30 jours avant purge automatique.
+     */
+    public function archiver(string $motif, ?int $parUtilisateur = null): void
+    {
+        $this->forceFill([
+            'motif_suppression' => $motif,
+            'deleted_by' => $parUtilisateur ?? auth()->id(),
+        ])->saveQuietly();
+
+        $this->delete();
+    }
+
+    /** Restaure un candidat depuis la corbeille (efface le motif et l'auteur). */
+    public function restaurer(): void
+    {
+        $this->restore();
+        $this->forceFill(['motif_suppression' => null, 'deleted_by' => null])->saveQuietly();
+    }
+
+    /** Jours restants avant la purge définitive (0 si l'échéance est atteinte). */
+    public function joursAvantPurge(): ?int
+    {
+        if ($this->deleted_at === null) {
+            return null;
+        }
+
+        $purgeLe = $this->deleted_at->copy()->addDays(self::DELAI_PURGE_JOURS);
+
+        return max(0, (int) ceil(now()->diffInDays($purgeLe, false)));
+    }
+
+    public function deletedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'deleted_by');
     }
 
     /** Types MIME acceptés pour les pièces justificatives (PDF ou image). */
@@ -175,13 +221,13 @@ class Candidate extends Model implements HasMedia
     public function guardTransition(\BackedEnum $from, \BackedEnum $to): ?string
     {
         if ($to === CandidateStatut::EntretienPrevu
-            && ! $this->entretiens()->where('statut', \App\Enums\EntretienStatut::Planifie->value)->exists()) {
+            && ! $this->entretiens()->where('statut', EntretienStatut::Planifie->value)->exists()) {
             return CycleApprenant::MSG_ENTRETIEN_NON_PLANIFIE;
         }
 
         if ($to === CandidateStatut::Accepte
-            && ! $this->entretiens()->where('statut', \App\Enums\EntretienStatut::Realise->value)->exists()
-            && ! (\Illuminate\Support\Facades\Auth::user()?->hasRole('Administrateur') ?? false)) {
+            && ! $this->entretiens()->where('statut', EntretienStatut::Realise->value)->exists()
+            && ! (Auth::user()?->hasRole('Administrateur') ?? false)) {
             return CycleApprenant::MSG_ACCEPTATION_SANS_ENTRETIEN;
         }
 
@@ -216,7 +262,7 @@ class Candidate extends Model implements HasMedia
      * document GED de type CV), pour le recopier ailleurs — ex. joindre le CV
      * réellement transmis au dossier Matching. Null si aucun CV.
      */
-    public function cvMedia(): ?\Spatie\MediaLibrary\MediaCollections\Models\Media
+    public function cvMedia(): ?Media
     {
         if (($media = $this->getFirstMedia('cv')) !== null) {
             return $media;
@@ -331,7 +377,7 @@ class Candidate extends Model implements HasMedia
     public function entretienActif(): ?Entretien
     {
         return $this->entretiens()
-            ->whereIn('statut', array_map(fn (\App\Enums\EntretienStatut $s) => $s->value, Entretien::ACTIFS))
+            ->whereIn('statut', array_map(fn (EntretienStatut $s) => $s->value, Entretien::ACTIFS))
             ->latest('id')
             ->first();
     }

@@ -22,7 +22,7 @@ beforeEach(function () {
 function contratEnvoyeSignature(): Contract
 {
     return Contract::factory()->create([
-        'statut_contrat' => ContractStatut::EnvoyeSignature,
+        'statut_contrat' => ContractStatut::ManqueSignature,
         'statut_signature' => ContractSignatureStatut::NonSigne,
     ]);
 }
@@ -30,45 +30,45 @@ function contratEnvoyeSignature(): Contract
 it('interdit le passage à « Signé » sans document contractuel ni signature', function () {
     $contract = contratEnvoyeSignature();
 
-    expect($contract->canTransitionTo(ContractStatut::Signe))->toBeFalse();
-    expect(fn () => $contract->transitionTo(ContractStatut::Signe))
+    expect($contract->canTransitionTo(ContractStatut::Complet))->toBeFalse();
+    expect(fn () => $contract->transitionTo(ContractStatut::Complet))
         ->toThrow(InvalidTransitionException::class);
-    expect($contract->fresh()->statut_contrat)->toBe(ContractStatut::EnvoyeSignature);
+    expect($contract->fresh()->statut_contrat)->toBe(ContractStatut::ManqueSignature);
 });
 
 it('autorise « Signé » quand la signature est marquée signée', function () {
     $contract = Contract::factory()->create([
-        'statut_contrat' => ContractStatut::EnvoyeSignature,
+        'statut_contrat' => ContractStatut::ManqueSignature,
         'statut_signature' => ContractSignatureStatut::Signe,
     ]);
 
-    $contract->transitionTo(ContractStatut::Signe);
+    $contract->transitionTo(ContractStatut::Complet);
 
-    expect($contract->fresh()->statut_contrat)->toBe(ContractStatut::Signe);
+    expect($contract->fresh()->statut_contrat)->toBe(ContractStatut::Complet);
 });
 
 it('autorise « Signé » quand un document contractuel est associé et fixe la signature', function () {
     $contract = contratEnvoyeSignature();
     Document::factory()->for($contract, 'documentable')->create(['type' => DocumentType::Contrat]);
 
-    expect($contract->canTransitionTo(ContractStatut::Signe))->toBeTrue();
+    expect($contract->canTransitionTo(ContractStatut::Complet))->toBeTrue();
 
-    $contract->transitionTo(ContractStatut::Signe);
+    $contract->transitionTo(ContractStatut::Complet);
 
     $contract->refresh();
-    expect($contract->statut_contrat)->toBe(ContractStatut::Signe)
+    expect($contract->statut_contrat)->toBe(ContractStatut::Complet)
         ->and($contract->statut_signature)->toBe(ContractSignatureStatut::Signe);
 });
 
-it('ouvre automatiquement le dossier OPCO à la transmission', function () {
+it('ouvre automatiquement le dossier OPCO au passage « Complet »', function () {
     $contract = Contract::factory()->create([
-        'statut_contrat' => ContractStatut::Signe,
+        'statut_contrat' => ContractStatut::ManqueSignature,
         'statut_signature' => ContractSignatureStatut::Signe,
     ]);
 
     expect($contract->opcoFile)->toBeNull();
 
-    $contract->transitionTo(ContractStatut::TransmisOpco);
+    $contract->transitionTo(ContractStatut::Complet);
 
     $contract->refresh();
     expect($contract->opcoFile)->not->toBeNull()
@@ -76,9 +76,9 @@ it('ouvre automatiquement le dossier OPCO à la transmission', function () {
 });
 
 it('refuse une transition structurellement interdite', function () {
-    $contract = Contract::factory()->create(['statut_contrat' => ContractStatut::Brouillon]);
+    $contract = Contract::factory()->create(['statut_contrat' => ContractStatut::EnCours]);
 
-    expect(fn () => $contract->transitionTo(ContractStatut::Signe))
+    expect(fn () => $contract->transitionTo(ContractStatut::Complet))
         ->toThrow(InvalidTransitionException::class);
 });
 

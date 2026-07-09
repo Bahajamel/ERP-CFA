@@ -35,7 +35,7 @@ function contratPourCerfa(): Contract
         'date_fin' => '2028-08-31',
         'salaire_mensuel_brut' => 977.55,
         'statut_signature' => ContractSignatureStatut::Signe,
-        'statut_contrat' => ContractStatut::Signe,
+        'statut_contrat' => ContractStatut::Complet,
     ]);
 }
 

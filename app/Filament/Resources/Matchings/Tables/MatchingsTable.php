@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Matchings\Tables;
 
 use App\Enums\MatchingStatut;
 use App\Filament\Resources\Contracts\ContractResource;
+use App\Models\Contract;
 use App\Models\Matching;
 use App\Parcours\CycleApprenant;
 use App\Parcours\CycleBloqueException;
@@ -16,12 +17,16 @@ use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class MatchingsTable
 {
     public static function configure(Table $table): Table
     {
         return $table
+            // Masque les lignes dont le candidat a été supprimé (corbeille) :
+            // plus de matching orphelin « sans nom » dans le tableau.
+            ->modifyQueryUsing(fn (Builder $query) => $query->whereHas('candidate'))
             ->columns([
                 TextColumn::make('candidate.nom_complet')
                     ->label('Candidat')
@@ -133,7 +138,7 @@ class MatchingsTable
             return false;
         }
 
-        return \App\Models\Contract::query()
+        return Contract::query()
             ->where('candidate_id', $record->candidate_id)
             ->where('company_id', $record->need->company_id)
             ->whereNotIn('statut_contrat', array_map(
