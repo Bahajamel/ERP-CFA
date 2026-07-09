@@ -7,10 +7,12 @@ use App\Filament\Resources\Contracts\ContractActions;
 use App\Filament\Resources\Contracts\ContractResource;
 use App\Models\Contract;
 use App\StateMachine\InvalidTransitionException;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\ForceDeleteAction;
 use Filament\Actions\RestoreAction;
 use Filament\Notifications\Notification;
+use Filament\Support\Icons\Heroicon;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Database\Eloquent\Model;
 
@@ -21,13 +23,26 @@ class EditContract extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
-            ContractActions::verifierDocuments(),
-            ContractActions::genererCerfa(),
-            ContractActions::genererConvention(),
-            ContractActions::telechargerCerfa(),
-            ContractActions::signer(),
-            ContractActions::envoyerSignature(),
-            ContractActions::simulerSignature(),
+            // Actions documentaires regroupées dans un seul menu (en-tête épuré).
+            ActionGroup::make([
+                ContractActions::verifierDocuments(),
+                ContractActions::genererCerfa(),
+                ContractActions::genererConvention(),
+            ])
+                ->label('Documents')
+                ->icon(Heroicon::OutlinedDocumentDuplicate)
+                ->button()
+                ->color('primary'),
+            // Actions de signature regroupées (une seule est visible à la fois).
+            ActionGroup::make([
+                ContractActions::signer(),
+                ContractActions::envoyerSignature(),
+                ContractActions::simulerSignature(),
+            ])
+                ->label('Signature')
+                ->icon(Heroicon::OutlinedPencilSquare)
+                ->button()
+                ->color('gray'),
             DeleteAction::make(),
             ForceDeleteAction::make(),
             RestoreAction::make(),
