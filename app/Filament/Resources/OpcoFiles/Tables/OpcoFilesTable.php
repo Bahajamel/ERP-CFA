@@ -3,7 +3,9 @@
 namespace App\Filament\Resources\OpcoFiles\Tables;
 
 use App\Enums\OpcoStatut;
+use App\Filament\Resources\Admissions\AdmissionResource;
 use App\Filament\Resources\OpcoFiles\OpcoFileActions;
+use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -19,6 +21,9 @@ class OpcoFilesTable
     public static function configure(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(fn (Builder $query) => $query->with([
+                'opco', 'contract.candidate', 'contract.company.opco',
+            ]))
             ->columns([
                 TextColumn::make('contract.candidate.nom_complet')
                     ->label('Apprenti')
@@ -27,6 +32,7 @@ class OpcoFilesTable
                     ->searchable(),
                 TextColumn::make('opco.nom')
                     ->label('OPCO')
+                    ->state(fn ($record) => $record->opcoEffectif()?->nom)
                     ->badge()
                     ->color('gray')
                     ->placeholder('—'),
@@ -74,12 +80,12 @@ class OpcoFilesTable
                 OpcoFileActions::accepter(),
                 OpcoFileActions::rejeter(),
                 // Lien vers l'admission ouverte automatiquement (cycle apprenant).
-                \Filament\Actions\Action::make('voirAdmission')
+                Action::make('voirAdmission')
                     ->label('Voir l\'admission')
                     ->icon('heroicon-o-arrow-top-right-on-square')
                     ->color('info')
                     ->visible(fn ($record): bool => $record->contract?->admission !== null)
-                    ->url(fn ($record): string => \App\Filament\Resources\Admissions\AdmissionResource::getUrl(
+                    ->url(fn ($record): string => AdmissionResource::getUrl(
                         'edit',
                         ['record' => $record->contract->admission],
                     )),

@@ -6,6 +6,7 @@ use App\Enums\ContractSignatureStatut;
 use App\Enums\ContractStatut;
 use App\Enums\DocumentType;
 use App\Enums\OpcoStatut;
+use App\Parcours\CycleApprenant;
 use App\StateMachine\ManagesState;
 use BackedEnum;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -15,6 +16,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Validation\ValidationException;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\MediaLibrary\HasMedia;
@@ -56,7 +58,7 @@ class Contract extends Model implements HasMedia
                 ->exists();
 
             if ($doublon) {
-                throw \Illuminate\Validation\ValidationException::withMessages([
+                throw ValidationException::withMessages([
                     'company_id' => 'Un contrat est déjà en cours pour ce candidat et cette entreprise.',
                 ]);
             }
@@ -134,10 +136,14 @@ class Contract extends Model implements HasMedia
      */
     public function ouvrirDossierOpco(): void
     {
-        $dossier = $this->opcoFile()->firstOrCreate([], ['statut' => OpcoStatut::APreparer->value]);
+        $dossier = $this->opcoFile()->firstOrCreate([], [
+            'statut' => OpcoStatut::APreparer->value,
+            // OPCO pré-rempli depuis l'entreprise (déduit du SIRET) : pas de ressaisie.
+            'opco_id' => $this->company?->opco_id,
+        ]);
 
         if ($dossier->wasRecentlyCreated) {
-            \App\Parcours\CycleApprenant::notifierAutomatisme(
+            CycleApprenant::notifierAutomatisme(
                 'Contrat signé',
                 'Dossier OPCO créé automatiquement (« À préparer ») pour '
                 .($this->candidate?->nom_complet ?? 'l\'apprenant').'.',

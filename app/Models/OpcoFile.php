@@ -11,13 +11,13 @@ use App\Enums\TaskStatut;
 use App\Parcours\CycleApprenant;
 use App\StateMachine\ManagesState;
 use BackedEnum;
-use Illuminate\Validation\ValidationException;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\ValidationException;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
@@ -121,6 +121,16 @@ class OpcoFile extends Model
     public function opco(): BelongsTo
     {
         return $this->belongsTo(Opco::class);
+    }
+
+    /**
+     * OPCO effectif du dossier : celui rattaché au dossier, sinon celui de
+     * l'entreprise du contrat (déduit du SIRET dans Entreprises partenaires).
+     * Évite un « — » alors que l'OPCO de l'entreprise est déjà connu.
+     */
+    public function opcoEffectif(): ?Opco
+    {
+        return $this->opco ?? $this->contract?->company?->opco;
     }
 
     public function responsableCorrection(): BelongsTo
