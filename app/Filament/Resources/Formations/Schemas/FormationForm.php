@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Formations\Schemas;
 
+use Filament\Forms\Components\TagsInput;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Schema;
@@ -33,6 +34,11 @@ class FormationForm
                 Toggle::make('is_active')
                     ->label('Active')
                     ->default(true),
+                TagsInput::make('matieres')
+                    ->label('Matières (programme)')
+                    ->placeholder('Ajouter une matière…')
+                    ->helperText('Le catalogue des matières enseignées dans cette formation. Elles seront proposées comme matières de séances.')
+                    ->columnSpanFull(),
             ]);
     }
 }

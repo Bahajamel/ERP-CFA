@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Formations\Tables;
 
+use App\Filament\Resources\Formations\FormationResource;
 use App\Livret\LivretRsClient;
 use App\Livret\LivretRsException;
 use App\Models\Formation;
@@ -24,7 +25,17 @@ class FormationsTable
                 TextColumn::make('libelle')
                     ->label('Libellé')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->weight('bold')
+                    ->color('primary')
+                    ->url(fn (Formation $record): string => FormationResource::getUrl('view', ['record' => $record])),
+                TextColumn::make('matieres')
+                    ->label('Matières')
+                    ->state(fn (Formation $record): int => count($record->programme()))
+                    ->badge()
+                    ->color('info')
+                    ->formatStateUsing(fn (int $state): string => $state.' matière'.($state > 1 ? 's' : ''))
+                    ->alignCenter(),
                 TextColumn::make('code_rncp')
                     ->label('Code RNCP')
                     ->badge()

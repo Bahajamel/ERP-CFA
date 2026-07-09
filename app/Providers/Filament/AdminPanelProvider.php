@@ -68,7 +68,6 @@ class AdminPanelProvider extends PanelProvider
                 'Formation & Scolarité',
                 'Qualité',
                 'Documents',
-                'Référentiels',
                 'Administration',
             ])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')

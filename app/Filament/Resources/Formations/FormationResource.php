@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Formations;
 use App\Filament\Resources\Formations\Pages\CreateFormation;
 use App\Filament\Resources\Formations\Pages\EditFormation;
 use App\Filament\Resources\Formations\Pages\ListFormations;
+use App\Filament\Resources\Formations\Pages\ViewFormation;
 use App\Filament\Resources\Formations\Schemas\FormationForm;
 use App\Filament\Resources\Formations\Tables\FormationsTable;
 use App\Models\Formation;
@@ -25,7 +26,7 @@ class FormationResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedAcademicCap;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Référentiels';
+    protected static string|\UnitEnum|null $navigationGroup = 'Formation & Scolarité';
 
     protected static ?int $navigationSort = 1;
 
@@ -59,6 +60,7 @@ class FormationResource extends Resource
         return [
             'index' => ListFormations::route('/'),
             'create' => CreateFormation::route('/create'),
+            'view' => ViewFormation::route('/{record}'),
             'edit' => EditFormation::route('/{record}/edit'),
         ];
     }
