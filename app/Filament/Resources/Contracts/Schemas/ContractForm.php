@@ -28,10 +28,12 @@ class ContractForm
     public static function configure(Schema $schema): Schema
     {
         return $schema
-            ->columns(2)
+            // Une seule colonne de sections pleine largeur : chaque section
+            // garde sa grille interne à 2 colonnes, mais les sections s'empilent
+            // sans jamais laisser de vide (pas de jumelage de hauteurs inégales).
+            ->columns(1)
             ->components([
                 Section::make('Parties au contrat')
-                    ->columnSpan(1)
                     ->columns(2)
                     ->schema([
                         Select::make('candidate_id')
