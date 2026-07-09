@@ -4,6 +4,7 @@ use App\Enums\CandidateStatut;
 use App\Enums\MatchingStatut;
 use App\Enums\NeedStatut;
 use App\Models\Candidate;
+use App\Models\Formation;
 use App\Models\Matching;
 use App\Models\Need;
 use App\Parcours\CycleApprenant;
@@ -95,4 +96,39 @@ it('refuse une proposition pour un candidat non accepté', function () {
 
     expect(fn () => cycleProp()->proposerSurOffre($candidat, offreOuverte(), cvDisponible: true))
         ->toThrow(CycleBloqueException::class, CycleApprenant::MSG_CANDIDAT_NON_ACCEPTE);
+});
+
+/*
+|--------------------------------------------------------------------------
+| Offres proposables = celles de la formation visée du candidat
+|--------------------------------------------------------------------------
+*/
+
+it('ne propose que les offres de la formation visée du candidat', function () {
+    $formationA = Formation::factory()->create();
+    $formationB = Formation::factory()->create();
+
+    $candidat = Candidate::factory()->create([
+        'statut' => CandidateStatut::Accepte,
+        'formation_visee_id' => $formationA->id,
+    ]);
+
+    $offreFormationA = Need::factory()->create(['formation_id' => $formationA->id, 'statut' => NeedStatut::ProfilsEnvoyes]);
+    $offreFormationB = Need::factory()->create(['formation_id' => $formationB->id, 'statut' => NeedStatut::ProfilsEnvoyes]);
+
+    $ids = $candidat->offresProposables()->pluck('id');
+
+    expect($ids)->toContain($offreFormationA->id)
+        ->and($ids)->not->toContain($offreFormationB->id);
+});
+
+it('propose toutes les offres ouvertes si le candidat n\'a pas de formation visée', function () {
+    $candidat = Candidate::factory()->create([
+        'statut' => CandidateStatut::Accepte,
+        'formation_visee_id' => null,
+    ]);
+
+    $offre = Need::factory()->create(['statut' => NeedStatut::ProfilsEnvoyes]);
+
+    expect($candidat->offresProposables()->pluck('id'))->toContain($offre->id);
 });

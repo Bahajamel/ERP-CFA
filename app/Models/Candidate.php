@@ -451,6 +451,26 @@ class Candidate extends Model implements HasMedia
     }
 
     /**
+     * Offres (besoins ouverts) proposables à ce candidat au Matching : celles
+     * dont la « Formation visée » du besoin correspond à la formation visée du
+     * candidat. Si le candidat n'a pas de formation renseignée, toutes les
+     * offres ouvertes sont retournées (repli). Alimente « Envoyer vers Matching ».
+     *
+     * @return Collection<int, Need>
+     */
+    public function offresProposables(): Collection
+    {
+        return Need::query()
+            ->ouverts()
+            ->when(
+                $this->formation_visee_id !== null,
+                fn ($query) => $query->where('formation_id', $this->formation_visee_id),
+            )
+            ->with('company')
+            ->get();
+    }
+
+    /**
      * Entreprises à cibler pour ce candidat (P1-03-7, Pilier E / F4). Deux signaux :
      *  1. un besoin ouvert compatible (score de compatibilité > 0) ;
      *  2. l'entreprise a déjà recruté dans la formation visée (partenaire chaud).
