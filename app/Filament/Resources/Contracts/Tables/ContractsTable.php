@@ -4,6 +4,9 @@ namespace App\Filament\Resources\Contracts\Tables;
 
 use App\Enums\ContractStatut;
 use App\Filament\Resources\Contracts\ContractActions;
+use App\Filament\Resources\OpcoFiles\OpcoFileResource;
+use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -55,23 +58,26 @@ class ContractsTable
                 TrashedFilter::make(),
             ])
             ->recordActions([
-                ContractActions::telechargerCerfa(),
-                ContractActions::signer(),
-                ContractActions::envoyerSignature(),
-                ContractActions::simulerSignature(),
-                ContractActions::genererLivrables(),
-                // Lien vers le dossier OPCO ouvert automatiquement à la signature.
-                \Filament\Actions\Action::make('voirOpco')
-                    ->label('Dossier OPCO')
-                    ->icon('heroicon-o-arrow-top-right-on-square')
-                    ->color('info')
-                    ->visible(fn ($record): bool => $record->opcoFile !== null)
-                    ->url(fn ($record): string => \App\Filament\Resources\OpcoFiles\OpcoFileResource::getUrl(
-                        'edit',
-                        ['record' => $record->opcoFile],
-                    )),
+                // Actions principales visibles ; le reste dans un menu « ⋮ »
+                // pour garder la ligne lisible (plus de débordement horizontal).
                 ViewAction::make(),
                 EditAction::make(),
+                ActionGroup::make([
+                    ContractActions::signer(),
+                    ContractActions::envoyerSignature(),
+                    ContractActions::simulerSignature(),
+                    ContractActions::telechargerCerfa(),
+                    // Lien vers le dossier OPCO ouvert automatiquement à la signature.
+                    Action::make('voirOpco')
+                        ->label('Voir le dossier OPCO')
+                        ->icon('heroicon-o-arrow-top-right-on-square')
+                        ->color('info')
+                        ->visible(fn ($record): bool => $record->opcoFile !== null)
+                        ->url(fn ($record): string => OpcoFileResource::getUrl(
+                            'edit',
+                            ['record' => $record->opcoFile],
+                        )),
+                ]),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
