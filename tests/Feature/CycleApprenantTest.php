@@ -12,6 +12,7 @@ use App\Models\Company;
 use App\Models\CompanyContact;
 use App\Models\Contract;
 use App\Models\Formation;
+use App\Models\Matching;
 use App\Models\Need;
 use App\Models\OpcoFile;
 use App\Parcours\CycleApprenant;
@@ -117,7 +118,7 @@ it('réutilise l\'entreprise partenaire existante si le SIRET est déjà connu',
 |--------------------------------------------------------------------------
 */
 
-function matchingAccepte(): App\Models\Matching
+function matchingAccepte(): Matching
 {
     $formation = Formation::factory()->create();
     $company = Company::factory()->create();
@@ -242,7 +243,8 @@ it('résume le parcours dans la timeline : étapes, états et étape courante', 
         ->and($etapes['contrat']['etat'])->toBe(CycleApprenant::ETAT_EN_COURS)
         ->and($etapes['admission']['etat'])->toBe(CycleApprenant::ETAT_NON_DEMARREE);
 
-    // Après signature du contrat et dépôt OPCO : admission en cours.
+    // Après signature du contrat, le dossier OPCO déposé est en cours (pas
+    // encore acceptée) : l'admission n'est pas encore ouverte.
     $contract = cycle()->creerContratDepuisMatching($matching);
     $contract->forceFill([
         'statut_contrat' => ContractStatut::Complet,
@@ -250,11 +252,21 @@ it('résume le parcours dans la timeline : étapes, états et étape courante', 
     ])->save();
     $contract->ouvrirDossierOpco();
     $contract->opcoFile->transitionTo(OpcoStatut::PretDepot);
+    $contract->opcoFile->transitionTo(OpcoStatut::Depose);
 
     $etapes = collect(cycle()->etapes($candidat->fresh()))->keyBy('cle');
 
     expect($etapes['contrat']['etat'])->toBe(CycleApprenant::ETAT_TERMINEE)
-        ->and($etapes['opco']['etat'])->toBe(CycleApprenant::ETAT_TERMINEE)
+        ->and($etapes['opco']['etat'])->toBe(CycleApprenant::ETAT_EN_COURS)
+        ->and($etapes['admission']['etat'])->toBe(CycleApprenant::ETAT_NON_DEMARREE);
+
+    // Acceptation OPCO : l'étape OPCO est acquise et l'admission s'ouvre.
+    $contract->opcoFile->transitionTo(OpcoStatut::AttenteRetour);
+    $contract->opcoFile->transitionTo(OpcoStatut::Accepte);
+
+    $etapes = collect(cycle()->etapes($candidat->fresh()))->keyBy('cle');
+
+    expect($etapes['opco']['etat'])->toBe(CycleApprenant::ETAT_TERMINEE)
         ->and($etapes['admission']['etat'])->toBe(CycleApprenant::ETAT_EN_COURS)
         ->and(cycle()->etapeCourante($candidat->fresh())['cle'])->toBe('admission');
 });

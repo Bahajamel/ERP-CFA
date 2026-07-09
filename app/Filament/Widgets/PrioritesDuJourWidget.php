@@ -4,12 +4,12 @@ namespace App\Filament\Widgets;
 
 use App\Enums\AdmissionStatut;
 use App\Enums\ContractSignatureStatut;
-use App\Enums\DocumentType;
 use App\Enums\OpcoStatut;
 use App\Enums\PaymentStatut;
 use App\Enums\TaskStatut;
 use App\Models\Admission;
 use App\Models\Contract;
+use App\Models\OpcoFile;
 use App\Models\OpcoPayment;
 use App\Models\Task;
 use Filament\Widgets\Widget;
@@ -41,22 +41,17 @@ class PrioritesDuJourWidget extends Widget
         $items = [];
 
         if ($user->can('access_admissions')) {
-            $sansCv = Admission::query()
-                ->where('statut', '!=', AdmissionStatut::Valide->value)
-                ->whereHas('candidate', fn ($q) => $q
-                    ->whereDoesntHave('media', fn ($m) => $m->where('collection_name', 'cv'))
-                    ->whereDoesntHave('documents', fn ($d) => $d
-                        ->where('type', DocumentType::CvCandidat->value)
-                        ->whereHas('media')))
+            $aValider = Admission::query()
+                ->where('statut', AdmissionStatut::AVerifier->value)
                 ->count();
 
-            if ($sansCv > 0) {
+            if ($aValider > 0) {
                 $items[] = [
-                    'count' => $sansCv,
-                    'label' => $sansCv > 1 ? 'dossiers sans CV' : 'dossier sans CV',
-                    'hint' => 'Ces admissions ne pourront pas être validées sans le CV.',
-                    'tone' => 'danger',
-                    'icon' => 'document-minus',
+                    'count' => $aValider,
+                    'label' => $aValider > 1 ? 'admissions à valider' : 'admission à valider',
+                    'hint' => 'Dossier OPCO accepté : validez pour inscrire l\'apprenant.',
+                    'tone' => 'info',
+                    'icon' => 'check-badge',
                     'url' => route('filament.admin.resources.admissions.index'),
                 ];
             }
@@ -80,7 +75,7 @@ class PrioritesDuJourWidget extends Widget
         }
 
         if ($user->can('access_opco')) {
-            $bloques = \App\Models\OpcoFile::query()
+            $bloques = OpcoFile::query()
                 ->whereIn('statut', [OpcoStatut::Rejete->value, OpcoStatut::EnCorrection->value])
                 ->count();
 
