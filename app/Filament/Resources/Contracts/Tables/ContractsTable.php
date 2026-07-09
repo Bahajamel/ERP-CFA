@@ -17,12 +17,15 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class ContractsTable
 {
     public static function configure(Table $table): Table
     {
         return $table
+            // Masque les contrats dont le candidat a été supprimé (corbeille).
+            ->modifyQueryUsing(fn (Builder $query) => $query->whereHas('candidate'))
             ->columns([
                 TextColumn::make('candidate.nom_complet')
                     ->label('Apprenti')

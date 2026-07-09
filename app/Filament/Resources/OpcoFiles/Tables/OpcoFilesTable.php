@@ -21,9 +21,10 @@ class OpcoFilesTable
     public static function configure(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(fn (Builder $query) => $query->with([
-                'opco', 'contract.candidate', 'contract.company.opco',
-            ]))
+            ->modifyQueryUsing(fn (Builder $query) => $query
+                ->with(['opco', 'contract.candidate', 'contract.company.opco'])
+                // Masque les dossiers dont le candidat a été supprimé (corbeille).
+                ->whereHas('contract.candidate'))
             ->columns([
                 TextColumn::make('contract.candidate.nom_complet')
                     ->label('Apprenti')
