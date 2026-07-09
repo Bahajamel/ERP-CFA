@@ -9,12 +9,14 @@ use App\Enums\PaymentStatut;
 use App\Enums\TaskPriorite;
 use App\Enums\TaskStatut;
 use App\Parcours\CycleApprenant;
+use App\Services\FinanceService;
 use App\StateMachine\ManagesState;
 use BackedEnum;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
@@ -62,6 +64,7 @@ class OpcoFile extends Model
         static::created(function (self $dossier): void {
             if (CycleApprenant::opcoOuvreAdmission($dossier->statut)) {
                 app(CycleApprenant::class)->ouvrirAdmission($dossier);
+                app(FinanceService::class)->synchroniserDepuisOpco($dossier);
             }
         });
 
@@ -74,6 +77,7 @@ class OpcoFile extends Model
 
             if (CycleApprenant::opcoOuvreAdmission($dossier->statut)) {
                 app(CycleApprenant::class)->ouvrirAdmission($dossier);
+                app(FinanceService::class)->synchroniserDepuisOpco($dossier);
             }
 
             // Dossier rejeté par l'OPCO → le contrat repasse en « À corriger »
@@ -121,6 +125,12 @@ class OpcoFile extends Model
     public function opco(): BelongsTo
     {
         return $this->belongsTo(Opco::class);
+    }
+
+    /** Ligne financière générée automatiquement depuis ce dossier OPCO. */
+    public function financeLine(): HasOne
+    {
+        return $this->hasOne(FinanceLine::class);
     }
 
     /**
@@ -264,6 +274,8 @@ class OpcoFile extends Model
         // ensuite, même si l'OPCO rejette ou demande correction).
         if (CycleApprenant::opcoOuvreAdmission($to)) {
             app(CycleApprenant::class)->ouvrirAdmission($this);
+            // Ligne financière ouverte automatiquement (montant accepté repris).
+            app(FinanceService::class)->synchroniserDepuisOpco($this);
         }
 
         if (filled($comment)) {
