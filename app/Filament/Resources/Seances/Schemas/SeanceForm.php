@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Seances\Schemas;
 
 use App\Enums\SeanceStatut;
 use App\Models\Candidate;
+use App\Models\Promotion;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
@@ -38,6 +39,10 @@ class SeanceForm
                 TextInput::make('libelle')
                     ->label('Matière')
                     ->placeholder('Ex. Développement web, Anglais professionnel')
+                    // Synchronisé avec le catalogue : suggère les matières du
+                    // programme de la formation de la classe (saisie libre possible).
+                    ->datalist(fn (Get $get): array => static::matieresCatalogue($get('promotion_id')))
+                    ->helperText('Proposées depuis le programme de la formation — ou saisissez une autre matière.')
                     ->required()
                     ->maxLength(255),
                 DatePicker::make('date')
@@ -76,6 +81,16 @@ class SeanceForm
                     ->bulkToggleable()
                     ->columnSpanFull(),
             ]);
+    }
+
+    /** Les matières du catalogue de la formation d'une classe (pour les suggestions). */
+    public static function matieresCatalogue(mixed $promotionId): array
+    {
+        if (blank($promotionId)) {
+            return [];
+        }
+
+        return Promotion::with('formation')->find($promotionId)?->formation?->programme() ?? [];
     }
 
     /** Les apprenants de la cohorte, par ordre alphabétique. */

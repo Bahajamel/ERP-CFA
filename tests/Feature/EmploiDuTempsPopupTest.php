@@ -1,6 +1,5 @@
 <?php
 
-use App\Enums\PresenceStatut;
 use App\Filament\Pages\EmploiDuTemps;
 use App\Models\Candidate;
 use App\Models\Formation;
@@ -24,12 +23,12 @@ beforeEach(function () {
     $this->actingAs($user);
 });
 
-/** Une séance émargeable (classe + 2 apprenants + présences générées). */
-function seanceEmargeable(): array
+/** Une séance avec sa classe et N apprenants prévus (présences générées). */
+function seanceAvecApprenants(int $nb = 2): array
 {
     $formation = Formation::factory()->create();
     $classe = Promotion::factory()->create(['formation_id' => $formation->id, 'libelle' => '1ère année']);
-    $apprenants = Candidate::factory()->count(2)->create(['formation_visee_id' => $formation->id]);
+    $apprenants = Candidate::factory()->count($nb)->create(['formation_visee_id' => $formation->id]);
     $classe->apprentis()->attach($apprenants->pluck('id'));
 
     $seance = Seance::factory()->create([
@@ -42,70 +41,48 @@ function seanceEmargeable(): array
 }
 
 it('ouvre l\'aperçu d\'une séance en pop-up depuis l\'emploi du temps', function () {
-    [$classe, $seance] = seanceEmargeable();
+    [$classe, $seance] = seanceAvecApprenants();
 
     Livewire::test(EmploiDuTemps::class, ['promotionId' => $classe->id])
         ->mountAction(TestAction::make('voirSeance')->arguments(['seance' => $seance->id]))
         ->assertActionMounted(TestAction::make('voirSeance')->arguments(['seance' => $seance->id]));
 });
 
-it('affiche un panneau d\'informations clair dans le pop-up', function () {
-    [, $seance] = seanceEmargeable();
+it('affiche les infos et la liste des apprenants prévus (sans émargement)', function () {
+    $formation = Formation::factory()->create();
+    $classe = Promotion::factory()->create(['formation_id' => $formation->id, 'libelle' => '1ère année']);
+    $apprenant = Candidate::factory()->create(['nom' => 'Okonkwo', 'prenom' => 'Amara', 'formation_visee_id' => $formation->id]);
+    $classe->apprentis()->attach($apprenant->id);
+    $seance = Seance::factory()->create(['promotion_id' => $classe->id, 'libelle' => 'Développement web']);
 
     $html = view('filament.seance-apercu', [
         'seance' => $seance->load(['promotion.formation', 'formateur', 'presences.candidate']),
     ])->render();
 
     expect($html)
-        ->toContain('Développement web')            // matière (titre du bandeau)
-        ->toContain($seance->promotion->nom_complet) // classe complète
-        ->toContain('Date')
+        ->toContain('Développement web')                 // matière
+        ->toContain(e($seance->promotion->nom_complet))  // classe complète (échappée par Blade)
         ->toContain('Horaires')
         ->toContain('Formateur')
-        ->toContain('Statut')
-        ->toContain('Assiduité')
-        ->toContain('2 apprenants');                 // effectif
+        ->toContain('Apprenants prévus')              // section liste
+        ->toContain('Amara Okonkwo')                  // nom + prénom listés
+        ->not->toContain('Enregistrer l\'émargement'); // pas d'émargement dans le pop-up
 });
 
-it('gère un grand effectif dans le pop-up (montage + émargement de 30 apprenants)', function () {
-    $formation = Formation::factory()->create();
-    $classe = Promotion::factory()->create(['formation_id' => $formation->id, 'libelle' => '1ère année']);
-    $apprenants = Candidate::factory()->count(30)->create(['formation_visee_id' => $formation->id]);
-    $classe->apprentis()->attach($apprenants->pluck('id'));
+it('liste tous les apprenants d\'un grand effectif dans la zone défilante', function () {
+    [$classe, $seance] = seanceAvecApprenants(30);
 
-    $seance = Seance::factory()->create([
-        'promotion_id' => $classe->id,
-        'libelle' => 'Cours magistral',
-        'date' => now()->startOfWeek()->addDay()->toDateString(),
-    ]);
+    $html = view('filament.seance-apercu', [
+        'seance' => $seance->load(['promotion.formation', 'formateur', 'presences.candidate']),
+    ])->render();
 
-    $presences = $seance->presences()->get();
-    expect($presences)->toHaveCount(30);
+    // Les 30 apprenants sont tous rendus, dans un conteneur à défilement (max-height).
+    $noms = Candidate::whereHas('promotions', fn ($q) => $q->whereKey($classe->id))->get();
+    expect($noms)->toHaveCount(30);
 
-    // Le pop-up se monte sans erreur avec 30 apprenants, et l'émargement enregistre.
-    $data = $presences->mapWithKeys(fn ($p) => ['statut_'.$p->id => PresenceStatut::Present->value])->all();
+    foreach ($noms as $c) {
+        expect($html)->toContain(trim($c->prenom.' '.$c->nom));
+    }
 
-    Livewire::test(EmploiDuTemps::class, ['promotionId' => $classe->id])
-        ->callAction(TestAction::make('voirSeance')->arguments(['seance' => $seance->id]), data: $data)
-        ->assertHasNoActionErrors();
-
-    expect($seance->presences()->where('statut', PresenceStatut::Present->value)->count())->toBe(30);
-});
-
-it('émarge les apprenants directement dans le pop-up (sans changer de page)', function () {
-    [$classe, $seance, $apprenants] = seanceEmargeable();
-    $presences = $seance->presences()->orderBy('candidate_id')->get();
-
-    Livewire::test(EmploiDuTemps::class, ['promotionId' => $classe->id])
-        ->callAction(
-            TestAction::make('voirSeance')->arguments(['seance' => $seance->id]),
-            data: [
-                'statut_'.$presences[0]->id => PresenceStatut::Present->value,
-                'statut_'.$presences[1]->id => PresenceStatut::AbsentJustifie->value,
-            ],
-        )
-        ->assertHasNoActionErrors();
-
-    expect($presences[0]->fresh()->statut)->toBe(PresenceStatut::Present)
-        ->and($presences[1]->fresh()->statut)->toBe(PresenceStatut::AbsentJustifie);
+    expect($html)->toContain('max-height'); // la liste défile plutôt que d'agrandir le pop-up
 });

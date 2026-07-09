@@ -31,7 +31,7 @@ class Assiduite extends Page implements HasTable
 
     protected static string|\UnitEnum|null $navigationGroup = 'Formation & Scolarité';
 
-    protected static ?int $navigationSort = 3;
+    protected static ?int $navigationSort = 5;
 
     protected static ?string $navigationLabel = 'Assiduité';
 

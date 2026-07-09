@@ -2,20 +2,13 @@
 
 namespace App\Filament\Pages;
 
-use App\Enums\PresenceStatut;
 use App\Filament\Resources\Seances\SeanceResource;
 use App\Models\Promotion;
 use App\Models\Seance;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Filament\Actions\Action;
-use Filament\Forms\Components\Select;
-use Filament\Notifications\Notification;
 use Filament\Pages\Page;
-use Filament\Schemas\Components\Actions as SchemaActions;
-use Filament\Schemas\Components\Grid;
-use Filament\Schemas\Components\Section;
-use Filament\Schemas\Components\Utilities\Set;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -32,7 +25,7 @@ class EmploiDuTemps extends Page
 
     protected static string|\UnitEnum|null $navigationGroup = 'Formation & Scolarité';
 
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 3;
 
     protected static ?string $navigationLabel = 'Emploi du temps';
 
@@ -101,101 +94,27 @@ class EmploiDuTemps extends Page
     }
 
     /**
-     * Aperçu + émargement d'une séance en pop-up (sans quitter l'emploi du
-     * temps) : infos de la séance, statut de présence de chaque apprenant
-     * modifiable, dépôt de la feuille et accès à la fiche complète.
+     * Aperçu d'une séance en pop-up (sans quitter l'emploi du temps) : infos de
+     * la séance et liste des apprenants prévus. L'émargement se fait sur la
+     * fiche complète de la séance (« Ouvrir la séance »).
      */
     public function voirSeanceAction(): Action
     {
         return Action::make('voirSeance')
             ->modalHeading('Séance')
-            ->modalContent(fn (array $arguments) => ($s = Seance::with(['promotion.formation', 'formateur', 'presences'])->find($arguments['seance']))
+            ->modalContent(fn (array $arguments) => ($s = Seance::with(['promotion.formation', 'formateur', 'presences.candidate'])->find($arguments['seance']))
                 ? view('filament.seance-apercu', ['seance' => $s])
                 : null)
-            ->schema(fn (array $arguments): array => static::schemaEmargement($arguments['seance']))
-            ->action(function (array $data, array $arguments): void {
-                $seance = Seance::with('presences')->find($arguments['seance']);
-
-                foreach ($seance?->presences ?? [] as $presence) {
-                    if (isset($data['statut_'.$presence->id])) {
-                        $presence->update(['statut' => $data['statut_'.$presence->id]]);
-                    }
-                }
-
-                Notification::make()->success()->title('Émargement enregistré')->send();
-            })
-            ->modalSubmitActionLabel('Enregistrer l\'émargement')
+            ->modalSubmitAction(false)
             ->modalCancelActionLabel('Fermer')
             ->extraModalFooterActions(fn (array $arguments): array => [
                 Action::make('ouvrirSeance')
-                    ->label('Ouvrir la séance (feuille, participants…)')
+                    ->label('Ouvrir la séance (émargement, feuille…)')
                     ->icon('heroicon-o-arrow-top-right-on-square')
-                    ->color('gray')
+                    ->color('primary')
                     ->url(SeanceResource::getUrl('edit', ['record' => $arguments['seance']])),
             ])
-            ->modalWidth('4xl');
-    }
-
-    /**
-     * Émargement en pop-up, pensé pour les grands effectifs : bouton « Tout
-     * présent » (on n'ajuste ensuite que les exceptions) + liste des apprenants
-     * dans une zone à hauteur plafonnée qui défile (le pop-up ne s'allonge pas).
-     */
-    protected static function schemaEmargement(int $seanceId): array
-    {
-        $seance = Seance::with('presences.candidate')->find($seanceId);
-
-        if ($seance === null || $seance->presences->isEmpty()) {
-            return [
-                Section::make('Émargement')
-                    ->schema([])
-                    ->description('Aucun apprenant sur cette séance — utilisez « Gérer les participants » sur la fiche de la séance.'),
-            ];
-        }
-
-        $options = collect(PresenceStatut::cases())
-            ->mapWithKeys(fn (PresenceStatut $s): array => [$s->value => $s->getLabel()])
-            ->all();
-
-        $presences = $seance->presences->sortBy(fn ($p) => $p->candidate?->nom_complet)->values();
-        $champsNoms = $presences->map(fn ($p) => 'statut_'.$p->id)->all();
-
-        $selecteurs = $presences
-            ->map(fn ($p) => Select::make('statut_'.$p->id)
-                ->label($p->candidate?->nom_complet ?? 'Apprenant')
-                ->options($options)
-                ->default($p->statut?->value ?? PresenceStatut::NonRenseigne->value)
-                ->selectablePlaceholder(false)
-                ->native(false))
-            ->all();
-
-        $nombre = $presences->count();
-
-        return [
-            Section::make("Émargement — {$nombre} apprenant".($nombre > 1 ? 's' : ''))
-                ->description('Astuce : « Tout présent » puis n\'ajustez que les absences.')
-                ->schema([
-                    SchemaActions::make([
-                        Action::make('toutPresent')
-                            ->label('Tout présent')
-                            ->icon('heroicon-m-check-circle')
-                            ->color('success')
-                            ->action(fn (Set $set) => collect($champsNoms)
-                                ->each(fn (string $nom) => $set($nom, PresenceStatut::Present->value))),
-                    ]),
-                    // Liste des apprenants dans une zone défilante à hauteur
-                    // plafonnée : reste utilisable quand les effectifs augmentent
-                    // (le pop-up ne s'agrandit jamais).
-                    Grid::make(['default' => 1, 'md' => 2])
-                        ->extraAttributes([
-                            'style' => 'max-height: 45vh; overflow-y: auto; gap: .75rem;'
-                                .' padding: .75rem; border: 1px solid rgb(226 232 240);'
-                                .' border-radius: .5rem; background: rgb(248 250 252);',
-                            'class' => 'dark:!bg-white/5 dark:!border-white/10',
-                        ])
-                        ->schema($selecteurs),
-                ]),
-        ];
+            ->modalWidth('2xl');
     }
 
     protected function getViewData(): array
