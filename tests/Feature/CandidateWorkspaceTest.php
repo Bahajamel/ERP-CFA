@@ -26,9 +26,22 @@ it('rend le workspace candidats avec ses filtres rapides', function () {
 
     Livewire::test(ListCandidates::class)
         ->assertOk()
-        ->assertSee('dossiers à compléter')
-        ->assertSee('sans relance depuis 7 jours')
-        ->assertSee('entretiens à planifier');
+        ->assertSee('entretiens à planifier')
+        ->assertSee('décisions en attente')
+        ->assertSee('acceptés à orienter');
+});
+
+it('le filtre « décisions en attente » ne garde que les entretiens réalisés sans décision', function () {
+    $this->seed(RolePermissionSeeder::class);
+    Candidate::factory()->create(['statut' => CandidateStatut::EntretienRealise, 'nom' => 'Adecider']);
+    Candidate::factory()->create(['statut' => CandidateStatut::Accepte, 'nom' => 'Accepte']);
+    Candidate::factory()->create(['statut' => CandidateStatut::EntretienAPlanifier, 'nom' => 'Aplanifier']);
+
+    $count = Candidate::query()
+        ->tap(fn ($q) => CandidatesTable::appliquerScopeRapide($q, 'a_decider'))
+        ->count();
+
+    expect($count)->toBe(1);
 });
 
 it('n\'affiche le panneau Focus qu\'après sélection d\'un candidat', function () {
