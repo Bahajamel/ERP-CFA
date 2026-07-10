@@ -39,6 +39,9 @@ class AdminPanelProvider extends PanelProvider
             // clair/sombre reste dans le menu utilisateur, préférence mémorisée).
             ->defaultThemeMode(ThemeMode::Dark)
             ->sidebarCollapsibleOnDesktop()
+            // Sidebar compacte (16rem au lieu de 20rem) : plus de largeur pour
+            // les tableaux des sections (le contenu s'ajuste automatiquement).
+            ->sidebarWidth('16rem')
             ->globalSearchKeyBindings(['mod+k'])
             ->login()
             // Page profil : l'utilisateur y active/désactive sa double authentification.

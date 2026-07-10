@@ -60,16 +60,20 @@ class CandidatesTable
                     ->searchable()
                     ->placeholder('—')
                     ->toggleable(),
+                // Formation : déjà affichée sous le nom (colonne « Candidat »),
+                // masquée par défaut ici pour alléger le tableau (réactivable).
                 TextColumn::make('formationVisee.libelle')
                     ->label('Formation visée')
                     ->badge()
                     ->color('gray')
                     ->placeholder('—')
-                    ->toggleable(),
+                    ->toggleable(isToggledHiddenByDefault: true),
+                // Commercial : visible dans le panneau Focus, masqué par défaut
+                // dans le tableau pour gagner de la largeur (réactivable).
                 TextColumn::make('commercial.name')
                     ->label('Commercial')
                     ->placeholder('—')
-                    ->toggleable(),
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('statut')
                     ->label('Statut')
                     ->badge(),
@@ -78,8 +82,9 @@ class CandidatesTable
                     ->view('filament.candidates.progression'),
                 TextColumn::make('derniere_activite')
                     ->label('Dernière activité')
-                    ->state(fn ($record): string => $record->derniereActivite()['label'] ?? '—')
-                    ->description(fn ($record): ?string => $record->derniereActivite()['quand'] ?? null)
+                    ->state(fn ($record): ?string => $record->derniereActivite()['label'])
+                    ->description(fn ($record): ?string => $record->derniereActivite()['quand'])
+                    ->placeholder('—')
                     ->wrap()
                     ->toggleable(),
                 TextColumn::make('created_at')
@@ -116,18 +121,6 @@ class CandidatesTable
                     ->icon('heroicon-o-eye')
                     ->color('gray')
                     ->action(fn (Candidate $record, $livewire) => $livewire->focusId = $record->getKey()),
-                Action::make('appeler')
-                    ->label('Appeler')
-                    ->icon('heroicon-o-phone')
-                    ->color('gray')
-                    ->visible(fn (Candidate $record): bool => filled($record->telephone))
-                    ->url(fn (Candidate $record): string => 'tel:'.preg_replace('/\s+/', '', $record->telephone)),
-                Action::make('email')
-                    ->label('E-mail')
-                    ->icon('heroicon-o-envelope')
-                    ->color('gray')
-                    ->visible(fn (Candidate $record): bool => filled($record->email))
-                    ->url(fn (Candidate $record): string => 'mailto:'.$record->email),
                 ActionGroup::make([
                     Action::make('changerStatut')
                         ->label('Changer le statut')

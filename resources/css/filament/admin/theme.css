@@ -977,8 +977,10 @@ a.cfa-prio-card:hover {
 .cfa-quick-txt b { font-size: .92rem; font-weight: 700; }
 .cfa-quick-txt small { font-size: .72rem; color: var(--cfa-ink-soft); }
 
-/* Disposition : tableau + panneau Focus */
-.cfa-cand-layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 1rem; align-items: start; }
+/* Disposition : tableau + panneau Focus. Le panneau ne passe à côté du
+   tableau que sur très grand écran (>=1440px) ; en dessous il s'empile
+   dessous pour laisser toute la largeur au tableau (pas de scroll horizontal). */
+.cfa-cand-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 1rem; align-items: start; }
 .cfa-cand-main { min-width: 0; }
 .cfa-cand-focus-col { position: sticky; top: 5rem; }
 
@@ -993,9 +995,9 @@ a.cfa-prio-card:hover {
 .cfa-cand-formation { font-size: .7rem; color: var(--cfa-ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Timeline de progression compacte */
-.cfa-prog { display: flex; align-items: flex-start; gap: 0; }
+.cfa-prog { display: flex; align-items: flex-start; gap: 0; max-width: 190px; }
 .cfa-prog-step {
-  position: relative; display: grid; justify-items: center; gap: .25rem; flex: 1; min-width: 42px;
+  position: relative; display: grid; justify-items: center; gap: .2rem; flex: 1; min-width: 32px;
 }
 .cfa-prog-step::before {
   content: ''; position: absolute; top: 6px; left: -50%; width: 100%; height: 2px;
@@ -1072,7 +1074,7 @@ a.cfa-prio-card:hover {
 .cfa-focus-tl-txt { font-size: .78rem; font-weight: 500; }
 .cfa-focus-tl-date { font-size: .68rem; color: var(--cfa-ink-soft); }
 
-@media (max-width: 1280px) {
+@media (max-width: 1440px) {
   .cfa-cand-layout { grid-template-columns: 1fr; }
   .cfa-cand-focus-col { position: static; }
 }
