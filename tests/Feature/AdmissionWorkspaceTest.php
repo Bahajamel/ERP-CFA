@@ -21,10 +21,10 @@ function admissionWorkspaceAdmin(): User
     return $u;
 }
 
-/** Crée une admission « À vérifier » sans passer par les invariants du contrat. */
-function admissionAVerifier(Candidate $candidate): Admission
+/** Crée une admission (statut donné) sans passer par les invariants du contrat. */
+function admissionStatut(Candidate $candidate, AdmissionStatut $statut = AdmissionStatut::AVerifier): Admission
 {
-    $admission = new Admission(['statut' => AdmissionStatut::AVerifier->value]);
+    $admission = new Admission(['statut' => $statut->value]);
     $admission->candidate_id = $candidate->id;
     $admission->saveQuietly(); // évite l'invariant creating() (contrat requis)
 
@@ -34,13 +34,13 @@ function admissionAVerifier(Candidate $candidate): Admission
 it('rend le workspace admissions avec ses filtres rapides', function () {
     $this->seed(RolePermissionSeeder::class);
     $this->actingAs(admissionWorkspaceAdmin());
-    admissionAVerifier(Candidate::factory()->create());
+    admissionStatut(Candidate::factory()->create());
 
     Livewire::test(ListAdmissions::class)
         ->assertOk()
-        ->assertSee('dossiers à vérifier')
-        ->assertSee('prêtes à valider')
-        ->assertSee('pièces manquantes');
+        ->assertSee('à valider')
+        ->assertSee('inscrits')
+        ->assertSee('en rupture');
 });
 
 it('bascule le filtre rapide et le désactive au second clic', function () {
@@ -49,41 +49,40 @@ it('bascule le filtre rapide et le désactive au second clic', function () {
 
     Livewire::test(ListAdmissions::class)
         ->assertSet('quickScope', null)
-        ->call('setQuickScope', 'pieces_manquantes')
-        ->assertSet('quickScope', 'pieces_manquantes')
-        ->call('setQuickScope', 'pieces_manquantes')
+        ->call('setQuickScope', 'en_rupture')
+        ->assertSet('quickScope', 'en_rupture')
+        ->call('setQuickScope', 'en_rupture')
         ->assertSet('quickScope', null);
 });
 
-it('sépare les admissions prêtes de celles avec pièces manquantes', function () {
+it('sépare les admissions à valider des apprenants inscrits', function () {
     $this->seed(RolePermissionSeeder::class);
 
-    // Candidat complet : les 3 pièces obligatoires présentes.
-    $complet = Candidate::factory()->create();
-    foreach (Admission::PIECES_OBLIGATOIRES as $type) {
-        $complet->documents()->create(['type' => $type->value, 'nom_fichier' => $type->getLabel()]);
-    }
-    admissionAVerifier($complet);
+    admissionStatut(Candidate::factory()->create(), AdmissionStatut::AVerifier);
+    admissionStatut(Candidate::factory()->create(), AdmissionStatut::Valide);
+    admissionStatut(Candidate::factory()->create(), AdmissionStatut::Valide);
 
-    // Candidat incomplet : diplôme/bulletins manquant.
-    $incomplet = Candidate::factory()->create();
-    $incomplet->documents()->create(['type' => DocumentType::PieceIdentite->value, 'nom_fichier' => 'ID']);
-    $incomplet->documents()->create(['type' => DocumentType::CvCandidat->value, 'nom_fichier' => 'CV']);
-    admissionAVerifier($incomplet);
+    $aValider = Admission::query()->whereHas('candidate')
+        ->tap(fn ($q) => AdmissionsTable::appliquerScopeRapide($q, 'a_valider'))->count();
+    $inscrits = Admission::query()->whereHas('candidate')
+        ->tap(fn ($q) => AdmissionsTable::appliquerScopeRapide($q, 'inscrits'))->count();
 
-    $pretes = Admission::query()->whereHas('candidate')
-        ->tap(fn ($q) => AdmissionsTable::appliquerScopeRapide($q, 'pretes'))->count();
-    $manquantes = Admission::query()->whereHas('candidate')
-        ->tap(fn ($q) => AdmissionsTable::appliquerScopeRapide($q, 'pieces_manquantes'))->count();
+    expect($aValider)->toBe(1)
+        ->and($inscrits)->toBe(2);
+});
 
-    expect($pretes)->toBe(1)
-        ->and($manquantes)->toBe(1);
+it('utilise pièce d\'identité, CV et carte vitale comme pièces d\'admission', function () {
+    expect(Admission::PIECES_OBLIGATOIRES)->toBe([
+        DocumentType::PieceIdentite,
+        DocumentType::CvCandidat,
+        DocumentType::CarteVitale,
+    ]);
 });
 
 it('n\'affiche le panneau Focus du jour qu\'après sélection', function () {
     $this->seed(RolePermissionSeeder::class);
     $this->actingAs(admissionWorkspaceAdmin());
-    $admission = admissionAVerifier(Candidate::factory()->create(['prenom' => 'Sonia', 'nom' => 'Ledoux']));
+    $admission = admissionStatut(Candidate::factory()->create(['prenom' => 'Sonia', 'nom' => 'Ledoux']));
 
     Livewire::test(ListAdmissions::class)
         ->assertDontSee('Focus du jour')

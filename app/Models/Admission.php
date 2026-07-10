@@ -63,13 +63,16 @@ class Admission extends Model
     }
 
     /**
-     * Pièces obligatoires générées à l'ouverture d'un dossier d'admission.
-     * La validation est bloquée tant que l'une d'elles n'est pas « présente ».
+     * Pièces principales du dossier d'admission — les mêmes que celles déposées,
+     * obligatoirement, au formulaire de candidature (pièce d'identité, CV, carte
+     * vitale / attestation sécurité sociale). Ce sont elles qui alimentent le
+     * CERFA et la convention. Tout apprenant présent en admission les possède
+     * déjà : une pièce absente ici est une ANOMALIE, jamais un état normal.
      */
     public const PIECES_OBLIGATOIRES = [
         DocumentType::PieceIdentite,
         DocumentType::CvCandidat,
-        DocumentType::DiplomeBulletins,
+        DocumentType::CarteVitale,
     ];
 
     protected function casts(): array

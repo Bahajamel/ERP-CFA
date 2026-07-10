@@ -53,16 +53,16 @@ class ListAdmissions extends ListRecords
     }
 
     /**
-     * Compteurs des trois filtres rapides.
+     * Compteurs des trois filtres rapides (cycle de validation officielle).
      *
-     * @return array{a_verifier:int,pretes:int,pieces_manquantes:int}
+     * @return array{a_valider:int,inscrits:int,en_rupture:int}
      */
     public function getQuickCounts(): array
     {
         return [
-            'a_verifier' => Admission::query()->whereHas('candidate')->tap(fn ($q) => AdmissionsTable::appliquerScopeRapide($q, 'a_verifier'))->count(),
-            'pretes' => Admission::query()->whereHas('candidate')->tap(fn ($q) => AdmissionsTable::appliquerScopeRapide($q, 'pretes'))->count(),
-            'pieces_manquantes' => Admission::query()->whereHas('candidate')->tap(fn ($q) => AdmissionsTable::appliquerScopeRapide($q, 'pieces_manquantes'))->count(),
+            'a_valider' => Admission::query()->whereHas('candidate')->tap(fn ($q) => AdmissionsTable::appliquerScopeRapide($q, 'a_valider'))->count(),
+            'inscrits' => Admission::query()->whereHas('candidate')->tap(fn ($q) => AdmissionsTable::appliquerScopeRapide($q, 'inscrits'))->count(),
+            'en_rupture' => Admission::query()->whereHas('candidate')->tap(fn ($q) => AdmissionsTable::appliquerScopeRapide($q, 'en_rupture'))->count(),
         ];
     }
 

@@ -26,7 +26,7 @@ class AdmissionsTable
         return $table
             ->modifyQueryUsing(function (Builder $query, $livewire): void {
                 $query
-                    ->with(['candidate.documents', 'candidate.media', 'contract.company', 'contract.formation', 'contract.opcoFile'])
+                    ->with(['candidate', 'contract.company', 'contract.formation', 'contract.opcoFile'])
                     // Masque les admissions dont le candidat a été supprimé (corbeille).
                     ->whereHas('candidate');
                 self::appliquerScopeRapide($query, self::scopeDe($livewire));
@@ -37,21 +37,17 @@ class AdmissionsTable
                     ->view('filament.admissions.col-identite')
                     ->searchable(['nom', 'prenom'])
                     ->sortable(['nom']),
+                TextColumn::make('contract.formation.libelle')
+                    ->label('Formation')
+                    ->badge()
+                    ->color('gray')
+                    ->placeholder('—')
+                    ->toggleable(),
                 TextColumn::make('contract.opcoFile.statut')
                     ->label('Dossier OPCO')
                     ->badge()
                     ->placeholder('—')
                     ->toggleable(),
-                TextColumn::make('pieces')
-                    ->label('Pièces obligatoires')
-                    ->state(fn (Admission $record): int => count($record->piecesAdmissionManquantes()))
-                    ->badge()
-                    ->color(fn (int $state): string => $state === 0 ? 'success' : 'danger')
-                    ->formatStateUsing(fn (int $state): string => $state === 0
-                        ? 'Complètes'
-                        : $state.' manquante'.($state > 1 ? 's' : ''))
-                    ->alignCenter()
-                    ->tooltip('Pièce d\'identité, CV et diplôme/bulletins exigés pour valider l\'admission'),
                 TextColumn::make('statut')
                     ->label('Statut')
                     ->badge(),
@@ -123,31 +119,20 @@ class AdmissionsTable
     }
 
     /**
-     * Filtre rapide « orienté action » sur les admissions. Réutilisé par les
-     * compteurs des blocs (ListAdmissions) pour rester cohérent.
+     * Filtre rapide sur les admissions (dernière étape du cycle). Le dossier
+     * documentaire est toujours complet à ce stade (pièces exigées dès la
+     * candidature) : les blocs suivent donc le cycle de validation officielle.
      *
-     *  - a_verifier : dossiers en attente de contrôle/validation ;
-     *  - pretes : à vérifier ET toutes les pièces obligatoires présentes (à valider) ;
-     *  - pieces_manquantes : à vérifier MAIS une pièce obligatoire absente (à réclamer).
+     *  - a_valider : dossier à vérifier puis inscrire officiellement ;
+     *  - inscrits : apprenants officiellement inscrits (admission validée) ;
+     *  - en_rupture : contrats rompus (dossier de rupture ouvert).
      */
     public static function appliquerScopeRapide(Builder $query, ?string $scope): void
     {
         match ($scope) {
-            'a_verifier' => $query->where('statut', AdmissionStatut::AVerifier->value),
-            'pretes' => $query->where('statut', AdmissionStatut::AVerifier->value)
-                ->whereHas('candidate', function (Builder $c): void {
-                    foreach (Admission::PIECES_OBLIGATOIRES as $type) {
-                        $c->whereHas('documents', fn (Builder $d) => $d->where('type', $type->value));
-                    }
-                }),
-            'pieces_manquantes' => $query->where('statut', AdmissionStatut::AVerifier->value)
-                ->whereHas('candidate', function (Builder $c): void {
-                    $c->where(function (Builder $q): void {
-                        foreach (Admission::PIECES_OBLIGATOIRES as $type) {
-                            $q->orWhereDoesntHave('documents', fn (Builder $d) => $d->where('type', $type->value));
-                        }
-                    });
-                }),
+            'a_valider' => $query->where('statut', AdmissionStatut::AVerifier->value),
+            'inscrits' => $query->where('statut', AdmissionStatut::Valide->value),
+            'en_rupture' => $query->where('statut', AdmissionStatut::Rupture->value),
             default => null,
         };
     }
