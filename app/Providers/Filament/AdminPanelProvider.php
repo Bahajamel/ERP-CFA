@@ -40,7 +40,9 @@ class AdminPanelProvider extends PanelProvider
             ->defaultThemeMode(ThemeMode::Dark)
             ->sidebarCollapsibleOnDesktop()
             ->globalSearchKeyBindings(['mod+k'])
-            ->login()
+            // Page de connexion premium « Meridian CFA » (écran divisé) — la logique
+            // d'auth reste celle de Filament, seule la vue est personnalisée.
+            ->login(\App\Filament\Auth\Login::class)
             // Page profil : l'utilisateur y active/désactive sa double authentification.
             ->profile(isSimple: false)
             // Double authentification par application (TOTP) avec codes de secours.
