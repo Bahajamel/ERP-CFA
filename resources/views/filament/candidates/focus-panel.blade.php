@@ -6,6 +6,30 @@
     $manquants = $c ? $c->piecesManquantes() : [];
     $entretien = $c ? $c->entretienActif() : null;
     $interactions = $c ? $c->interactions()->limit(3)->get() : collect();
+    $parcours = $c ? $c->parcoursFocus() : null;
+
+    // Action contextuelle selon l'étape réelle du cycle (jamais « planifier un
+    // entretien » pour un candidat déjà accepté / en matching).
+    $ctas = [
+        'entretien' => ['Planifier un entretien', 'heroicon-o-calendar-days'],
+        'matching' => ['Suivre le matching', 'heroicon-o-arrows-right-left'],
+        'contrat' => ['Voir le contrat', 'heroicon-o-document-text'],
+        'opco' => ['Suivre le dossier OPCO', 'heroicon-o-banknotes'],
+        'admission' => ['Finaliser l\'admission', 'heroicon-o-check-badge'],
+        'rupture' => ['Gérer la rupture', 'heroicon-o-exclamation-triangle'],
+    ];
+
+    // Conseil contextuel selon l'étape (pas de « relance sous 48 h » pour un
+    // candidat déjà accepté). Null = pas de conseil pertinent → carte masquée.
+    $tips = [
+        'entretien' => 'Une relance sous 48 h augmente nettement la transformation à ce stade.',
+        'matching' => 'Proposez vite des offres correspondant à sa formation : les candidats acceptés se placent mieux dans les deux semaines.',
+        'contrat' => 'Faites signer le contrat par les trois parties pour débloquer le dépôt du dossier OPCO.',
+        'opco' => 'Surveillez le retour de l\'OPCO : son acceptation ouvre automatiquement l\'admission.',
+        'admission' => 'Validez l\'admission pour inscrire officiellement l\'apprenant.',
+        'rupture' => 'Traitez le dossier de rupture (pièces et clôture) pour garder les données à jour.',
+    ];
+    $tip = $parcours ? ($tips[$parcours['cle']] ?? null) : null;
 @endphp
 
 <div class="cfa-focus">
@@ -61,28 +85,50 @@
             @endif
         </div>
 
-        {{-- Prochain rendez-vous --}}
-        <div class="cfa-focus-card">
-            <div class="cfa-focus-card-h">@svg('heroicon-o-calendar-days', 'w-4 h-4') Prochain rendez-vous</div>
-            @if ($entretien && $entretien->date_entretien)
+        {{-- Prochaine étape (contextuelle au cycle réel) --}}
+        @if ($parcours['cle'] === 'entretien' && $entretien && $entretien->date_entretien)
+            {{-- Un entretien est planifié : on montre le rendez-vous. --}}
+            <div class="cfa-focus-card">
+                <div class="cfa-focus-card-h">@svg('heroicon-o-calendar-days', 'w-4 h-4') Prochain rendez-vous</div>
                 <div class="cfa-focus-rdv">
                     <b>{{ $entretien->date_entretien->translatedFormat('l j F') }}</b>
                     @if ($entretien->heure_debut)<span>{{ \Illuminate\Support\Carbon::parse($entretien->heure_debut)->format('H:i') }}</span>@endif
                 </div>
-            @else
-                <div class="cfa-focus-muted">Aucun entretien planifié.</div>
-                <a href="{{ CandidateResource::getUrl('view', ['record' => $c]) }}" class="cfa-focus-btn">Planifier un entretien</a>
-            @endif
-        </div>
+            </div>
+        @elseif ($parcours['cle'] === 'complet')
+            <div class="cfa-focus-card">
+                <div class="cfa-focus-card-h">@svg('heroicon-o-check-badge', 'w-4 h-4') Parcours</div>
+                <div class="cfa-focus-ok">@svg('heroicon-o-check-circle', 'w-4 h-4') Apprenant inscrit — parcours complet.</div>
+            </div>
+        @elseif ($parcours['cle'] === 'refuse')
+            <div class="cfa-focus-card">
+                <div class="cfa-focus-card-h">@svg('heroicon-o-x-circle', 'w-4 h-4') Parcours</div>
+                <div class="cfa-focus-muted">Candidature refusée — aucune action requise.</div>
+            </div>
+        @else
+            {{-- Étape en cours du cycle : action réellement pertinente. --}}
+            @php [$ctaLabel, $ctaIcon] = $ctas[$parcours['cle']] ?? ['Ouvrir la fiche', 'heroicon-o-arrow-top-right-on-square']; @endphp
+            <div class="cfa-focus-card">
+                <div class="cfa-focus-card-h">@svg('heroicon-o-flag', 'w-4 h-4') Prochaine étape</div>
+                <div class="cfa-focus-rdv"><b>{{ $parcours['libelle'] }}</b><span>{{ $parcours['detail'] }}</span></div>
+                <a href="{{ CandidateResource::getUrl('view', ['record' => $c]) }}" class="cfa-focus-btn">
+                    @svg($ctaIcon, 'w-4 h-4') {{ $ctaLabel }}
+                </a>
+            </div>
+        @endif
 
-        {{-- Suggestion IA --}}
-        <div class="cfa-focus-ia">
-            <div class="cfa-focus-card-h">@svg('heroicon-o-sparkles', 'w-4 h-4') Suggestion IA</div>
-            <p>Le taux de conversion à ce stade augmente lorsqu'une relance est effectuée sous 48&nbsp;h. Gardez le contact au bon moment.</p>
-            <a href="{{ CandidateResource::getUrl('view', ['record' => $c]) }}" class="cfa-focus-btn primaire">
-                @svg('heroicon-o-paper-airplane', 'w-4 h-4') Relancer maintenant
-            </a>
-        </div>
+        {{-- Suggestion IA — contextuelle à l'étape réelle (masquée si non pertinente) --}}
+        @if ($tip)
+            <div class="cfa-focus-ia">
+                <div class="cfa-focus-card-h">@svg('heroicon-o-sparkles', 'w-4 h-4') Suggestion IA</div>
+                <p>{{ $tip }}</p>
+                @if ($parcours['cle'] === 'entretien')
+                    <a href="{{ CandidateResource::getUrl('view', ['record' => $c]) }}" class="cfa-focus-btn primaire">
+                        @svg('heroicon-o-paper-airplane', 'w-4 h-4') Relancer maintenant
+                    </a>
+                @endif
+            </div>
+        @endif
 
         {{-- Dernières interactions --}}
         <div class="cfa-focus-card">

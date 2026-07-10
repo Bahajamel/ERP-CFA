@@ -7,6 +7,7 @@ use App\Enums\CandidateStatut;
 use App\Enums\DocumentType;
 use App\Enums\EntretienStatut;
 use App\Enums\PresenceStatut;
+use App\Http\Controllers\CandidatureController;
 use App\Matching\CompatibilityScorer;
 use App\Parcours\CycleApprenant;
 use App\StateMachine\HasStateTransitions;
@@ -340,7 +341,7 @@ class Candidate extends Model implements HasMedia
 
     /**
      * Pièces réellement exigées d'un candidat — alignées sur le formulaire de
-     * candidature ({@see \App\Http\Controllers\CandidatureController} :
+     * candidature ({@see CandidatureController} :
      * pièce d'identité, CV et carte vitale sont « required »). On ne liste QUE
      * ces pièces demandées (pas de document inventé type diplômes/bulletins).
      * L'attestation de projet (30 ans et +) est stockée en type « Autre »,
@@ -415,6 +416,44 @@ class Candidate extends Model implements HasMedia
         unset($e);
 
         return $etapes;
+    }
+
+    /**
+     * Étape courante du parcours pour le panneau Focus — dérivée de la timeline
+     * réelle du cycle apprenant ({@see CycleApprenant::etapes()}). Évite les
+     * suggestions absurdes (ex. « planifier un entretien » alors que le candidat
+     * est déjà accepté et en matching).
+     *
+     * @return array{cle:string,libelle:string,detail:string,etat:string}
+     */
+    public function parcoursFocus(): array
+    {
+        $etapes = app(CycleApprenant::class)->etapes($this);
+        $parCle = collect($etapes)->keyBy('cle');
+
+        // Rupture en cours → prioritaire.
+        $rupture = $parCle->get('rupture');
+        if ($rupture !== null && $rupture['etat'] === CycleApprenant::ETAT_EN_COURS) {
+            return ['cle' => 'rupture', 'libelle' => 'Rupture', 'detail' => $rupture['detail'], 'etat' => CycleApprenant::ETAT_EN_COURS];
+        }
+
+        if ($this->statut === CandidateStatut::Refuse) {
+            return ['cle' => 'refuse', 'libelle' => 'Candidature refusée', 'detail' => 'Aucune action requise.', 'etat' => CycleApprenant::ETAT_BLOQUEE];
+        }
+
+        // Étape active = première non terminée du parcours principal.
+        foreach (['candidat', 'entretien', 'matching', 'contrat', 'opco', 'admission'] as $cle) {
+            $etape = $parCle->get($cle);
+            if ($etape !== null && $etape['etat'] !== CycleApprenant::ETAT_TERMINEE) {
+                // Les étapes « candidat »/« entretien » se traitent via l'entretien.
+                $libelle = in_array($cle, ['candidat', 'entretien'], true) ? 'Entretien' : $etape['libelle'];
+
+                return ['cle' => in_array($cle, ['candidat', 'entretien'], true) ? 'entretien' : $cle,
+                    'libelle' => $libelle, 'detail' => $etape['detail'], 'etat' => $etape['etat']];
+            }
+        }
+
+        return ['cle' => 'complet', 'libelle' => 'Apprenant inscrit', 'detail' => 'Parcours complet.', 'etat' => CycleApprenant::ETAT_TERMINEE];
     }
 
     /**
