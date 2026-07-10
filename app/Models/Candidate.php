@@ -339,13 +339,18 @@ class Candidate extends Model implements HasMedia
     }
 
     /**
-     * Pièces attendues d'un dossier candidat (socle de complétude opérationnelle).
+     * Pièces réellement exigées d'un candidat — alignées sur le formulaire de
+     * candidature ({@see \App\Http\Controllers\CandidatureController} :
+     * pièce d'identité, CV et carte vitale sont « required »). On ne liste QUE
+     * ces pièces demandées (pas de document inventé type diplômes/bulletins).
+     * L'attestation de projet (30 ans et +) est stockée en type « Autre »,
+     * non distinguable de façon fiable, donc exclue de ce suivi.
      *
      * @return list<DocumentType>
      */
     public static function piecesAttendues(): array
     {
-        return [DocumentType::PieceIdentite, DocumentType::CvCandidat, DocumentType::DiplomeBulletins];
+        return [DocumentType::PieceIdentite, DocumentType::CvCandidat, DocumentType::CarteVitale];
     }
 
     /**
