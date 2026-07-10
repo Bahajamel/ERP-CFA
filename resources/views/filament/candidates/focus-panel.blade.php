@@ -55,21 +55,24 @@
             @svg('heroicon-o-arrow-top-right-on-square', 'w-4 h-4') Ouvrir la fiche complète
         </a>
 
-        {{-- Documents manquants --}}
+        {{-- Pièces à collecter — NON bloquantes à ce stade : l'acceptation est la
+             décision pédagogique après l'entretien. Ces pièces sont réunies pendant
+             l'inscription et ne deviennent obligatoires qu'à l'admission. --}}
         <div class="cfa-focus-card">
             <div class="cfa-focus-card-h">
                 @svg('heroicon-o-document-text', 'w-4 h-4')
-                Documents manquants ({{ count($manquants) }})
+                Pièces à collecter ({{ count($manquants) }})
             </div>
             @if (count($manquants))
                 <ul class="cfa-focus-docs">
                     @foreach ($manquants as $m)
-                        <li><span class="cfa-focus-dot danger"></span>{{ $m }}<span class="cfa-focus-req">Requis</span></li>
+                        <li><span class="cfa-focus-dot warning"></span>{{ $m }}<span class="cfa-focus-req soft">À fournir</span></li>
                     @endforeach
                 </ul>
+                <p class="cfa-focus-note">Réunies pendant l'inscription. Elles deviennent obligatoires à l'admission — pas pour l'acceptation.</p>
                 <a href="{{ CandidateResource::getUrl('view', ['record' => $c]) }}" class="cfa-focus-btn">Demander les pièces</a>
             @else
-                <div class="cfa-focus-ok">@svg('heroicon-o-check-circle', 'w-4 h-4') Dossier complet.</div>
+                <div class="cfa-focus-ok">@svg('heroicon-o-check-circle', 'w-4 h-4') Toutes les pièces sont réunies.</div>
             @endif
         </div>
 
