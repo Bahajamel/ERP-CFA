@@ -41,7 +41,11 @@ return [
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),
-            'url' => rtrim(env('APP_URL', 'http://localhost'), '/').'/storage',
+            // URL relative par défaut (« /storage ») : les aperçus d'images
+            // fonctionnent quel que soit l'hôte/port du serveur (php artisan serve
+            // sur :8000, etc.), sans dépendre d'APP_URL. En production, définir
+            // ASSET_URL pour servir depuis un domaine/CDN absolu si besoin.
+            'url' => rtrim(env('ASSET_URL', ''), '/').'/storage',
             'visibility' => 'public',
             'throw' => false,
             'report' => false,
