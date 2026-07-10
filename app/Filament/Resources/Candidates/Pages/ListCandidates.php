@@ -47,13 +47,25 @@ class ListCandidates extends ListRecords
         $this->resetTable();
     }
 
-    /** Candidat courant du panneau Focus (sélection explicite, sinon le plus récent). */
+    /**
+     * Candidat courant du panneau Focus. Retourne null tant qu'aucune ligne
+     * n'a été cliquée : le panneau n'apparaît qu'à la sélection.
+     */
     public function getFocusCandidate(): ?Candidate
     {
-        $query = Candidate::query()->with(['formationVisee', 'commercial', 'interactions']);
+        if ($this->focusId === null) {
+            return null;
+        }
 
-        return ($this->focusId !== null ? $query->find($this->focusId) : null)
-            ?? $query->latest()->first();
+        return Candidate::query()
+            ->with(['formationVisee', 'commercial', 'interactions'])
+            ->find($this->focusId);
+    }
+
+    /** Ferme le panneau Focus (croix). */
+    public function unfocus(): void
+    {
+        $this->focusId = null;
     }
 
     /**

@@ -19,17 +19,34 @@ function workspaceAdmin(): User
     return $u;
 }
 
-it('rend le workspace candidats avec ses filtres rapides et le panneau Focus', function () {
+it('rend le workspace candidats avec ses filtres rapides', function () {
     $this->seed(RolePermissionSeeder::class);
     $this->actingAs(workspaceAdmin());
     Candidate::factory()->count(3)->create(['statut' => CandidateStatut::EntretienAPlanifier]);
 
     Livewire::test(ListCandidates::class)
         ->assertOk()
-        ->assertSee('Focus du jour')
         ->assertSee('dossiers à compléter')
         ->assertSee('sans relance depuis 7 jours')
         ->assertSee('entretiens à planifier');
+});
+
+it('n\'affiche le panneau Focus qu\'après sélection d\'un candidat', function () {
+    $this->seed(RolePermissionSeeder::class);
+    $this->actingAs(workspaceAdmin());
+    $c = Candidate::factory()->create(['prenom' => 'Raslen', 'nom' => 'Saadi']);
+
+    // Rien de sélectionné : pas de panneau.
+    Livewire::test(ListCandidates::class)
+        ->assertDontSee('Focus du jour')
+        // Sélection → le panneau apparaît.
+        ->set('focusId', $c->id)
+        ->assertSee('Focus du jour')
+        ->assertSee('Raslen Saadi')
+        // Fermeture → le panneau disparaît.
+        ->call('unfocus')
+        ->assertSet('focusId', null)
+        ->assertDontSee('Focus du jour');
 });
 
 it('bascule le filtre rapide et le désactive au second clic', function () {

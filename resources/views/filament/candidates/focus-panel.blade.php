@@ -12,6 +12,9 @@
     <div class="cfa-focus-h">
         <span class="cfa-focus-spark">@svg('heroicon-o-sparkles', 'w-4 h-4')</span>
         Focus du jour
+        <button type="button" class="cfa-focus-close" wire:click="unfocus" title="Fermer" aria-label="Fermer le panneau">
+            @svg('heroicon-o-x-mark', 'w-4 h-4')
+        </button>
     </div>
 
     @if (! $c)
