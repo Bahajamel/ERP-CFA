@@ -55,24 +55,28 @@
             @svg('heroicon-o-arrow-top-right-on-square', 'w-4 h-4') Ouvrir la fiche complète
         </a>
 
-        {{-- Pièces à collecter — NON bloquantes à ce stade : l'acceptation est la
-             décision pédagogique après l'entretien. Ces pièces sont réunies pendant
-             l'inscription et ne deviennent obligatoires qu'à l'admission. --}}
+        {{-- Pièces de candidature — obligatoires dès le formulaire (étape 1 du
+             cycle). Un candidat existe donc TOUJOURS avec ses pièces : une pièce
+             absente est une ANOMALIE (dossier créé hors formulaire : import,
+             saisie manuelle…), à régulariser d'urgence. --}}
         <div class="cfa-focus-card">
             <div class="cfa-focus-card-h">
                 @svg('heroicon-o-document-text', 'w-4 h-4')
-                Pièces à collecter ({{ count($manquants) }})
+                Pièces de candidature
             </div>
             @if (count($manquants))
+                <div class="cfa-focus-alerte">
+                    @svg('heroicon-o-exclamation-triangle', 'w-4 h-4')
+                    <span>Anomalie : {{ count($manquants) }} pièce(s) obligatoire(s) absente(s). Ces pièces sont exigées au formulaire de candidature — dossier à régulariser.</span>
+                </div>
                 <ul class="cfa-focus-docs">
                     @foreach ($manquants as $m)
-                        <li><span class="cfa-focus-dot warning"></span>{{ $m }}<span class="cfa-focus-req soft">À fournir</span></li>
+                        <li><span class="cfa-focus-dot danger"></span>{{ $m }}<span class="cfa-focus-req">Manquant</span></li>
                     @endforeach
                 </ul>
-                <p class="cfa-focus-note">Réunies pendant l'inscription. Elles deviennent obligatoires à l'admission — pas pour l'acceptation.</p>
-                <a href="{{ CandidateResource::getUrl('view', ['record' => $c]) }}" class="cfa-focus-btn">Demander les pièces</a>
+                <a href="{{ CandidateResource::getUrl('view', ['record' => $c]) }}" class="cfa-focus-btn">Régulariser le dossier</a>
             @else
-                <div class="cfa-focus-ok">@svg('heroicon-o-check-circle', 'w-4 h-4') Toutes les pièces sont réunies.</div>
+                <div class="cfa-focus-ok">@svg('heroicon-o-check-circle', 'w-4 h-4') Pièces obligatoires réunies.</div>
             @endif
         </div>
 

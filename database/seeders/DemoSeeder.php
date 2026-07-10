@@ -8,6 +8,9 @@ use App\Enums\CandidateStatut;
 use App\Enums\CompanyStatut;
 use App\Enums\ContractSignatureStatut;
 use App\Enums\ContractStatut;
+use App\Enums\DocumentSource;
+use App\Enums\DocumentStatut;
+use App\Enums\DocumentType;
 use App\Enums\EntretienMode;
 use App\Enums\EntretienStatut;
 use App\Enums\MatchingStatut;
@@ -164,6 +167,14 @@ class DemoSeeder extends Seeder
                 'commercial_id' => $commerciaux[$i % 2],
                 'statut' => $statut,
             ]);
+        }
+
+        // Pièces obligatoires du formulaire de candidature (étape 1 du cycle) :
+        // tout candidat déposé possède déjà pièce d'identité, CV et carte vitale.
+        // On les crée pour la démo afin de refléter la réalité (jamais de dossier
+        // « incomplet » sur un candidat existant).
+        foreach ($candidates as $candidat) {
+            $this->doterPiecesCandidature($candidat);
         }
 
         // -------- Entretiens (nouvelle section du cycle) --------
@@ -401,6 +412,7 @@ class DemoSeeder extends Seeder
             'formation_visee_id' => $cyber->id, 'niveau_actuel' => 'Bac', 'disponibilite' => 'Immédiate',
             'commercial_id' => $thomas->id, 'statut' => CandidateStatut::Accepte,
         ]);
+        $this->doterPiecesCandidature($yanis);
         $contratRisque = Contract::create([
             'candidate_id' => $yanis->id, 'company_id' => $companies[2]['model']->id, 'formation_id' => $cyber->id,
             'code_rncp' => $cyber->code_rncp, 'date_debut' => now()->subMonths(3)->startOfMonth(), 'date_fin' => now()->addMonths(21)->startOfMonth(),
@@ -419,6 +431,26 @@ class DemoSeeder extends Seeder
         $user->syncRoles($role);
 
         return $user;
+    }
+
+    /**
+     * Dote un candidat de ses pièces obligatoires de candidature (pièce
+     * d'identité, CV, carte vitale) sous forme de documents GED typés — comme
+     * le fait le formulaire public. Reflète la réalité : un candidat existant
+     * n'a jamais de pièce obligatoire manquante.
+     */
+    private function doterPiecesCandidature(Candidate $candidate): void
+    {
+        foreach (Candidate::piecesAttendues() as $type) {
+            $candidate->documents()->firstOrCreate(
+                ['type' => $type->value],
+                [
+                    'statut' => DocumentStatut::Recu->value,
+                    'source' => DocumentSource::Candidature->value,
+                    'nom_fichier' => $type->getLabel(),
+                ],
+            );
+        }
     }
 
     /** Attache un CV de démonstration (PDF minimal valide) au candidat. */
