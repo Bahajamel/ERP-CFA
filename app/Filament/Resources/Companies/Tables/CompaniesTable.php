@@ -15,7 +15,6 @@ use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\ViewColumn;
 use Filament\Tables\Enums\FiltersLayout;
-use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
@@ -95,17 +94,13 @@ class CompaniesTable
                             fn (Builder $n): Builder => $n->ouverts()->where('formation_id', $formationId),
                         ),
                     )),
-                Filter::make('relance_a_faire')
-                    ->label('Relance à faire')
-                    ->query(fn (Builder $query): Builder => $query->whereHas(
-                        'interactions',
-                        fn (Builder $q): Builder => $q->relanceDue(),
-                    )),
                 TrashedFilter::make(),
             ])
             // Listes déroulantes toujours visibles en barre au-dessus du tableau
             // (au lieu du menu déroulant « Filtres »), comme le workspace attendu.
+            // Filtres instantanés (sans bouton « Appliquer ») pour une barre compacte.
             ->filtersLayout(FiltersLayout::AboveContent)
+            ->deferFilters(false)
             ->filtersFormColumns([
                 'sm' => 2,
                 'lg' => 4,
