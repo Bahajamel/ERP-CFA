@@ -96,6 +96,27 @@ it('le panneau Focus cible le candidat sélectionné', function () {
     expect($page->getFocusCandidate()->id)->toBe($cible->id);
 });
 
+it('propose un entretien pour un nouveau candidat', function () {
+    $this->seed(RolePermissionSeeder::class);
+    $c = Candidate::factory()->create(['statut' => CandidateStatut::EntretienAPlanifier]);
+
+    expect($c->parcoursFocus()['cle'])->toBe('entretien');
+});
+
+it('ne propose PAS un entretien pour un candidat accepté déjà en matching', function () {
+    $this->seed(RolePermissionSeeder::class);
+    $c = Candidate::factory()->create(['statut' => CandidateStatut::Accepte]);
+    \App\Models\Matching::factory()->create([
+        'candidate_id' => $c->id,
+        'statut' => \App\Enums\MatchingStatut::EnRecherche,
+    ]);
+
+    $focus = $c->parcoursFocus();
+
+    expect($focus['cle'])->toBe('matching')
+        ->and($focus['cle'])->not->toBe('entretien');
+});
+
 it('calcule les pièces manquantes et la progression du candidat', function () {
     $this->seed(RolePermissionSeeder::class);
     $c = Candidate::factory()->create(['statut' => CandidateStatut::EntretienAPlanifier]);
