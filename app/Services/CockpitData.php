@@ -248,7 +248,7 @@ class CockpitData
                 'cle' => 'versements', 'label' => 'Versements en retard', 'valeur' => (string) $versementsRetard,
                 'sous' => 'Échéances à recouvrer', 'tone' => 'danger', 'icon' => 'banknotes',
                 'trend' => $this->trendSerie($sparkFinance), 'spark' => $sparkFinance,
-                'url' => route('filament.admin.resources.finance-lines.index'),
+                'url' => route('filament.admin.pages.finance'),
             ],
         ];
     }
