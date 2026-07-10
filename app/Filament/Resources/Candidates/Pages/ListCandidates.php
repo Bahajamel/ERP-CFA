@@ -69,16 +69,17 @@ class ListCandidates extends ListRecords
     }
 
     /**
-     * Compteurs des trois filtres rapides (sur la base non archivée).
+     * Compteurs des trois filtres rapides « dossiers qui demandent une
+     * intervention » (sur la base non archivée).
      *
-     * @return array{a_completer:int,sans_relance:int,a_planifier:int}
+     * @return array{a_planifier:int,a_decider:int,a_orienter:int}
      */
     public function getQuickCounts(): array
     {
         return [
-            'a_completer' => Candidate::query()->tap(fn ($q) => CandidatesTable::appliquerScopeRapide($q, 'a_completer'))->count(),
-            'sans_relance' => Candidate::query()->tap(fn ($q) => CandidatesTable::appliquerScopeRapide($q, 'sans_relance'))->count(),
             'a_planifier' => Candidate::query()->tap(fn ($q) => CandidatesTable::appliquerScopeRapide($q, 'a_planifier'))->count(),
+            'a_decider' => Candidate::query()->tap(fn ($q) => CandidatesTable::appliquerScopeRapide($q, 'a_decider'))->count(),
+            'a_orienter' => Candidate::query()->tap(fn ($q) => CandidatesTable::appliquerScopeRapide($q, 'a_orienter'))->count(),
         ];
     }
 
