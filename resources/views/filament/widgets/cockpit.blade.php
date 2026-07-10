@@ -125,6 +125,17 @@
             </div>
         </div>
 
+        {{-- ============ ONGLETS DÉPARTEMENTS ============ --}}
+        <nav class="cfa-ck-tabs" aria-label="Départements">
+            @foreach ($departements as $tab)
+                <a href="{{ $tab['url'] }}" class="cfa-ck-tab {{ $tab['actif'] ? 'actif' : '' }}"
+                   @if($tab['actif']) aria-current="page" @endif>
+                    <span class="cfa-ck-tab-ico">{!! $icon($tab['icon']) !!}</span>
+                    {{ $tab['label'] }}
+                </a>
+            @endforeach
+        </nav>
+
         {{-- ============ SUPERVISION INTELLIGENTE ============ --}}
         <section class="cfa-ck-insights">
             <div class="cfa-ins-grid">
@@ -160,8 +171,12 @@
 
                 <div class="cfa-ins-ai">
                     <span class="cfa-ai-orb">{!! $icon('cpu') !!}</span>
-                    <div class="cfa-ai-txt">Assistant de supervision</div>
-                    <div class="cfa-ai-hint">Ce résumé est calculé en direct sur vos données.</div>
+                    <div class="cfa-ai-txt">Besoin d'aide ?</div>
+                    <div class="cfa-ai-hint">Synthèse calculée en direct sur vos données.</div>
+                    <button type="button" class="cfa-ai-btn" wire:click="demanderIA" wire:loading.attr="disabled">
+                        <span wire:loading.remove wire:target="demanderIA">Demander à l'IA</span>
+                        <span wire:loading wire:target="demanderIA">Analyse…</span>
+                    </button>
                 </div>
             </div>
         </section>
@@ -213,7 +228,15 @@
 
             {{-- Évolution --}}
             <div class="cfa-panel">
-                <div class="cfa-panel-h"><span>Évolution mensuelle</span></div>
+                <div class="cfa-panel-h">
+                    <span>Évolution mensuelle</span>
+                    <div class="cfa-period" role="group" aria-label="Période">
+                        @foreach (['3' => '3 mois', '6' => '6 mois', '12' => '12 mois'] as $val => $lbl)
+                            <button type="button" wire:click="definirPeriode('{{ $val }}')"
+                                class="cfa-period-btn {{ $periode === $val ? 'actif' : '' }}">{{ $lbl }}</button>
+                        @endforeach
+                    </div>
+                </div>
                 <div class="cfa-legend">
                     @foreach ($evolution['series'] as $s)
                         <span class="cfa-legend-item"><span class="cfa-dot" style="background:{{ $s['color'] }}"></span>{{ $s['label'] }}</span>
