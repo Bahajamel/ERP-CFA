@@ -73,6 +73,17 @@ it('le filtre rapide « à planifier » ne garde que les candidats à planifier'
     expect($count)->toBe(1);
 });
 
+it('un clic sur une ligne (action focus) ouvre le panneau sans quitter la page', function () {
+    $this->seed(RolePermissionSeeder::class);
+    $this->actingAs(workspaceAdmin());
+    $c = Candidate::factory()->create(['prenom' => 'Raslen', 'nom' => 'Saadi']);
+
+    Livewire::test(ListCandidates::class)
+        ->callTableAction('focus', $c)
+        ->assertSet('focusId', $c->id)
+        ->assertSee('Focus du jour');
+});
+
 it('le panneau Focus cible le candidat sélectionné', function () {
     $this->seed(RolePermissionSeeder::class);
     $this->actingAs(workspaceAdmin());

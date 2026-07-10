@@ -93,7 +93,10 @@ class CandidatesTable
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
+            // Clic sur une ligne = ouvre le panneau Focus (et non la fiche : elle
+            // reste accessible via « Aperçu » → « Ouvrir la fiche » ou le menu Plus).
             ->recordAction('focus')
+            ->recordUrl(null)
             ->filters([
                 SelectFilter::make('statut')
                     ->label('Statut')
