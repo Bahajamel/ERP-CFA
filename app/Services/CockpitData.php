@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\AdmissionStatut;
 use App\Enums\CandidateStatut;
 use App\Enums\ContractSignatureStatut;
 use App\Enums\ContractStatut;
@@ -10,6 +11,7 @@ use App\Enums\MatchingStatut;
 use App\Enums\OpcoStatut;
 use App\Enums\PaymentStatut;
 use App\Enums\TaskStatut;
+use App\Models\Admission;
 use App\Models\Candidate;
 use App\Models\Contract;
 use App\Models\Entretien;
@@ -173,6 +175,12 @@ class CockpitData
      * ================================================================ */
 
     /**
+     * Cartes KPI = « dossiers qui demandent une intervention », un par
+     * département du CFA. Chaque chiffre est un goulot d'étranglement concret
+     * qui fait avancer le travail quand on le traite (même philosophie que les
+     * blocs rapides candidats), et non un simple volume ou un indicateur de
+     * vanité. Le clic renvoie vers la section concernée.
+     *
      * @return list<array{
      *   cle:string, label:string, valeur:string, sous:string, tone:string,
      *   icon:string, trend:int, spark:list<int|float>, url:?string
@@ -180,65 +188,67 @@ class CockpitData
      */
     public function kpis(): array
     {
-        $candidatsActifs = Candidate::whereNot('statut', CandidateStatut::Refuse->value)->count();
+        // 1. Commercial : candidats en attente d'un créneau d'entretien.
+        $entretiensAPlanifier = Candidate::where('statut', CandidateStatut::EntretienAPlanifier->value)->count();
         $sparkCandidats = $this->serieMensuelle(Candidate::query());
 
-        $besoinsOuverts = Need::query()->ouverts()->count();
+        // 2. Matching : offres ouvertes sans aucun candidat proposé.
+        $offresSansCandidat = Need::query()->ouverts()->whereDoesntHave('matchings')->count();
         $sparkBesoins = $this->serieMensuelle(Need::query());
 
-        $contratsSignes = Contract::whereIn('statut_contrat', ContractStatut::signes())->count();
-        $sparkContrats = $this->serieMensuelle(
-            Contract::whereIn('statut_contrat', ContractStatut::signes()),
-        );
+        // 3. Admissions : dossiers à vérifier avant validation finale.
+        $admissionsAValider = Admission::where('statut', AdmissionStatut::AVerifier->value)->count();
+        $sparkAdmissions = $this->serieMensuelle(Admission::query());
 
-        $montantAttendu = (float) OpcoFile::sum('montant_prevu');
-        $sparkFinance = $this->serieMensuelleSomme(OpcoFile::query(), 'montant_prevu');
+        // 4. Contrats : contrats non signés par les trois parties (à relancer).
+        $contratsASigner = Contract::where('statut_signature', '!=', ContractSignatureStatut::Signe->value)->count();
+        $sparkContrats = $this->serieMensuelle(Contract::query());
 
-        $tachesUrgentes = Task::whereIn('statut', [TaskStatut::EnRetard->value, TaskStatut::AFaire->value])
-            ->whereDate('due_date', '<=', now())->count();
-        $sparkTaches = $this->serieMensuelle(Task::query(), 'due_date');
+        // 5. Pilotage OPCO : dossiers bloqués (rejet ou correction).
+        $opcoADebloquer = OpcoFile::whereIn('statut', OpcoStatut::bloques())->count();
+        $sparkOpco = $this->serieMensuelle(OpcoFile::query());
 
-        $conversion = $candidatsActifs > 0 ? round($contratsSignes / $candidatsActifs * 100, 1) : 0.0;
-        $sparkConversion = $this->serieConversion();
+        // 6. Finance : versements OPCO échus non encaissés (à recouvrer).
+        $versementsRetard = OpcoPayment::where('statut', PaymentStatut::Attendu->value)
+            ->whereDate('date_prevue', '<', now())->count();
+        $sparkFinance = $this->serieMensuelle(OpcoPayment::query());
 
         return [
             [
-                'cle' => 'candidats', 'label' => 'Candidats actifs', 'valeur' => (string) $candidatsActifs,
-                'sous' => 'Hors ruptures', 'tone' => 'info', 'icon' => 'user-group',
+                'cle' => 'entretiens', 'label' => 'Entretiens à planifier', 'valeur' => (string) $entretiensAPlanifier,
+                'sous' => 'Candidats sans créneau', 'tone' => 'info', 'icon' => 'calendar',
                 'trend' => $this->trendSerie($sparkCandidats), 'spark' => $sparkCandidats,
                 'url' => route('filament.admin.resources.candidates.index'),
             ],
             [
-                'cle' => 'besoins', 'label' => 'Besoins ouverts', 'valeur' => (string) $besoinsOuverts,
-                'sous' => 'Postes à pourvoir', 'tone' => 'warning', 'icon' => 'briefcase',
+                'cle' => 'offres', 'label' => 'Offres sans candidat', 'valeur' => (string) $offresSansCandidat,
+                'sous' => 'À proposer au matching', 'tone' => 'warning', 'icon' => 'briefcase',
                 'trend' => $this->trendSerie($sparkBesoins), 'spark' => $sparkBesoins,
                 'url' => route('filament.admin.resources.needs.index'),
             ],
             [
-                'cle' => 'contrats', 'label' => 'Contrats signés', 'valeur' => (string) $contratsSignes,
-                'sous' => 'Signés / transmis / actifs', 'tone' => 'success', 'icon' => 'check-badge',
+                'cle' => 'admissions', 'label' => 'Admissions à valider', 'valeur' => (string) $admissionsAValider,
+                'sous' => 'Dossiers à vérifier', 'tone' => 'turquoise', 'icon' => 'check-badge',
+                'trend' => $this->trendSerie($sparkAdmissions), 'spark' => $sparkAdmissions,
+                'url' => route('filament.admin.resources.admissions.index'),
+            ],
+            [
+                'cle' => 'contrats', 'label' => 'Contrats à faire signer', 'valeur' => (string) $contratsASigner,
+                'sous' => 'Signature incomplète', 'tone' => 'primary', 'icon' => 'pencil',
                 'trend' => $this->trendSerie($sparkContrats), 'spark' => $sparkContrats,
                 'url' => route('filament.admin.resources.contracts.index'),
             ],
             [
-                'cle' => 'finance', 'label' => 'Financements attendus',
-                'valeur' => number_format($montantAttendu, 0, ',', "\u{00A0}").' €',
-                'sous' => 'Total OPCO en cours', 'tone' => 'violet', 'icon' => 'banknotes',
-                'trend' => $this->trendSerie($sparkFinance), 'spark' => $sparkFinance,
+                'cle' => 'opco', 'label' => 'Dossiers OPCO à débloquer', 'valeur' => (string) $opcoADebloquer,
+                'sous' => 'Rejet ou correction', 'tone' => 'violet', 'icon' => 'folder-open',
+                'trend' => $this->trendSerie($sparkOpco), 'spark' => $sparkOpco,
                 'url' => route('filament.admin.resources.opco-files.index'),
             ],
             [
-                'cle' => 'taches', 'label' => 'Tâches urgentes', 'valeur' => (string) $tachesUrgentes,
-                'sous' => 'À traiter aujourd\'hui', 'tone' => 'danger', 'icon' => 'bell-alert',
-                'trend' => $this->trendSerie($sparkTaches), 'spark' => $sparkTaches,
-                'url' => route('filament.admin.resources.tasks.index'),
-            ],
-            [
-                'cle' => 'conversion', 'label' => 'Taux de conversion',
-                'valeur' => number_format($conversion, 1, ',', ' ').' %',
-                'sous' => 'Candidats → contrats', 'tone' => 'turquoise', 'icon' => 'chart-bar',
-                'trend' => $this->trendSerie($sparkConversion), 'spark' => $sparkConversion,
-                'url' => null,
+                'cle' => 'versements', 'label' => 'Versements en retard', 'valeur' => (string) $versementsRetard,
+                'sous' => 'Échéances à recouvrer', 'tone' => 'danger', 'icon' => 'banknotes',
+                'trend' => $this->trendSerie($sparkFinance), 'spark' => $sparkFinance,
+                'url' => route('filament.admin.resources.finance-lines.index'),
             ],
         ];
     }
@@ -538,44 +548,6 @@ class CockpitData
             ->filter();
 
         return $this->bucketsDepuis($dates, fn (Carbon $d): int => 1);
-    }
-
-    /**
-     * Série mensuelle (somme d'une colonne numérique) sur les N derniers mois.
-     *
-     * @return list<int|float>
-     */
-    private function serieMensuelleSomme(Builder $query, string $montant): array
-    {
-        $debut = now()->subMonthsNoOverflow($this->mois - 1)->startOfMonth();
-
-        $lignes = (clone $query)
-            ->whereBetween('created_at', [$debut, now()->endOfMonth()])
-            ->get(['created_at', $montant]);
-
-        $buckets = $this->clesMois();
-        foreach ($lignes as $ligne) {
-            $cle = $ligne->created_at?->format('Y-m');
-            if ($cle !== null && isset($buckets[$cle])) {
-                $buckets[$cle] += (float) $ligne->{$montant};
-            }
-        }
-
-        return array_values($buckets);
-    }
-
-    /** Taux de conversion mensuel (contrats signés du mois / candidats créés du mois). */
-    private function serieConversion(): array
-    {
-        $candidats = $this->serieMensuelle(Candidate::query());
-        $contrats = $this->serieMensuelle(Contract::whereIn('statut_contrat', ContractStatut::signes()));
-
-        $serie = [];
-        foreach ($candidats as $i => $nb) {
-            $serie[] = $nb > 0 ? round(($contrats[$i] ?? 0) / $nb * 100, 1) : 0;
-        }
-
-        return $serie;
     }
 
     /** @return array<string,int> clés « Y-m » des N derniers mois initialisées à 0. */

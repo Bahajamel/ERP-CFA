@@ -1067,6 +1067,24 @@ a.cfa-prio-card:hover {
 .cfa-focus-req { margin-left: auto; font-size: .64rem; font-weight: 700; color: #f43f5e; background: color-mix(in srgb, #f43f5e 15%, transparent); padding: .05rem .4rem; border-radius: 999px; }
 .cfa-focus-dot { width: .5rem; height: .5rem; border-radius: 50%; flex: none; }
 .cfa-focus-dot.danger { background: #f43f5e; }
+.cfa-focus-dot.ok { background: #10b981; }
+.cfa-focus-req.ok { color: #10b981; background: color-mix(in srgb, #10b981 15%, transparent); }
+/* Badge d'état d'un document généré (CERFA / convention). */
+.cfa-focus-etat { flex: none; font-size: .66rem; font-weight: 700; padding: .1rem .45rem; border-radius: 999px; }
+.cfa-focus-etat.ok { color: #10b981; background: color-mix(in srgb, #10b981 15%, transparent); }
+.cfa-focus-etat.warn { color: #f59e0b; background: color-mix(in srgb, #f59e0b 15%, transparent); }
+.cfa-focus-etat.todo { color: var(--cfa-ink-soft); background: color-mix(in srgb, var(--cfa-ink-soft) 15%, transparent); }
+/* Icône alignée dans la partie gauche d'une ligne « besoin » (CERFA/convention). */
+.cfa-focus-need > span:first-child { display: inline-flex; align-items: center; gap: .35rem; }
+/* Encart d'anomalie (pièce obligatoire absente = dossier créé hors formulaire). */
+.cfa-focus-alerte {
+  display: flex; align-items: flex-start; gap: .4rem; margin-bottom: .5rem;
+  font-size: .7rem; line-height: 1.35; color: #f43f5e;
+  background: color-mix(in srgb, #f43f5e 12%, transparent);
+  border: 1px solid color-mix(in srgb, #f43f5e 30%, transparent);
+  border-radius: .5rem; padding: .45rem .55rem;
+}
+.cfa-focus-alerte svg { flex: none; margin-top: .05rem; }
 .cfa-focus-ok { display: flex; align-items: center; gap: .4rem; font-size: .78rem; color: #10b981; }
 .cfa-focus-ok svg { color: #10b981; }
 .cfa-focus-muted { font-size: .78rem; color: var(--cfa-ink-soft); }
@@ -1141,15 +1159,30 @@ a.cfa-prio-card:hover {
 /* ============================================================
    BARRE DE FILTRES COMPACTE (au-dessus des tableaux workspace)
    ============================================================ */
-/* Moins de hauteur : padding réduit, titre discret, labels resserrés. */
-.fi-ta-filters { padding: .6rem .85rem !important; }
-.fi-ta-filters-header { margin-bottom: .35rem; align-items: center; }
+/* Moins de hauteur : on resserre les 3 sources d'espace vertical de Filament —
+   le padding du conteneur, le padding + row-gap de la carte, et l'espace sous
+   le titre — puis on réduit titre et labels. */
+.fi-ta-filters-above-content-ctn { padding-block: .45rem !important; }
+.fi-ta-filters { padding: .5rem .85rem !important; row-gap: .3rem !important; }
+.fi-ta-filters-header { margin-bottom: 0 !important; align-items: center; }
 .fi-ta-filters-heading { font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; opacity: .7; }
-.fi-ta-filters-above-content-ctn .fi-fo-field-wrp-label,
-.fi-ta-filters-above-content-ctn .fi-fo-field-wrp-label > * {
-  font-size: .68rem; font-weight: 600;
-}
-.fi-ta-filters-above-content-ctn .fi-fo-field-wrp-label { margin-bottom: .15rem; }
-/* Champs de filtre un peu plus bas pour gagner en hauteur. */
+/* Étiquettes de filtre plus petites. */
+.fi-ta-filters-above-content-ctn .fi-fo-field-label,
+.fi-ta-filters-above-content-ctn .fi-fo-field-label-content { font-size: .68rem; font-weight: 600; }
+/* Hauteur des champs de filtre resserrée. */
 .fi-ta-filters-above-content-ctn .fi-input-wrp,
-.fi-ta-filters-above-content-ctn .fi-select-input { min-height: 2.1rem; }
+.fi-ta-filters-above-content-ctn .fi-select-input { min-height: 2rem; }
+/* Listes déroulantes : étiquette EN LIGNE (à gauche du champ) au lieu d'au-dessus.
+   Tout tient sur une seule ligne, alignée avec la case à cocher → on récupère la
+   hauteur du label. La case à cocher (« Besoins ouverts ») n'a pas .fi-fo-select-wrp,
+   elle n'est donc pas touchée. Largeur du select plafonnée. */
+.fi-ta-filters-above-content-ctn .fi-fo-select-wrp {
+  grid-template-columns: auto minmax(0, 13rem);
+  align-items: center;
+  column-gap: .45rem;
+  row-gap: 0;
+}
+.fi-ta-filters-above-content-ctn .fi-fo-select-wrp .fi-fo-field-label-col { padding-top: 0; height: auto; }
+.fi-ta-filters-above-content-ctn .fi-fo-select-wrp .fi-fo-field-label { white-space: nowrap; }
+/* Aligne la case à cocher sur la même ligne que les listes déroulantes. */
+.fi-ta-filters-above-content-ctn > .fi-ta-filters > .fi-sc { align-items: center; }

@@ -84,3 +84,21 @@ it('affiche le nombre de candidatures par offre', function () {
         ->assertSee('Boulanger en alternance')
         ->assertSee('2 candidats');
 });
+
+it('n\'affiche le panneau Focus offre qu\'après sélection', function () {
+    $this->seed(RolePermissionSeeder::class);
+    $this->actingAs(offresWorkspaceAdmin());
+    $need = Need::factory()->create([
+        'intitule_poste' => 'Développeur web',
+        'statut' => NeedStatut::ProfilsRecherches,
+    ]);
+
+    Livewire::test(ListNeeds::class)
+        ->assertDontSee('Focus offre')
+        ->set('focusId', $need->id)
+        ->assertSee('Focus offre')
+        ->assertSee('Développeur web')
+        ->call('unfocus')
+        ->assertSet('focusId', null)
+        ->assertDontSee('Focus offre');
+});

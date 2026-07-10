@@ -153,7 +153,7 @@ class ClasseDemoSeeder extends Seeder
         }
 
         if ($manque > 0) {
-            Candidate::factory()->count($manque)->create([
+            Candidate::factory()->avecPiecesCandidature()->count($manque)->create([
                 'formation_visee_id' => $formation->id,
                 'statut' => CandidateStatut::Accepte,
                 'source' => 'Démo scolarité',

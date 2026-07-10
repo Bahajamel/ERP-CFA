@@ -424,23 +424,17 @@ class CandidatesTable
      * Applique un filtre rapide « orienté action » à la requête du tableau.
      * Réutilisé par les compteurs des blocs (ListCandidates) pour rester cohérent.
      *
-     *  - a_completer : au moins une pièce attendue absente du dossier ;
-     *  - sans_relance : aucune interaction depuis plus de 7 jours (risque de perte) ;
-     *  - a_planifier : entretien encore à planifier.
+     *  - a_planifier : entretien encore à planifier (premier échange à organiser) ;
+     *  - a_decider : entretien réalisé, décision Accepté/Refusé en attente ;
+     *  - a_orienter : candidat accepté mais pas encore envoyé vers une entreprise.
      */
     public static function appliquerScopeRapide(Builder $query, ?string $scope): void
     {
         match ($scope) {
-            'a_completer' => $query->where(function (Builder $q): void {
-                foreach (Candidate::piecesAttendues() as $type) {
-                    $q->orWhereDoesntHave('documents', fn (Builder $d) => $d->where('type', $type->value));
-                }
-            }),
-            'sans_relance' => $query->whereDoesntHave(
-                'interactions',
-                fn (Builder $q) => $q->where('date_interaction', '>=', now()->subDays(7)),
-            ),
             'a_planifier' => $query->where('statut', CandidateStatut::EntretienAPlanifier->value),
+            'a_decider' => $query->where('statut', CandidateStatut::EntretienRealise->value),
+            'a_orienter' => $query->where('statut', CandidateStatut::Accepte->value)
+                ->whereDoesntHave('matchings'),
             default => null,
         };
     }

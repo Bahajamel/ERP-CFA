@@ -3,6 +3,8 @@
 namespace Database\Factories;
 
 use App\Enums\CandidateStatut;
+use App\Enums\DocumentSource;
+use App\Enums\DocumentStatut;
 use App\Models\Candidate;
 use App\Models\Formation;
 use App\Models\Promotion;
@@ -47,5 +49,26 @@ class CandidateFactory extends Factory
         return $this
             ->state(fn () => ['formation_visee_id' => $classe->formation_id])
             ->afterCreating(fn (Candidate $candidate) => $candidate->promotions()->attach($classe->id));
+    }
+
+    /**
+     * Dote le candidat de ses pièces obligatoires de candidature (pièce
+     * d'identité, CV, carte vitale) comme le formulaire public. Reflète la
+     * réalité : un candidat existant n'a jamais de pièce obligatoire manquante.
+     */
+    public function avecPiecesCandidature(): static
+    {
+        return $this->afterCreating(function (Candidate $candidate): void {
+            foreach (Candidate::piecesAttendues() as $type) {
+                $candidate->documents()->firstOrCreate(
+                    ['type' => $type->value],
+                    [
+                        'statut' => DocumentStatut::Recu->value,
+                        'source' => DocumentSource::Candidature->value,
+                        'nom_fichier' => $type->getLabel(),
+                    ],
+                );
+            }
+        });
     }
 }

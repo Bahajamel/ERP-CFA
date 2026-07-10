@@ -43,10 +43,12 @@ it('réserve la gestion des classes aux rôles du référentiel', function () {
     expect(PromotionResource::canAccess())->toBeFalse();
 });
 
-it('utilise une checklist d\'admission réaliste (CFA)', function () {
+it('utilise les pièces principales du candidat comme dossier d\'admission', function () {
+    // Les pièces du dossier d'admission = celles obligatoires au formulaire de
+    // candidature (pièce d'identité, CV, carte vitale) : tout apprenant les a déjà.
     expect(Admission::PIECES_OBLIGATOIRES)->toContain(DocumentType::PieceIdentite)
         ->and(Admission::PIECES_OBLIGATOIRES)->toContain(DocumentType::CvCandidat)
-        ->and(Admission::PIECES_OBLIGATOIRES)->toContain(DocumentType::DiplomeBulletins)
+        ->and(Admission::PIECES_OBLIGATOIRES)->toContain(DocumentType::CarteVitale)
         // Le CV du maître d'apprentissage ne concerne PAS l'admission.
         ->and(Admission::PIECES_OBLIGATOIRES)->not->toContain(DocumentType::CvMaitreApprentissage);
 });

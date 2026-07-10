@@ -34,8 +34,16 @@
         </button>
     </div>
 
-    {{-- Tableau des offres : clic sur une ligne = page de modification de l'offre. --}}
-    <div class="cfa-cand-main">
-        {{ $this->table }}
+    {{-- Tableau des offres + panneau Focus (affiché seulement à la sélection) --}}
+    @php $focus = $this->getFocusNeed(); @endphp
+    <div class="cfa-cand-layout {{ $focus ? 'has-focus' : '' }}">
+        <div class="cfa-cand-main">
+            {{ $this->table }}
+        </div>
+        @if ($focus)
+            <aside class="cfa-cand-focus-col">
+                @include('filament.needs.focus-panel', ['o' => $focus])
+            </aside>
+        @endif
     </div>
 </x-filament-panels::page>

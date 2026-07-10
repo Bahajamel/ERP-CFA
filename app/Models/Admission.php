@@ -63,13 +63,16 @@ class Admission extends Model
     }
 
     /**
-     * Pièces obligatoires générées à l'ouverture d'un dossier d'admission.
-     * La validation est bloquée tant que l'une d'elles n'est pas « présente ».
+     * Pièces principales du dossier d'admission — les mêmes que celles déposées,
+     * obligatoirement, au formulaire de candidature (pièce d'identité, CV, carte
+     * vitale / attestation sécurité sociale). Ce sont elles qui alimentent le
+     * CERFA et la convention. Tout apprenant présent en admission les possède
+     * déjà : une pièce absente ici est une ANOMALIE, jamais un état normal.
      */
     public const PIECES_OBLIGATOIRES = [
         DocumentType::PieceIdentite,
         DocumentType::CvCandidat,
-        DocumentType::DiplomeBulletins,
+        DocumentType::CarteVitale,
     ];
 
     protected function casts(): array
@@ -128,6 +131,32 @@ class Admission extends Model
             ->where('est_obligatoire', true)
             ->where('statut', '!=', ChecklistItemStatut::Presente->value)
             ->get();
+    }
+
+    /**
+     * Pièces obligatoires de l'admission (pièce d'identité, CV, diplôme /
+     * bulletins) encore absentes du dossier du candidat — libellés lisibles.
+     * S'appuie sur les documents réels du candidat (source fiable), comme le
+     * suivi documentaire côté candidat.
+     *
+     * @return list<string>
+     */
+    public function piecesAdmissionManquantes(): array
+    {
+        $candidate = $this->candidate;
+
+        if ($candidate === null) {
+            return array_map(fn (DocumentType $t): string => $t->getLabel(), self::PIECES_OBLIGATOIRES);
+        }
+
+        $presents = $candidate->documents()->pluck('type')
+            ->map(fn ($t): string => $t instanceof BackedEnum ? $t->value : (string) $t)
+            ->all();
+
+        return collect(self::PIECES_OBLIGATOIRES)
+            ->reject(fn (DocumentType $t): bool => in_array($t->value, $presents, true))
+            ->map(fn (DocumentType $t): string => $t->getLabel())
+            ->values()->all();
     }
 
     /**

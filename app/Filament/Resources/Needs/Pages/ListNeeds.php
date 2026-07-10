@@ -36,6 +36,27 @@ class ListNeeds extends ListRecords
     /** Filtre rapide actif (null = aucun). */
     public ?string $quickScope = null;
 
+    /** Offre affichée dans le panneau Focus (clic sur une ligne). */
+    public ?int $focusId = null;
+
+    /** Ferme le panneau Focus. */
+    public function unfocus(): void
+    {
+        $this->focusId = null;
+    }
+
+    /** Offre courante du panneau Focus (null tant qu'aucune sélection). */
+    public function getFocusNeed(): ?Need
+    {
+        if ($this->focusId === null) {
+            return null;
+        }
+
+        return Need::query()
+            ->with(['company', 'formation', 'matchings.candidate'])
+            ->find($this->focusId);
+    }
+
     public function getSubheading(): ?string
     {
         return 'Chaque ligne = une offre proposée par une entreprise (poste à pourvoir, formation visée, rythme). '
