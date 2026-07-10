@@ -977,12 +977,16 @@ a.cfa-prio-card:hover {
 .cfa-quick-txt b { font-size: .92rem; font-weight: 700; }
 .cfa-quick-txt small { font-size: .72rem; color: var(--cfa-ink-soft); }
 
-/* Disposition : tableau + panneau Focus. Le panneau ne passe à côté du
-   tableau que sur très grand écran (>=1440px) ; en dessous il s'empile
-   dessous pour laisser toute la largeur au tableau (pas de scroll horizontal). */
-.cfa-cand-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 1rem; align-items: start; }
+/* Disposition : le tableau occupe toute la largeur par défaut. Le panneau
+   Focus n'apparaît qu'après un clic sur une ligne (classe .has-focus) et ne
+   passe à côté du tableau que sur très grand écran (>=1440px) ; en dessous il
+   s'empile dessous (pas de scroll horizontal). */
+.cfa-cand-layout { display: grid; grid-template-columns: 1fr; gap: 1rem; align-items: start; }
 .cfa-cand-main { min-width: 0; }
 .cfa-cand-focus-col { position: sticky; top: 5rem; }
+@media (min-width: 1440px) {
+  .cfa-cand-layout.has-focus { grid-template-columns: minmax(0, 1fr) 300px; }
+}
 
 /* Colonne identité (avatar initiales + nom + formation) */
 .cfa-cand-identite { display: flex; align-items: center; gap: .6rem; }
@@ -1026,6 +1030,11 @@ a.cfa-prio-card:hover {
 }
 .cfa-focus-h { display: flex; align-items: center; gap: .45rem; font-weight: 700; font-size: .95rem; }
 .cfa-focus-spark { color: var(--cfa-accent-2); display: inline-flex; }
+.cfa-focus-close {
+  margin-left: auto; display: inline-flex; padding: .2rem; border-radius: 7px; cursor: pointer;
+  color: var(--cfa-ink-soft); border: 0; background: transparent; transition: background .15s ease, color .15s ease;
+}
+.cfa-focus-close:hover { background: var(--cfa-card-2); color: inherit; }
 .cfa-focus-empty { display: grid; justify-items: center; gap: .5rem; text-align: center; padding: 1.5rem .5rem; color: var(--cfa-ink-soft); font-size: .82rem; }
 .cfa-focus-empty svg { color: var(--cfa-accent); }
 .cfa-focus-id { display: flex; align-items: center; gap: .6rem; }
@@ -1074,8 +1083,7 @@ a.cfa-prio-card:hover {
 .cfa-focus-tl-txt { font-size: .78rem; font-weight: 500; }
 .cfa-focus-tl-date { font-size: .68rem; color: var(--cfa-ink-soft); }
 
-@media (max-width: 1440px) {
-  .cfa-cand-layout { grid-template-columns: 1fr; }
+@media (max-width: 1439.98px) {
   .cfa-cand-focus-col { position: static; }
 }
 @media (max-width: 900px) {

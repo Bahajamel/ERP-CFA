@@ -34,13 +34,16 @@
         </button>
     </div>
 
-    {{-- Tableau opérationnel + panneau Focus --}}
-    <div class="cfa-cand-layout">
+    {{-- Tableau opérationnel + panneau Focus (affiché seulement à la sélection) --}}
+    @php $focus = $this->getFocusCandidate(); @endphp
+    <div class="cfa-cand-layout {{ $focus ? 'has-focus' : '' }}">
         <div class="cfa-cand-main">
             {{ $this->table }}
         </div>
-        <aside class="cfa-cand-focus-col">
-            @include('filament.candidates.focus-panel', ['c' => $this->getFocusCandidate()])
-        </aside>
+        @if ($focus)
+            <aside class="cfa-cand-focus-col">
+                @include('filament.candidates.focus-panel', ['c' => $focus])
+            </aside>
+        @endif
     </div>
 </x-filament-panels::page>
