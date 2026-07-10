@@ -1,0 +1,61 @@
+<?php
+
+use App\Livret\LivretRsClient;
+use App\Livret\LivretRsException;
+use Illuminate\Support\Facades\Http;
+
+it('recherche un CFA et renvoie la liste des candidats', function () {
+    config(['services.livretrs.url' => 'http://livretrs.test']);
+    Http::fake(['*' => Http::response([
+        'results' => [
+            ['nom' => 'CFA V2S', 'siren' => '123456789', 'ville' => 'Paris', 'nda' => '11751234575'],
+        ],
+    ], 200)]);
+
+    $resultats = (new LivretRsClient)->rechercherCfa('v2s');
+
+    expect($resultats)->toHaveCount(1)
+        ->and($resultats[0]['nom'])->toBe('CFA V2S')
+        ->and($resultats[0]['nda'])->toBe('11751234575');
+});
+
+it('vérifie un code RNCP via le service', function () {
+    config(['services.livretrs.url' => 'http://livretrs.test']);
+    Http::fake(['*' => Http::response([
+        'found' => true, 'actif' => true, 'etat' => 'Active', 'intitule' => 'BTS MCO', 'niveau' => '5',
+    ], 200)]);
+
+    $info = (new LivretRsClient)->verifierRncp('38362');
+
+    expect($info['found'])->toBeTrue()
+        ->and($info['actif'])->toBeTrue()
+        ->and($info['niveau'])->toBe('5');
+});
+
+it('écrit le ZIP renvoyé par le service dans un fichier temporaire', function () {
+    config(['services.livretrs.url' => 'http://livretrs.test']);
+    Http::fake(['*' => Http::response('PK-contenu-zip', 200)]);
+
+    $chemin = (new LivretRsClient)->genererLivrables(['cfa' => ['nom' => 'X']]);
+
+    expect(is_file($chemin))->toBeTrue()
+        ->and(file_get_contents($chemin))->toBe('PK-contenu-zip');
+
+    @unlink($chemin);
+});
+
+it('lève une exception si le service répond en erreur', function () {
+    config(['services.livretrs.url' => 'http://livretrs.test']);
+    Http::fake(['*' => Http::response('boom', 500)]);
+
+    expect(fn () => (new LivretRsClient)->genererLivrables([]))
+        ->toThrow(LivretRsException::class);
+});
+
+it('est désactivé et refuse la génération sans URL configurée', function () {
+    config(['services.livretrs.url' => null]);
+
+    expect((new LivretRsClient)->estConfigure())->toBeFalse()
+        ->and(fn () => (new LivretRsClient)->genererLivrables([]))
+        ->toThrow(LivretRsException::class);
+});

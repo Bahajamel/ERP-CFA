@@ -1,0 +1,1188 @@
+@import '../../../../vendor/filament/filament/resources/css/theme.css';
+
+@source '../../../../app/Filament/**/*';
+@source '../../../../resources/views/filament/**/*';
+
+/* ============================================================
+   ERP CFA — Design system « cockpit premium »
+   Direction artistique : SaaS nouvelle génération, sobre et
+   orienté data. Indigo profond + cyan subtil, sidebar bleu nuit,
+   cartes à profondeur légère, micro-interactions discrètes.
+   ============================================================ */
+
+:root {
+  --cfa-radius-card: 14px;
+  --cfa-radius-control: 10px;
+  --cfa-bg: #f3f5fa;
+  --cfa-bg-2: #eef2f9;
+  --cfa-card: #ffffff;
+  --cfa-card-2: #f7f9fc;
+  --cfa-card-border: #e4e9f2;
+  --cfa-ink-soft: #64748b;
+  --cfa-sidebar: #10162b;
+  --cfa-sidebar-line: rgba(148, 163, 214, 0.14);
+  --cfa-sidebar-text: rgba(219, 228, 255, 0.72);
+  --cfa-sidebar-muted: rgba(148, 163, 199, 0.85);
+  --cfa-accent: #4f46e5;
+  --cfa-accent-2: #06b6d4;
+  --cfa-grad: linear-gradient(135deg, #4f46e5 0%, #6366f1 55%, #0ea5e9 130%);
+  --cfa-glow: transparent;
+  --cfa-shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04), 0 10px 30px -18px rgba(30, 41, 99, 0.18);
+  --cfa-shadow-pop: 0 2px 4px rgba(15, 23, 42, 0.06), 0 18px 40px -20px rgba(49, 46, 129, 0.35);
+}
+
+/* ============================================================
+   DARK PREMIUM — bleu nuit profond (Linear / Vercel / Stripe)
+   Fonds bleutés (pas de noir pur), surfaces étagées, bordures
+   fines, halos indigo/cyan très diffus. Contrastes soignés.
+   ============================================================ */
+.dark {
+  --cfa-bg: #080c17;
+  --cfa-bg-2: #0b1020;
+  --cfa-card: #111c2e;
+  --cfa-card-2: #172033;
+  --cfa-card-border: #24304a;
+  --cfa-ink-soft: #94a3b8;
+  --cfa-sidebar: #0a0f1e;
+  --cfa-sidebar-line: rgba(148, 163, 214, 0.10);
+  --cfa-glow: radial-gradient(1200px 520px at 78% -8%, rgba(99, 102, 241, 0.13), transparent 60%),
+    radial-gradient(900px 460px at 6% 2%, rgba(6, 182, 212, 0.08), transparent 55%);
+  --cfa-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 14px 36px -20px rgba(0, 0, 0, 0.7);
+  --cfa-shadow-pop: 0 2px 6px rgba(0, 0, 0, 0.45), 0 22px 48px -22px rgba(3, 8, 22, 0.85);
+}
+
+/* ---------- Fond général ---------- */
+.fi-body {
+  background-color: var(--cfa-bg);
+}
+/* Halo d'ambiance premium derrière le contenu (fixe, non intrusif). Il vit sur
+   le conteneur principal pour ne pas teinter la sidebar bleu nuit. */
+.fi-main-ctn {
+  position: relative;
+  background-image: var(--cfa-glow);
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+}
+.fi-main {
+  padding-bottom: 3rem;
+}
+
+/* ---------- Typographie ---------- */
+.fi-header-heading {
+  letter-spacing: -0.02em;
+  font-weight: 750;
+}
+.fi-header-subheading {
+  color: var(--cfa-ink-soft);
+}
+
+/* ============================================================
+   SIDEBAR — bleu nuit premium
+   ============================================================ */
+.fi-sidebar {
+  background-color: var(--cfa-sidebar) !important;
+  border-inline-end: 1px solid var(--cfa-sidebar-line);
+}
+.fi-sidebar-header {
+  background-color: transparent !important;
+  border-bottom: 1px solid var(--cfa-sidebar-line);
+  box-shadow: none !important;
+}
+.fi-sidebar-nav {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 214, 0.28) transparent;
+}
+/* Scrollbar de la sidebar : fine et fondue dans le bleu nuit (pas de piste
+   claire disgracieuse sous Chrome/Edge). */
+.fi-sidebar-nav::-webkit-scrollbar {
+  width: 6px;
+}
+.fi-sidebar-nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+.fi-sidebar-nav::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 214, 0.28);
+  border-radius: 99px;
+}
+.fi-sidebar-nav::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 214, 0.45);
+}
+
+/* Libellés de groupes : petites capitales espacées */
+.fi-sidebar-group-label {
+  color: var(--cfa-sidebar-muted) !important;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.fi-sidebar-group-collapse-button {
+  color: var(--cfa-sidebar-muted) !important;
+}
+
+/* Items — Filament v5 : le bouton est .fi-sidebar-item-btn */
+.fi-sidebar-item-btn {
+  border-radius: 9px;
+  background-color: transparent !important;
+  transition: background-color 140ms ease, color 140ms ease;
+}
+.fi-sidebar-item-btn:hover {
+  background-color: rgba(129, 140, 248, 0.14) !important;
+}
+.fi-sidebar-item-label {
+  color: var(--cfa-sidebar-text) !important;
+  font-weight: 500;
+  font-size: 0.83rem;
+}
+.fi-sidebar-item-icon {
+  color: var(--cfa-sidebar-muted) !important;
+}
+.fi-sidebar-item-btn:hover .fi-sidebar-item-label,
+.fi-sidebar-item-btn:hover .fi-sidebar-item-icon {
+  color: #fff !important;
+}
+
+/* Item actif : pill dégradée + rail lumineux (écrase le fond clair par défaut
+   de Filament, qui rendait le libellé blanc illisible en thème clair) */
+.fi-sidebar-item.fi-active > .fi-sidebar-item-btn,
+.fi-sidebar-item.fi-sidebar-item-has-active-child-items > .fi-sidebar-item-btn {
+  background: linear-gradient(90deg, rgba(99, 102, 241, 0.30), rgba(14, 165, 233, 0.12)) !important;
+  box-shadow: inset 3px 0 0 0 #818cf8;
+}
+.fi-sidebar-item.fi-active .fi-sidebar-item-label {
+  color: #fff !important;
+  font-weight: 650;
+}
+.fi-sidebar-item.fi-active .fi-sidebar-item-icon {
+  color: #a5b4fc !important;
+}
+
+/* Badges de navigation (compteurs) lisibles sur fond nuit */
+.fi-sidebar .fi-badge {
+  box-shadow: none;
+}
+
+/* ============================================================
+   TOPBAR — verre dépoli
+   ============================================================ */
+/* Filament v5 : le fond de la barre est porté par .fi-topbar-ctn (conteneur
+   sticky). Fond opaque : le contenu scrollé ne doit JAMAIS transparaître. */
+.fi-topbar-ctn,
+.fi-topbar-ctn > .fi-topbar,
+.fi-topbar {
+  background-color: var(--cfa-card) !important;
+  border-bottom: 1px solid var(--cfa-card-border);
+  box-shadow: none !important;
+}
+
+/* Badge environnement + bouton Créer (render hooks) */
+.cfa-topbar-tools {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+.cfa-env-badge {
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 0.28rem 0.65rem;
+  border-radius: 999px;
+  color: #b45309;
+  background: rgba(245, 158, 11, 0.14);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  white-space: nowrap;
+}
+.dark .cfa-env-badge {
+  color: #fbbf24;
+}
+.cfa-create-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  font-weight: 650;
+  color: #fff;
+  padding: 0.44rem 0.9rem;
+  border-radius: 9px;
+  background-image: var(--cfa-grad);
+  box-shadow: 0 4px 14px -6px rgba(79, 70, 229, 0.55);
+  transition: transform 140ms ease, box-shadow 140ms ease, filter 140ms ease;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.cfa-create-btn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.06);
+  box-shadow: 0 8px 20px -8px rgba(79, 70, 229, 0.65);
+}
+.cfa-create-btn svg {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+/* ============================================================
+   CARTES / SECTIONS / WIDGETS
+   ============================================================ */
+.fi-section,
+.fi-wi-stats-overview-stat,
+.fi-ta-ctn,
+.fi-wi-chart,
+.fi-wi-widget .fi-section {
+  border-radius: var(--cfa-radius-card);
+  border: 1px solid var(--cfa-card-border);
+  background-color: var(--cfa-card);
+  box-shadow: var(--cfa-shadow-card);
+}
+.fi-section-header-heading {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.fi-section-header-description {
+  color: var(--cfa-ink-soft);
+}
+
+/* Cartes KPI : filet dégradé + chiffres tabulaires, léger lift au survol */
+.fi-wi-stats-overview-stat {
+  position: relative;
+  overflow: hidden;
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+.fi-wi-stats-overview-stat::before {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: 3px;
+  background-image: var(--cfa-grad);
+  opacity: 0.85;
+}
+.fi-wi-stats-overview-stat:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--cfa-shadow-pop);
+}
+.fi-wi-stats-overview-stat-value {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+  font-weight: 800;
+}
+.fi-wi-stats-overview-stat-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--cfa-ink-soft);
+}
+
+/* ============================================================
+   TABLEAUX — lisibilité data premium
+   ============================================================ */
+.fi-ta-header-cell {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--cfa-ink-soft);
+}
+.fi-ta-row {
+  transition: background-color 120ms ease;
+}
+.fi-ta-row:hover {
+  background-color: color-mix(in srgb, var(--cfa-accent) 4%, transparent) !important;
+}
+.fi-ta-cell {
+  padding-top: 0.9rem;
+  padding-bottom: 0.9rem;
+}
+.fi-ta-text {
+  font-size: 0.855rem;
+}
+
+/* État vide : accueillant, orienté action */
+.fi-ta-empty-state {
+  padding: 3.5rem 1.5rem;
+}
+.fi-ta-empty-state-icon-ctn,
+.fi-ta-empty-state-icon-bg {
+  background-image: linear-gradient(135deg, rgba(99, 102, 241, 0.14), rgba(14, 165, 233, 0.10));
+  border-radius: 18px;
+}
+.fi-ta-empty-state-heading {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.fi-ta-empty-state-description {
+  color: var(--cfa-ink-soft);
+  max-width: 40ch;
+  margin-inline: auto;
+}
+
+/* ============================================================
+   BADGES — langage visuel des statuts
+   ============================================================ */
+.fi-badge {
+  border-radius: 999px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+}
+
+/* ============================================================
+   BOUTONS — hiérarchie claire
+   ============================================================ */
+.fi-btn {
+  border-radius: var(--cfa-radius-control);
+  transition: transform 130ms ease, box-shadow 130ms ease, filter 130ms ease;
+  font-weight: 650;
+}
+.fi-btn:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+.fi-btn:not(:disabled):active {
+  transform: translateY(0);
+}
+.fi-btn-color-primary {
+  background-image: var(--cfa-grad);
+  box-shadow: 0 4px 14px -6px rgba(79, 70, 229, 0.5);
+}
+.fi-btn-color-primary:not(:disabled):hover {
+  box-shadow: 0 8px 22px -8px rgba(79, 70, 229, 0.62);
+  filter: brightness(1.05);
+}
+
+/* ============================================================
+   FORMULAIRES — champs nets, focus indigo
+   ============================================================ */
+.fi-input-wrp,
+.fi-select-input,
+.fi-fo-file-upload .filepond--panel-root {
+  border-radius: var(--cfa-radius-control);
+  transition: box-shadow 130ms ease, border-color 130ms ease;
+}
+.fi-input-wrp:focus-within {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--cfa-accent) 22%, transparent);
+}
+.fi-fo-field-wrp-label .fi-fo-field-wrp-label-text,
+.fi-fo-field-label {
+  font-weight: 600;
+}
+.fi-fo-field-wrp-helper-text,
+.fi-fo-field-wrp-hint {
+  color: var(--cfa-ink-soft);
+}
+
+/* ============================================================
+   MODALES & DROPDOWNS
+   ============================================================ */
+.fi-modal-window {
+  border-radius: 18px;
+  box-shadow: var(--cfa-shadow-pop);
+}
+.fi-dropdown-panel {
+  border-radius: 12px;
+  border: 1px solid var(--cfa-card-border);
+  box-shadow: var(--cfa-shadow-pop);
+}
+
+/* ============================================================
+   WIDGET « Priorités du jour » (cockpit)
+   ============================================================ */
+.cfa-prio {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(215px, 1fr));
+  gap: 0.75rem;
+}
+.cfa-prio-card {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem;
+  border-radius: 12px;
+  border: 1px solid var(--cfa-card-border);
+  background-color: var(--cfa-card);
+  box-shadow: var(--cfa-shadow-card);
+  transition: transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease;
+  text-decoration: none;
+}
+a.cfa-prio-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--cfa-shadow-pop);
+  border-color: color-mix(in srgb, var(--cfa-accent) 35%, var(--cfa-card-border));
+}
+.cfa-prio-icon {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: 10px;
+}
+.cfa-prio-icon svg {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+.cfa-prio-count {
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+.cfa-prio-label {
+  font-size: 0.78rem;
+  font-weight: 650;
+  line-height: 1.25;
+}
+.cfa-prio-hint {
+  font-size: 0.7rem;
+  color: var(--cfa-ink-soft);
+  margin-top: 0.1rem;
+  line-height: 1.35;
+}
+.cfa-prio-danger .cfa-prio-icon { background: rgba(225, 29, 72, 0.12); color: #e11d48; }
+.cfa-prio-warning .cfa-prio-icon { background: rgba(217, 119, 6, 0.13); color: #d97706; }
+.cfa-prio-info .cfa-prio-icon { background: rgba(8, 145, 178, 0.13); color: #0891b2; }
+.cfa-prio-ok .cfa-prio-icon { background: rgba(5, 150, 105, 0.13); color: #059669; }
+.dark .cfa-prio-danger .cfa-prio-icon { color: #fb7185; }
+.dark .cfa-prio-warning .cfa-prio-icon { color: #fbbf24; }
+.dark .cfa-prio-info .cfa-prio-icon { color: #22d3ee; }
+.dark .cfa-prio-ok .cfa-prio-icon { color: #34d399; }
+.cfa-prio-danger .cfa-prio-count { color: #e11d48; }
+.dark .cfa-prio-danger .cfa-prio-count { color: #fb7185; }
+
+/* ============================================================
+   Entrée en scène douce des widgets (désactivée si reduced motion)
+   ============================================================ */
+@media (prefers-reduced-motion: no-preference) {
+  .fi-wi > *,
+  .fi-wi-widget {
+    animation: cfa-rise 340ms cubic-bezier(0.22, 0.8, 0.36, 1) both;
+  }
+  @keyframes cfa-rise {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+}
+
+/* ============================================================
+   Marque (logo sidebar / login)
+   ============================================================ */
+.cfa-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.cfa-brand-mark {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9px;
+  background-image: var(--cfa-grad);
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-weight: 900;
+  font-size: 0.95rem;
+  letter-spacing: -0.02em;
+  box-shadow: 0 4px 12px -4px rgba(79, 70, 229, 0.55);
+}
+.cfa-brand-name {
+  font-weight: 800;
+  font-size: 1rem;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+.cfa-brand-sub {
+  display: block;
+  font-size: 0.6rem;
+  font-weight: 650;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--cfa-ink-soft);
+  margin-top: 0.2rem;
+}
+.fi-sidebar .cfa-brand-name { color: #fff; }
+.fi-sidebar .cfa-brand-sub { color: rgba(148, 163, 199, 0.85); }
+
+/* ============================================================
+   HARMONISATION DES SURFACES DARK — bleu nuit cohérent partout
+   (dropdowns, modales, champs, en-têtes de tableau, sous-cartes)
+   ============================================================ */
+.dark .fi-dropdown-panel,
+.dark .fi-modal-window {
+  background-color: var(--cfa-card) !important;
+  border: 1px solid var(--cfa-card-border);
+}
+/* Champs de saisie : surface secondaire → contraste net sur les cartes */
+.dark .fi-input-wrp,
+.dark .fi-fo-file-upload .filepond--panel-root {
+  background-color: var(--cfa-card-2);
+  border-color: var(--cfa-card-border);
+}
+/* En-tête de tableau très légèrement relevé pour cadrer la donnée */
+.dark .fi-ta-header {
+  background-color: color-mix(in srgb, var(--cfa-card-2) 60%, var(--cfa-card));
+}
+.fi-ta-header {
+  background-color: color-mix(in srgb, var(--cfa-card-2) 70%, var(--cfa-card));
+}
+/* Sous-sections / encarts imbriqués : ton secondaire pour la profondeur */
+.fi-section .fi-section,
+.fi-fo-fieldset {
+  background-color: var(--cfa-card-2);
+  border-radius: var(--cfa-radius-card);
+}
+/* Séparateur de groupe sidebar : filet dégradé discret entre les modules */
+.fi-sidebar-group + .fi-sidebar-group {
+  margin-top: 0.35rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid var(--cfa-sidebar-line);
+}
+
+/* ---------- Topbar : voile premium en dark ---------- */
+.dark .fi-topbar-ctn,
+.dark .fi-topbar-ctn > .fi-topbar,
+.dark .fi-topbar {
+  background-color: color-mix(in srgb, var(--cfa-card) 88%, transparent) !important;
+  backdrop-filter: saturate(140%) blur(10px);
+  -webkit-backdrop-filter: saturate(140%) blur(10px);
+  border-bottom-color: var(--cfa-card-border);
+}
+
+/* ============================================================
+   PAGE DE CONNEXION — première impression « wow »
+   Fond bleu nuit + halos, carte flottante à filet dégradé.
+   ============================================================ */
+.fi-simple-layout {
+  background-color: var(--cfa-bg);
+  background-image:
+    radial-gradient(1000px 600px at 80% -10%, rgba(99, 102, 241, 0.18), transparent 60%),
+    radial-gradient(760px 520px at 10% 110%, rgba(6, 182, 212, 0.12), transparent 55%);
+  background-attachment: fixed;
+}
+.fi-simple-main {
+  border-radius: 18px;
+  border: 1px solid var(--cfa-card-border);
+  background-color: var(--cfa-card);
+  box-shadow: var(--cfa-shadow-pop);
+  position: relative;
+  overflow: hidden;
+}
+.fi-simple-main::before {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: 3px;
+  background-image: var(--cfa-grad);
+}
+
+/* ============================================================
+   Focus clavier accessible (anneau indigo cohérent)
+   ============================================================ */
+.fi-btn:focus-visible,
+.fi-sidebar-item-btn:focus-visible,
+.fi-ta-row a:focus-visible {
+  outline: 2px solid var(--cfa-accent);
+  outline-offset: 2px;
+}
+
+/* Scrollbars fines et discrètes */
+* {
+  scrollbar-width: thin;
+}
+
+/* ============================================================
+   COCKPIT DE SUPERVISION (tableau de bord d'accueil)
+   Systeme autonome, pilote par les tokens --cfa-* -> coherent
+   clair/sombre. Aucune couleur claire codee en dur.
+   ============================================================ */
+.cfa-cockpit {
+  display: grid;
+  gap: 1.15rem;
+  color: inherit;
+}
+.cfa-cockpit a { text-decoration: none; color: inherit; }
+
+/* En-tete */
+.cfa-ck-head {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 1rem; flex-wrap: wrap;
+}
+.cfa-ck-title {
+  font-size: 1.75rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1;
+}
+.cfa-ck-sub { color: var(--cfa-ink-soft); font-size: .9rem; margin-top: .15rem; }
+.cfa-ck-date {
+  display: inline-flex; align-items: center; gap: .5rem;
+  padding: .5rem .85rem; border-radius: 10px; font-size: .82rem; font-weight: 600;
+  border: 1px solid var(--cfa-card-border); background: var(--cfa-card);
+  box-shadow: var(--cfa-shadow-card);
+}
+.cfa-ck-date .cfa-ck-ico svg { width: 1rem; height: 1rem; color: var(--cfa-accent); }
+
+/* Supervision intelligente */
+.cfa-ck-insights {
+  position: relative; border-radius: 16px; padding: 1.2rem 1.35rem;
+  border: 1px solid color-mix(in srgb, var(--cfa-accent) 30%, var(--cfa-card-border));
+  background:
+    radial-gradient(700px 200px at 88% -40%, color-mix(in srgb, var(--cfa-accent) 16%, transparent), transparent 70%),
+    var(--cfa-card);
+  box-shadow: var(--cfa-shadow-card);
+  overflow: hidden;
+}
+.cfa-ins-grid {
+  display: grid; gap: 1.25rem;
+  grid-template-columns: 1.4fr 1fr 1fr 1fr auto;
+  align-items: start;
+}
+.cfa-ins-title { display: flex; align-items: center; gap: .5rem; font-weight: 700; font-size: 1rem; flex-wrap: wrap; }
+.cfa-ins-spark { display: inline-flex; }
+.cfa-ins-spark svg { width: 1.2rem; height: 1.2rem; color: var(--cfa-accent-2); }
+.cfa-ins-badge {
+  font-size: .68rem; font-weight: 600; letter-spacing: .02em; padding: .15rem .55rem;
+  border-radius: 999px; color: var(--cfa-accent);
+  background: color-mix(in srgb, var(--cfa-accent) 16%, transparent);
+}
+.cfa-ins-retenir { margin-top: .65rem; font-size: .85rem; line-height: 1.5; color: var(--cfa-ink-soft); }
+.cfa-ins-col-h {
+  display: flex; align-items: center; gap: .4rem; font-size: .78rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .03em; margin-bottom: .5rem; color: var(--cfa-ink-soft);
+}
+.cfa-ins-col ul, .cfa-ins-col ol { margin: 0; padding-left: 1rem; display: grid; gap: .38rem; }
+.cfa-ins-col li { font-size: .8rem; line-height: 1.35; }
+.cfa-ins-ai {
+  display: grid; justify-items: center; text-align: center; gap: .35rem;
+  padding: .5rem .25rem; min-width: 130px;
+}
+.cfa-ai-orb {
+  width: 3rem; height: 3rem; border-radius: 50%; display: grid; place-items: center;
+  background: var(--cfa-grad); box-shadow: 0 8px 24px -8px color-mix(in srgb, var(--cfa-accent) 70%, transparent);
+}
+.cfa-ai-orb svg { width: 1.5rem; height: 1.5rem; color: #fff; }
+.cfa-ai-txt { font-size: .78rem; font-weight: 700; }
+.cfa-ai-hint { font-size: .68rem; color: var(--cfa-ink-soft); max-width: 150px; }
+
+.cfa-dot { width: .5rem; height: .5rem; border-radius: 50%; display: inline-block; }
+.cfa-dot.danger { background: #f43f5e; }
+.cfa-dot.success { background: #10b981; }
+.cfa-dot.info { background: #3b82f6; }
+
+/* Cartes KPI */
+.cfa-ck-kpis {
+  display: grid; gap: .85rem;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+.cfa-kpi {
+  position: relative; display: grid; gap: .1rem; padding: .95rem 1rem 1rem;
+  border-radius: 14px; border: 1px solid var(--cfa-card-border);
+  background: var(--cfa-card); box-shadow: var(--cfa-shadow-card);
+  overflow: hidden; transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+.cfa-kpi::before {
+  content: ''; position: absolute; inset: 0 auto 0 0; width: 3px; background: var(--kpi);
+  opacity: .85;
+}
+.cfa-kpi[href]:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--kpi) 45%, var(--cfa-card-border));
+  box-shadow: var(--cfa-shadow-pop);
+}
+.cfa-kpi-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: .2rem; }
+.cfa-kpi-ico {
+  width: 2.1rem; height: 2.1rem; border-radius: 9px; display: grid; place-items: center;
+  color: var(--kpi); background: color-mix(in srgb, var(--kpi) 14%, transparent);
+}
+.cfa-kpi-ico svg { width: 1.2rem; height: 1.2rem; }
+.cfa-kpi-trend {
+  display: inline-flex; align-items: center; gap: .15rem; font-size: .72rem; font-weight: 700;
+  padding: .1rem .4rem; border-radius: 999px;
+}
+.cfa-kpi-trend svg { width: .8rem; height: .8rem; }
+.cfa-kpi-trend.up { color: #10b981; background: color-mix(in srgb, #10b981 15%, transparent); }
+.cfa-kpi-trend.down { color: #f43f5e; background: color-mix(in srgb, #f43f5e 15%, transparent); }
+.cfa-kpi-trend.flat { color: var(--cfa-ink-soft); background: color-mix(in srgb, var(--cfa-ink-soft) 15%, transparent); }
+.cfa-kpi-val { font-size: 1.65rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; }
+.cfa-kpi-label { font-size: .8rem; font-weight: 600; color: var(--cfa-ink-soft); }
+.cfa-spark { width: 100%; height: 34px; margin: .4rem 0 .15rem; display: block; }
+.cfa-kpi-sub { font-size: .68rem; color: var(--cfa-ink-soft); }
+
+/* Panneaux generiques */
+.cfa-panel {
+  border-radius: 14px; border: 1px solid var(--cfa-card-border);
+  background: var(--cfa-card); box-shadow: var(--cfa-shadow-card); padding: 1.05rem 1.15rem;
+  display: grid; gap: .7rem; align-content: start;
+}
+.cfa-panel-h {
+  display: flex; align-items: center; justify-content: space-between; gap: .5rem;
+  font-weight: 700; font-size: .95rem;
+}
+.cfa-panel-link { font-size: .75rem; font-weight: 600; color: var(--cfa-accent); white-space: nowrap; }
+.cfa-panel-link:hover { text-decoration: underline; }
+
+.cfa-ck-charts { display: grid; gap: 1rem; grid-template-columns: 1fr 1.2fr 1fr; }
+
+/* Funnel */
+.cfa-funnel { display: grid; gap: .55rem; }
+.cfa-funnel-row { display: grid; grid-template-columns: 92px 1fr auto; align-items: center; gap: .6rem; }
+.cfa-funnel-lbl { font-size: .8rem; color: var(--cfa-ink-soft); }
+.cfa-funnel-bar-wrap { height: 12px; border-radius: 999px; background: var(--cfa-card-2); overflow: hidden; }
+.cfa-funnel-bar {
+  display: block; height: 100%; border-radius: 999px;
+  background: linear-gradient(90deg, #3b82f6, #6366f1 55%, #ec4899);
+  filter: saturate(1.05); transition: width .4s ease;
+}
+.cfa-funnel-val { font-size: .9rem; font-weight: 700; text-align: right; }
+.cfa-funnel-val small { display: block; font-size: .66rem; font-weight: 600; color: var(--cfa-ink-soft); }
+.cfa-funnel-foot {
+  margin-top: .2rem; font-size: .8rem; color: var(--cfa-ink-soft);
+  border-top: 1px solid var(--cfa-card-border); padding-top: .55rem;
+}
+.cfa-funnel-foot b { color: inherit; }
+
+/* Line chart */
+.cfa-legend { display: flex; flex-wrap: wrap; gap: .8rem; }
+.cfa-legend-item { display: inline-flex; align-items: center; gap: .35rem; font-size: .74rem; color: var(--cfa-ink-soft); }
+.cfa-line-wrap { width: 100%; }
+.cfa-line { width: 100%; height: auto; display: block; }
+.cfa-line-grid { stroke: var(--cfa-card-border); stroke-width: 1; }
+.cfa-line-x { display: flex; justify-content: space-between; font-size: .66rem; color: var(--cfa-ink-soft); padding: 0 .3rem; }
+
+/* Donut */
+.cfa-donut-wrap { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.cfa-donut-chart { position: relative; width: 140px; height: 140px; flex: none; }
+.cfa-donut { width: 140px; height: 140px; }
+.cfa-donut-center {
+  position: absolute; inset: 0; display: grid; place-content: center; text-align: center;
+}
+.cfa-donut-center b { font-size: 1.5rem; font-weight: 800; line-height: 1; }
+.cfa-donut-center span { font-size: .68rem; color: var(--cfa-ink-soft); }
+.cfa-donut-legend { list-style: none; margin: 0; padding: 0; display: grid; gap: .45rem; flex: 1; min-width: 140px; }
+.cfa-donut-legend li { display: flex; align-items: center; gap: .5rem; font-size: .8rem; }
+.cfa-donut-legend li b { margin-left: auto; font-weight: 700; }
+
+/* Work grids */
+.cfa-ck-work { display: grid; gap: 1rem; grid-template-columns: 1.15fr 1fr; }
+.cfa-ck-bottom { display: grid; gap: 1rem; grid-template-columns: 1fr 1fr; }
+
+/* Tasks */
+.cfa-task {
+  display: flex; align-items: center; gap: .7rem; padding: .6rem .3rem;
+  border-bottom: 1px solid var(--cfa-card-border);
+}
+.cfa-task:last-child { border-bottom: 0; }
+.cfa-task-ico {
+  width: 2.1rem; height: 2.1rem; flex: none; border-radius: 9px; display: grid; place-items: center;
+  color: var(--tk); background: color-mix(in srgb, var(--tk) 14%, transparent);
+}
+.cfa-task-ico svg { width: 1.15rem; height: 1.15rem; }
+.cfa-task-body { display: grid; gap: .1rem; flex: 1; min-width: 0; }
+.cfa-task-title { font-size: .84rem; font-weight: 600; display: flex; align-items: center; gap: .5rem; }
+.cfa-task-lvl {
+  font-size: .62rem; font-weight: 700; text-transform: uppercase; letter-spacing: .03em;
+  padding: .1rem .4rem; border-radius: 999px; color: var(--tk);
+  background: color-mix(in srgb, var(--tk) 16%, transparent);
+}
+.cfa-task-detail { font-size: .74rem; color: var(--cfa-ink-soft); }
+.cfa-task-btn {
+  flex: none; font-size: .74rem; font-weight: 600; padding: .35rem .7rem; border-radius: 8px;
+  color: var(--tk); border: 1px solid color-mix(in srgb, var(--tk) 40%, transparent);
+  background: color-mix(in srgb, var(--tk) 10%, transparent); transition: background .15s ease;
+}
+.cfa-task-btn:hover { background: color-mix(in srgb, var(--tk) 20%, transparent); }
+
+/* Alerts */
+.cfa-alert {
+  display: flex; align-items: center; gap: .7rem; padding: .6rem .7rem; border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--al) 30%, var(--cfa-card-border));
+  background: color-mix(in srgb, var(--al) 8%, transparent);
+}
+.cfa-alert + .cfa-alert { margin-top: .5rem; }
+.cfa-alert-ico { color: var(--al); flex: none; }
+.cfa-alert-ico svg { width: 1.3rem; height: 1.3rem; }
+.cfa-alert-body { display: grid; gap: .1rem; flex: 1; min-width: 0; }
+.cfa-alert-title { font-size: .82rem; font-weight: 700; }
+.cfa-alert-detail { font-size: .74rem; color: var(--cfa-ink-soft); }
+.cfa-alert-age {
+  flex: none; font-size: .72rem; font-weight: 700; color: var(--al);
+  padding: .15rem .45rem; border-radius: 999px; background: color-mix(in srgb, var(--al) 16%, transparent);
+}
+
+/* Agenda */
+.cfa-agenda {
+  display: grid; grid-template-columns: 48px 1fr auto; align-items: center; gap: .7rem;
+  padding: .55rem .3rem; border-bottom: 1px solid var(--cfa-card-border);
+}
+.cfa-agenda:last-child { border-bottom: 0; }
+.cfa-agenda-h { font-size: .8rem; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--cfa-accent); }
+.cfa-agenda-t { font-size: .82rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cfa-agenda-b {
+  font-size: .68rem; font-weight: 600; padding: .15rem .5rem; border-radius: 999px; white-space: nowrap;
+  color: var(--ag); background: color-mix(in srgb, var(--ag) 15%, transparent);
+}
+
+/* Activity */
+.cfa-activity { display: flex; align-items: flex-start; gap: .65rem; padding: .5rem .3rem; }
+.cfa-activity + .cfa-activity { border-top: 1px solid var(--cfa-card-border); }
+.cfa-activity-dot { width: .55rem; height: .55rem; border-radius: 50%; margin-top: .35rem; flex: none; }
+.cfa-activity-body { display: grid; gap: .1rem; }
+.cfa-activity-t { font-size: .82rem; font-weight: 600; }
+.cfa-activity-m { font-size: .72rem; color: var(--cfa-ink-soft); }
+
+/* Empty states */
+.cfa-empty {
+  display: flex; align-items: center; gap: .55rem; padding: 1rem .3rem;
+  font-size: .82rem; color: var(--cfa-ink-soft);
+}
+.cfa-empty svg { width: 1.3rem; height: 1.3rem; color: #10b981; flex: none; }
+
+/* Responsive */
+@media (max-width: 1280px) {
+  .cfa-ins-grid { grid-template-columns: 1fr 1fr 1fr; }
+  .cfa-ins-title-wrap { grid-column: 1 / -1; }
+  .cfa-ins-ai { grid-column: 1 / -1; grid-auto-flow: column; justify-content: center; align-items: center; }
+  .cfa-ck-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .cfa-ck-charts { grid-template-columns: 1fr; }
+}
+@media (max-width: 900px) {
+  .cfa-ck-work, .cfa-ck-bottom { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .cfa-ins-grid { grid-template-columns: 1fr; }
+  .cfa-ck-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cfa-ck-title { font-size: 1.4rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cfa-kpi, .cfa-funnel-bar, .cfa-task-btn { transition: none; }
+}
+
+/* ---- Onglets departements ---- */
+.cfa-ck-tabs {
+  display: flex; gap: .4rem; flex-wrap: wrap;
+  padding: .35rem; border-radius: 12px;
+  border: 1px solid var(--cfa-card-border); background: var(--cfa-card);
+  box-shadow: var(--cfa-shadow-card);
+}
+.cfa-ck-tab {
+  display: inline-flex; align-items: center; gap: .45rem;
+  padding: .5rem .85rem; border-radius: 9px; font-size: .82rem; font-weight: 600;
+  color: var(--cfa-ink-soft); transition: background .15s ease, color .15s ease;
+}
+.cfa-ck-tab-ico svg { width: 1.05rem; height: 1.05rem; }
+.cfa-ck-tab:hover { background: var(--cfa-card-2); color: inherit; }
+.cfa-ck-tab.actif {
+  color: #fff; background: var(--cfa-grad);
+  box-shadow: 0 6px 18px -8px color-mix(in srgb, var(--cfa-accent) 75%, transparent);
+}
+
+/* ---- Bouton « Demander a l'IA » ---- */
+.cfa-ai-btn {
+  margin-top: .35rem; font-size: .74rem; font-weight: 700; color: #fff;
+  padding: .4rem .8rem; border-radius: 999px; border: 0; cursor: pointer;
+  background: var(--cfa-grad);
+  box-shadow: 0 6px 16px -8px color-mix(in srgb, var(--cfa-accent) 75%, transparent);
+  transition: transform .15s ease, filter .15s ease;
+}
+.cfa-ai-btn:hover { transform: translateY(-1px); filter: brightness(1.06); }
+.cfa-ai-btn:disabled { opacity: .7; cursor: progress; }
+
+/* ---- Selecteur de periode ---- */
+.cfa-period { display: inline-flex; gap: .15rem; padding: .15rem; border-radius: 999px; background: var(--cfa-card-2); }
+.cfa-period-btn {
+  font-size: .7rem; font-weight: 600; padding: .25rem .6rem; border-radius: 999px;
+  border: 0; background: transparent; color: var(--cfa-ink-soft); cursor: pointer;
+  transition: background .15s ease, color .15s ease;
+}
+.cfa-period-btn:hover { color: inherit; }
+.cfa-period-btn.actif { background: var(--cfa-card); color: var(--cfa-accent); box-shadow: var(--cfa-shadow-card); }
+
+@media (prefers-reduced-motion: reduce) {
+  .cfa-ck-tab, .cfa-ai-btn, .cfa-period-btn { transition: none; }
+}
+
+/* ============================================================
+   Topbar : barre de recherche globale centree et proeminente
+   (rapproche l'accueil du cockpit de reference)
+   ============================================================ */
+.fi-global-search {
+  flex: 1 1 auto;
+  max-width: 560px;
+  margin-inline: auto;
+}
+.fi-global-search .fi-input-wrp {
+  border-radius: 999px;
+  background: var(--cfa-card-2);
+  box-shadow: var(--cfa-shadow-card);
+}
+.fi-global-search .fi-input {
+  font-size: .875rem;
+}
+@media (max-width: 1024px) {
+  .fi-global-search { max-width: none; }
+}
+
+/* Sur grand écran : recherche réellement centrée dans toute la barre
+   (superposée au centre, les clusters gauche/droite restent en place). */
+@media (min-width: 1200px) {
+  .fi-topbar-ctn, .fi-topbar > nav, nav.fi-topbar { position: relative; }
+  .fi-topbar-ctn, .fi-topbar-end { overflow: visible; }
+  .fi-global-search {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: clamp(320px, 34vw, 520px);
+    max-width: none;
+    margin: 0;
+    z-index: 5;
+  }
+}
+
+/* Identité utilisateur (nom + rôle) à gauche de l'avatar */
+.cfa-user-identity {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.15;
+  margin-inline-end: .1rem;
+}
+.cfa-user-name { font-size: .82rem; font-weight: 700; }
+.cfa-user-role { font-size: .7rem; color: var(--cfa-ink-soft); }
+@media (max-width: 640px) {
+  .cfa-user-identity { display: none; }
+}
+
+/* ============================================================
+   WORKSPACE CANDIDATS (liste opérationnelle)
+   ============================================================ */
+
+/* Filtres rapides orientés action */
+.cfa-cand-quick { display: grid; grid-template-columns: repeat(3, 1fr); gap: .75rem; margin-bottom: 1rem; }
+.cfa-quick {
+  display: flex; align-items: center; gap: .7rem; text-align: left; cursor: pointer;
+  padding: .8rem 1rem; border-radius: 12px; border: 1px solid var(--cfa-card-border);
+  background: var(--cfa-card); box-shadow: var(--cfa-shadow-card);
+  transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+.cfa-quick:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--q) 45%, var(--cfa-card-border)); }
+.cfa-quick.actif {
+  border-color: var(--q);
+  box-shadow: 0 0 0 1px var(--q), var(--cfa-shadow-card);
+  background: color-mix(in srgb, var(--q) 8%, var(--cfa-card));
+}
+.cfa-quick-ico {
+  width: 2.4rem; height: 2.4rem; flex: none; border-radius: 10px; display: grid; place-items: center;
+  color: var(--q); background: color-mix(in srgb, var(--q) 15%, transparent);
+}
+.cfa-quick-txt { display: grid; line-height: 1.2; }
+.cfa-quick-txt b { font-size: .92rem; font-weight: 700; }
+.cfa-quick-txt small { font-size: .72rem; color: var(--cfa-ink-soft); }
+
+/* Disposition : le tableau occupe toute la largeur par défaut. Le panneau
+   Focus n'apparaît qu'après un clic sur une ligne (classe .has-focus) et ne
+   passe à côté du tableau que sur très grand écran (>=1440px) ; en dessous il
+   s'empile dessous (pas de scroll horizontal). */
+.cfa-cand-layout { display: grid; grid-template-columns: 1fr; gap: 1rem; align-items: start; }
+.cfa-cand-main { min-width: 0; }
+.cfa-cand-focus-col { position: sticky; top: 5rem; }
+@media (min-width: 1440px) {
+  .cfa-cand-layout.has-focus { grid-template-columns: minmax(0, 1fr) 300px; }
+}
+
+/* Colonne identité (avatar initiales + nom + formation) */
+.cfa-cand-identite { display: flex; align-items: center; gap: .6rem; }
+.cfa-cand-avatar {
+  width: 2.1rem; height: 2.1rem; flex: none; border-radius: 50%; display: grid; place-items: center;
+  font-size: .72rem; font-weight: 700; color: #fff; background: var(--cfa-grad);
+}
+.cfa-cand-identite-txt { display: grid; line-height: 1.2; min-width: 0; }
+.cfa-cand-name { font-weight: 600; font-size: .86rem; }
+.cfa-cand-formation { font-size: .7rem; color: var(--cfa-ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Timeline de progression compacte */
+.cfa-prog { display: flex; align-items: flex-start; gap: 0; max-width: 190px; }
+.cfa-prog-step {
+  position: relative; display: grid; justify-items: center; gap: .2rem; flex: 1; min-width: 32px;
+}
+.cfa-prog-step::before {
+  content: ''; position: absolute; top: 6px; left: -50%; width: 100%; height: 2px;
+  background: var(--cfa-card-border);
+}
+.cfa-prog-step:first-child::before { display: none; }
+.cfa-prog-dot {
+  width: 13px; height: 13px; border-radius: 50%; z-index: 1;
+  background: var(--cfa-card); border: 2px solid var(--cfa-card-border);
+}
+.cfa-prog-lbl { font-size: .6rem; color: var(--cfa-ink-soft); }
+.cfa-prog-done .cfa-prog-dot { background: #10b981; border-color: #10b981; }
+.cfa-prog-done::before { background: #10b981; }
+.cfa-prog-current .cfa-prog-dot {
+  background: var(--cfa-accent); border-color: var(--cfa-accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--cfa-accent) 25%, transparent);
+}
+.cfa-prog-current .cfa-prog-lbl { color: inherit; font-weight: 700; }
+.cfa-prog-refuse .cfa-prog-dot { background: #f43f5e; border-color: #f43f5e; }
+.cfa-prog-refuse .cfa-prog-lbl { color: #f43f5e; }
+
+/* Panneau Focus du jour */
+.cfa-focus {
+  display: grid; gap: .8rem; padding: 1rem; border-radius: 14px;
+  border: 1px solid var(--cfa-card-border); background: var(--cfa-card); box-shadow: var(--cfa-shadow-card);
+}
+.cfa-focus-h { display: flex; align-items: center; gap: .45rem; font-weight: 700; font-size: .95rem; }
+.cfa-focus-spark { color: var(--cfa-accent-2); display: inline-flex; }
+.cfa-focus-close {
+  margin-left: auto; display: inline-flex; padding: .2rem; border-radius: 7px; cursor: pointer;
+  color: var(--cfa-ink-soft); border: 0; background: transparent; transition: background .15s ease, color .15s ease;
+}
+.cfa-focus-close:hover { background: var(--cfa-card-2); color: inherit; }
+.cfa-focus-empty { display: grid; justify-items: center; gap: .5rem; text-align: center; padding: 1.5rem .5rem; color: var(--cfa-ink-soft); font-size: .82rem; }
+.cfa-focus-empty svg { color: var(--cfa-accent); }
+.cfa-focus-id { display: flex; align-items: center; gap: .6rem; }
+.cfa-focus-avatar {
+  width: 2.6rem; height: 2.6rem; flex: none; border-radius: 50%; display: grid; place-items: center;
+  font-weight: 700; color: #fff; background: color-mix(in srgb, var(--fa) 85%, black);
+}
+.cfa-focus-id-txt { display: grid; gap: .2rem; }
+.cfa-focus-name { font-weight: 700; }
+.cfa-focus-badge {
+  justify-self: start; font-size: .68rem; font-weight: 600; padding: .1rem .5rem; border-radius: 999px;
+  color: var(--fb); background: color-mix(in srgb, var(--fb) 16%, transparent);
+}
+.cfa-focus-meta { list-style: none; margin: 0; padding: 0; display: grid; gap: .4rem; }
+.cfa-focus-meta li { display: flex; align-items: center; gap: .45rem; font-size: .78rem; color: var(--cfa-ink-soft); }
+.cfa-focus-meta svg { flex: none; color: var(--cfa-ink-soft); }
+.cfa-focus-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: .4rem; width: 100%;
+  font-size: .78rem; font-weight: 600; padding: .5rem .8rem; border-radius: 9px; margin-top: .5rem;
+  border: 1px solid var(--cfa-card-border); background: var(--cfa-card-2); color: inherit;
+  transition: background .15s ease;
+}
+.cfa-focus-btn:hover { background: color-mix(in srgb, var(--cfa-accent) 12%, var(--cfa-card-2)); }
+.cfa-focus-btn.primaire { border: 0; color: #fff; background: var(--cfa-grad); }
+.cfa-focus-card { padding: .75rem; border-radius: 11px; border: 1px solid var(--cfa-card-border); background: var(--cfa-card-2); display: grid; gap: .5rem; }
+.cfa-focus-card-h { display: flex; align-items: center; gap: .4rem; font-size: .8rem; font-weight: 700; }
+.cfa-focus-card-h svg { color: var(--cfa-ink-soft); flex: none; }
+.cfa-focus-docs { list-style: none; margin: 0; padding: 0; display: grid; gap: .35rem; }
+.cfa-focus-docs li { display: flex; align-items: center; gap: .5rem; font-size: .78rem; }
+.cfa-focus-req { margin-left: auto; font-size: .64rem; font-weight: 700; color: #f43f5e; background: color-mix(in srgb, #f43f5e 15%, transparent); padding: .05rem .4rem; border-radius: 999px; }
+.cfa-focus-dot { width: .5rem; height: .5rem; border-radius: 50%; flex: none; }
+.cfa-focus-dot.danger { background: #f43f5e; }
+.cfa-focus-dot.ok { background: #10b981; }
+.cfa-focus-req.ok { color: #10b981; background: color-mix(in srgb, #10b981 15%, transparent); }
+/* Badge d'état d'un document généré (CERFA / convention). */
+.cfa-focus-etat { flex: none; font-size: .66rem; font-weight: 700; padding: .1rem .45rem; border-radius: 999px; }
+.cfa-focus-etat.ok { color: #10b981; background: color-mix(in srgb, #10b981 15%, transparent); }
+.cfa-focus-etat.warn { color: #f59e0b; background: color-mix(in srgb, #f59e0b 15%, transparent); }
+.cfa-focus-etat.todo { color: var(--cfa-ink-soft); background: color-mix(in srgb, var(--cfa-ink-soft) 15%, transparent); }
+/* Icône alignée dans la partie gauche d'une ligne « besoin » (CERFA/convention). */
+.cfa-focus-need > span:first-child { display: inline-flex; align-items: center; gap: .35rem; }
+/* Encart d'anomalie (pièce obligatoire absente = dossier créé hors formulaire). */
+.cfa-focus-alerte {
+  display: flex; align-items: flex-start; gap: .4rem; margin-bottom: .5rem;
+  font-size: .7rem; line-height: 1.35; color: #f43f5e;
+  background: color-mix(in srgb, #f43f5e 12%, transparent);
+  border: 1px solid color-mix(in srgb, #f43f5e 30%, transparent);
+  border-radius: .5rem; padding: .45rem .55rem;
+}
+.cfa-focus-alerte svg { flex: none; margin-top: .05rem; }
+.cfa-focus-ok { display: flex; align-items: center; gap: .4rem; font-size: .78rem; color: #10b981; }
+.cfa-focus-ok svg { color: #10b981; }
+.cfa-focus-muted { font-size: .78rem; color: var(--cfa-ink-soft); }
+.cfa-focus-rdv { display: flex; align-items: baseline; gap: .5rem; font-size: .82rem; }
+.cfa-focus-rdv span { color: var(--cfa-ink-soft); }
+.cfa-focus-ia {
+  padding: .8rem; border-radius: 11px; display: grid; gap: .5rem;
+  border: 1px solid color-mix(in srgb, var(--cfa-accent) 30%, var(--cfa-card-border));
+  background: color-mix(in srgb, var(--cfa-accent) 9%, transparent);
+}
+.cfa-focus-ia p { font-size: .76rem; color: var(--cfa-ink-soft); line-height: 1.4; margin: 0; }
+.cfa-focus-timeline { display: flex; gap: .55rem; padding: .3rem 0; }
+.cfa-focus-tl-dot { width: .5rem; height: .5rem; border-radius: 50%; margin-top: .3rem; flex: none; background: var(--cfa-accent); }
+.cfa-focus-tl-txt { font-size: .78rem; font-weight: 500; }
+.cfa-focus-tl-date { font-size: .68rem; color: var(--cfa-ink-soft); }
+
+@media (max-width: 1439.98px) {
+  .cfa-cand-focus-col { position: static; }
+}
+@media (max-width: 900px) {
+  .cfa-cand-quick { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cfa-quick { transition: none; }
+}
+
+/* ============================================================
+   WORKSPACE ENTREPRISES (extension du workspace Candidats)
+   ============================================================ */
+.cfa-avatar-alt { background: linear-gradient(135deg, #0ea5e9, #14b8a6); }
+
+/* Besoins en cours (panneau Focus entreprise) */
+.cfa-focus-need { display: flex; align-items: center; justify-content: space-between; gap: .5rem; font-size: .8rem; padding: .3rem 0; }
+.cfa-focus-need + .cfa-focus-need { border-top: 1px solid var(--cfa-card-border); }
+.cfa-focus-need-badge {
+  flex: none; font-size: .66rem; font-weight: 700; color: var(--cfa-accent);
+  background: color-mix(in srgb, var(--cfa-accent) 15%, transparent); padding: .1rem .45rem; border-radius: 999px;
+}
+
+/* Matching suggéré (candidats scorés) */
+.cfa-focus-match { display: flex; align-items: center; gap: .55rem; padding: .4rem 0; }
+.cfa-focus-match + .cfa-focus-match { border-top: 1px solid var(--cfa-card-border); }
+.cfa-focus-match-avatar {
+  width: 1.9rem; height: 1.9rem; flex: none; border-radius: 50%; display: grid; place-items: center;
+  font-size: .64rem; font-weight: 700; color: #fff; background: var(--cfa-grad);
+}
+.cfa-focus-match-txt { display: grid; flex: 1; min-width: 0; line-height: 1.2; }
+.cfa-focus-match-name { font-size: .8rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cfa-focus-match-sub { font-size: .68rem; color: var(--cfa-ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cfa-focus-match-score { flex: none; font-size: .82rem; font-weight: 800; color: #10b981; }
+
+/* ============================================================
+   WORKSPACE OFFRES PROPOSÉES (section « Les offres proposées »)
+   ============================================================ */
+/* Barre d'avancement du recrutement (postes pourvus / demandés). */
+.cfa-need-bar { display: flex; align-items: center; gap: .5rem; min-width: 8rem; }
+.cfa-need-bar-track {
+  flex: 1; height: .4rem; border-radius: 999px; overflow: hidden;
+  background: color-mix(in srgb, var(--cfa-ink-soft) 22%, transparent);
+}
+.cfa-need-bar-fill {
+  display: block; height: 100%; border-radius: 999px;
+  background: linear-gradient(90deg, #f59e0b, #f97316);
+  transition: width .3s ease;
+}
+.cfa-need-bar-fill.complet { background: linear-gradient(90deg, #10b981, #059669); }
+.cfa-need-bar-lbl { flex: none; font-size: .7rem; font-weight: 700; color: var(--cfa-ink-soft); font-variant-numeric: tabular-nums; }
+@media (prefers-reduced-motion: reduce) {
+  .cfa-need-bar-fill { transition: none; }
+}
+
+/* ============================================================
+   BARRE DE FILTRES COMPACTE (au-dessus des tableaux workspace)
+   ============================================================ */
+/* Moins de hauteur : on resserre les 3 sources d'espace vertical de Filament —
+   le padding du conteneur, le padding + row-gap de la carte, et l'espace sous
+   le titre — puis on réduit titre et labels. */
+.fi-ta-filters-above-content-ctn { padding-block: .45rem !important; }
+.fi-ta-filters { padding: .5rem .85rem !important; row-gap: .3rem !important; }
+.fi-ta-filters-header { margin-bottom: 0 !important; align-items: center; }
+.fi-ta-filters-heading { font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; opacity: .7; }
+/* Étiquettes de filtre plus petites. */
+.fi-ta-filters-above-content-ctn .fi-fo-field-label,
+.fi-ta-filters-above-content-ctn .fi-fo-field-label-content { font-size: .68rem; font-weight: 600; }
+/* Hauteur des champs de filtre resserrée. */
+.fi-ta-filters-above-content-ctn .fi-input-wrp,
+.fi-ta-filters-above-content-ctn .fi-select-input { min-height: 2rem; }
+/* Listes déroulantes : étiquette EN LIGNE (à gauche du champ) au lieu d'au-dessus.
+   Tout tient sur une seule ligne, alignée avec la case à cocher → on récupère la
+   hauteur du label. La case à cocher (« Besoins ouverts ») n'a pas .fi-fo-select-wrp,
+   elle n'est donc pas touchée. Largeur du select plafonnée. */
+.fi-ta-filters-above-content-ctn .fi-fo-select-wrp {
+  grid-template-columns: auto minmax(0, 13rem);
+  align-items: center;
+  column-gap: .45rem;
+  row-gap: 0;
+}
+.fi-ta-filters-above-content-ctn .fi-fo-select-wrp .fi-fo-field-label-col { padding-top: 0; height: auto; }
+.fi-ta-filters-above-content-ctn .fi-fo-select-wrp .fi-fo-field-label { white-space: nowrap; }
+/* Aligne la case à cocher sur la même ligne que les listes déroulantes. */
+.fi-ta-filters-above-content-ctn > .fi-ta-filters > .fi-sc { align-items: center; }
