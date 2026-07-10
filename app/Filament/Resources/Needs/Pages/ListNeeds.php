@@ -4,7 +4,9 @@ namespace App\Filament\Resources\Needs\Pages;
 
 use App\Filament\Exports\NeedExporter;
 use App\Filament\Resources\Needs\NeedResource;
+use App\Filament\Resources\Needs\Tables\NeedsTable;
 use App\Models\Formation;
+use App\Models\Need;
 use App\Prospecting\AddressGeocoder;
 use App\Prospecting\LaBonneAlternanceClient;
 use App\Prospecting\ProspectionService;
@@ -29,11 +31,37 @@ class ListNeeds extends ListRecords
 {
     protected static string $resource = NeedResource::class;
 
+    protected string $view = 'filament.needs.list';
+
+    /** Filtre rapide actif (null = aucun). */
+    public ?string $quickScope = null;
+
     public function getSubheading(): ?string
     {
-        return 'Un besoin = un poste à pourvoir chez une entreprise (métier, formation visée, rythme). '
-            .'C\'est ce que le matching cherche à combler avec vos candidats. Suivez chaque besoin de '
-            .'sa création jusqu\'au candidat retenu via la « Vue Pipeline ».';
+        return 'Chaque ligne = une offre proposée par une entreprise (poste à pourvoir, formation visée, rythme). '
+            .'Cliquez sur une offre pour ouvrir sa fiche (description, entreprise, candidats). '
+            .'Suivez le recrutement jusqu\'au candidat retenu via la « Vue Pipeline ».';
+    }
+
+    /** Active/désactive un filtre rapide (bascule si déjà actif). */
+    public function setQuickScope(?string $scope): void
+    {
+        $this->quickScope = $this->quickScope === $scope ? null : $scope;
+        $this->resetTable();
+    }
+
+    /**
+     * Compteurs des trois filtres rapides.
+     *
+     * @return array{a_pourvoir:int,sans_candidat:int,en_matching:int}
+     */
+    public function getQuickCounts(): array
+    {
+        return [
+            'a_pourvoir' => Need::query()->tap(fn ($q) => NeedsTable::appliquerScopeRapide($q, 'a_pourvoir'))->count(),
+            'sans_candidat' => Need::query()->tap(fn ($q) => NeedsTable::appliquerScopeRapide($q, 'sans_candidat'))->count(),
+            'en_matching' => Need::query()->tap(fn ($q) => NeedsTable::appliquerScopeRapide($q, 'en_matching'))->count(),
+        ];
     }
 
     protected function getHeaderActions(): array

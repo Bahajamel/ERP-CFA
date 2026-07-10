@@ -35,11 +35,11 @@ class NeedResource extends Resource
 
     protected static ?int $navigationSort = 3;
 
-    protected static ?string $navigationLabel = 'Besoins entreprises';
+    protected static ?string $navigationLabel = 'Les offres proposées';
 
-    protected static ?string $modelLabel = 'besoin';
+    protected static ?string $modelLabel = 'offre';
 
-    protected static ?string $pluralModelLabel = 'besoins entreprises';
+    protected static ?string $pluralModelLabel = 'offres proposées';
 
     protected static ?string $recordTitleAttribute = 'intitule_poste';
 

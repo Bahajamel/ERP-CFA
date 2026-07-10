@@ -12,7 +12,7 @@ class Modules
     public const LIST = [
         'candidates'  => 'Candidats',
         'companies'   => 'Entreprises',
-        'needs'       => 'Besoins entreprises',
+        'needs'       => 'Les offres proposées',
         'matching'    => 'Matching',
         'admissions'  => 'Admission',
         'documents'   => 'Documents',
