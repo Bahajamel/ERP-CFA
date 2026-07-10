@@ -88,7 +88,9 @@ class NeedsTable
                     ->preload(),
             ])
             // Listes déroulantes toujours visibles en barre au-dessus du tableau.
+            // Filtres instantanés (sans bouton « Appliquer ») pour une barre compacte.
             ->filtersLayout(FiltersLayout::AboveContent)
+            ->deferFilters(false)
             ->filtersFormColumns([
                 'sm' => 2,
                 'lg' => 3,
