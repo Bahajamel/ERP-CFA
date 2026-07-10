@@ -1150,15 +1150,18 @@ a.cfa-prio-card:hover {
 /* ============================================================
    BARRE DE FILTRES COMPACTE (au-dessus des tableaux workspace)
    ============================================================ */
-/* Moins de hauteur : padding réduit, titre discret, labels resserrés. */
-.fi-ta-filters { padding: .6rem .85rem !important; }
-.fi-ta-filters-header { margin-bottom: .35rem; align-items: center; }
+/* Moins de hauteur : on resserre les 3 sources d'espace vertical de Filament —
+   le padding du conteneur, le padding + row-gap de la carte, et l'espace sous
+   le titre — puis on réduit titre et labels. */
+.fi-ta-filters-above-content-ctn { padding-block: .45rem !important; }
+.fi-ta-filters { padding: .5rem .85rem !important; row-gap: .3rem !important; }
+.fi-ta-filters-header { margin-bottom: 0 !important; align-items: center; }
 .fi-ta-filters-heading { font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; opacity: .7; }
 .fi-ta-filters-above-content-ctn .fi-fo-field-wrp-label,
 .fi-ta-filters-above-content-ctn .fi-fo-field-wrp-label > * {
   font-size: .68rem; font-weight: 600;
 }
-.fi-ta-filters-above-content-ctn .fi-fo-field-wrp-label { margin-bottom: .15rem; }
-/* Champs de filtre un peu plus bas pour gagner en hauteur. */
+.fi-ta-filters-above-content-ctn .fi-fo-field-wrp-label { margin-bottom: .1rem; }
+/* Hauteur des champs de filtre resserrée. */
 .fi-ta-filters-above-content-ctn .fi-input-wrp,
-.fi-ta-filters-above-content-ctn .fi-select-input { min-height: 2.1rem; }
+.fi-ta-filters-above-content-ctn .fi-select-input { min-height: 2rem; }
