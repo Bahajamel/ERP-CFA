@@ -1092,3 +1092,28 @@ a.cfa-prio-card:hover {
 @media (prefers-reduced-motion: reduce) {
   .cfa-quick { transition: none; }
 }
+
+/* ============================================================
+   WORKSPACE ENTREPRISES (extension du workspace Candidats)
+   ============================================================ */
+.cfa-avatar-alt { background: linear-gradient(135deg, #0ea5e9, #14b8a6); }
+
+/* Besoins en cours (panneau Focus entreprise) */
+.cfa-focus-need { display: flex; align-items: center; justify-content: space-between; gap: .5rem; font-size: .8rem; padding: .3rem 0; }
+.cfa-focus-need + .cfa-focus-need { border-top: 1px solid var(--cfa-card-border); }
+.cfa-focus-need-badge {
+  flex: none; font-size: .66rem; font-weight: 700; color: var(--cfa-accent);
+  background: color-mix(in srgb, var(--cfa-accent) 15%, transparent); padding: .1rem .45rem; border-radius: 999px;
+}
+
+/* Matching suggéré (candidats scorés) */
+.cfa-focus-match { display: flex; align-items: center; gap: .55rem; padding: .4rem 0; }
+.cfa-focus-match + .cfa-focus-match { border-top: 1px solid var(--cfa-card-border); }
+.cfa-focus-match-avatar {
+  width: 1.9rem; height: 1.9rem; flex: none; border-radius: 50%; display: grid; place-items: center;
+  font-size: .64rem; font-weight: 700; color: #fff; background: var(--cfa-grad);
+}
+.cfa-focus-match-txt { display: grid; flex: 1; min-width: 0; line-height: 1.2; }
+.cfa-focus-match-name { font-size: .8rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cfa-focus-match-sub { font-size: .68rem; color: var(--cfa-ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cfa-focus-match-score { flex: none; font-size: .82rem; font-weight: 800; color: #10b981; }
