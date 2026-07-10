@@ -14,6 +14,7 @@ use Filament\Actions\RestoreBulkAction;
 use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\ViewColumn;
+use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TrashedFilter;
@@ -101,6 +102,13 @@ class CompaniesTable
                         fn (Builder $q): Builder => $q->relanceDue(),
                     )),
                 TrashedFilter::make(),
+            ])
+            // Listes déroulantes toujours visibles en barre au-dessus du tableau
+            // (au lieu du menu déroulant « Filtres »), comme le workspace attendu.
+            ->filtersLayout(FiltersLayout::AboveContent)
+            ->filtersFormColumns([
+                'sm' => 2,
+                'lg' => 4,
             ])
             ->recordActions([
                 Action::make('focus')
