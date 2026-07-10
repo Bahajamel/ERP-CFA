@@ -424,7 +424,7 @@ class Candidate extends Model implements HasMedia
             : $this->interactions()->first();
 
         if ($interaction === null) {
-            return ['label' => 'Candidature reçue', 'quand' => $this->created_at?->diffForHumans()];
+            return ['label' => null, 'quand' => null];
         }
 
         return [
