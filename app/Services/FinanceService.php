@@ -56,6 +56,67 @@ class FinanceService
     }
 
     /**
+     * Synchronisation de rattrapage : parcourt TOUS les dossiers OPCO
+     * (section Contrats & OPCO) et garantit une ligne financière pour chacun
+     * (montant accepté si présent, sinon prévisionnel), puis génère les factures
+     * dues. Idempotent (une ligne par dossier OPCO) — sûr à relancer.
+     *
+     * @return array{lignes:int, factures:int, ignores:int}
+     */
+    public function synchroniserTousLesDossiers(?int $userId = null): array
+    {
+        $stats = ['lignes' => 0, 'factures' => 0, 'ignores' => 0];
+
+        OpcoFile::query()->with('contract.formation')->get()->each(function (OpcoFile $dossier) use (&$stats, $userId): void {
+            $line = $this->synchroniserDossier($dossier);
+
+            if ($line === null) {
+                $stats['ignores']++;
+
+                return;
+            }
+
+            $stats['lignes']++;
+            $stats['factures'] += $this->genererFacturesDues($line, $userId)->count();
+        });
+
+        return $stats;
+    }
+
+    /**
+     * Ligne financière d'un dossier OPCO pour la synchro globale : reprend le
+     * montant accepté par le financeur, ou à défaut le prévisionnel (dossier pas
+     * encore accepté), pour que le dossier apparaisse dès maintenant dans Finance.
+     * Retourne null si le dossier n'a ni contrat ni montant exploitable.
+     */
+    private function synchroniserDossier(OpcoFile $dossier): ?FinanceLine
+    {
+        $contract = $dossier->contract;
+        $accepte = (float) $dossier->montant_accepte;
+        $reference = $accepte > 0 ? $accepte : (float) $dossier->montant_prevu;
+
+        if ($contract === null || $reference <= 0) {
+            return null;
+        }
+
+        $line = FinanceLine::firstOrNew(['opco_file_id' => $dossier->id]);
+        $nouvelle = ! $line->exists;
+
+        $line->contract_id = $contract->id;
+        $line->libelle = 'Financement OPCO'
+            .($contract->formation?->libelle ? ' — '.$contract->formation->libelle : '');
+        $line->montant_accepte = $accepte;
+
+        if ($nouvelle) {
+            $line->montant_attendu = $reference;
+        }
+
+        $line->save();
+
+        return $line;
+    }
+
+    /**
      * Génère les factures (proforma, brouillon) pour les échéances OPCO
      * arrivées à terme et pas encore facturées. Anti-doublon : une facture non
      * annulée par échéance. Retourne les factures créées.

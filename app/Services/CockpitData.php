@@ -75,7 +75,7 @@ class CockpitData
             ['label' => 'Contrats', 'icon' => 'pencil', 'actif' => false, 'voir' => (bool) $u?->can('access_contracts'),
                 'url' => route('filament.admin.resources.contracts.index')],
             ['label' => 'Finance', 'icon' => 'banknotes', 'actif' => false, 'voir' => (bool) $u?->can('access_finance'),
-                'url' => route('filament.admin.resources.finance-lines.index')],
+                'url' => route('filament.admin.pages.finance')],
             ['label' => 'Pilotage', 'icon' => 'folder-open', 'actif' => false, 'voir' => (bool) $u?->can('access_opco'),
                 'url' => route('filament.admin.resources.opco-files.index')],
         ];
