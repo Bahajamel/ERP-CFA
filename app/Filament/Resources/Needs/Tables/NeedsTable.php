@@ -17,6 +17,7 @@ use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\ViewColumn;
+use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -85,6 +86,12 @@ class NeedsTable
                     ->relationship('company', 'raison_sociale')
                     ->searchable()
                     ->preload(),
+            ])
+            // Listes déroulantes toujours visibles en barre au-dessus du tableau.
+            ->filtersLayout(FiltersLayout::AboveContent)
+            ->filtersFormColumns([
+                'sm' => 2,
+                'lg' => 3,
             ])
             ->recordActions([
                 Action::make('changerStatut')
