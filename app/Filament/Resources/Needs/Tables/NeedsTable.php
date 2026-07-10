@@ -48,13 +48,13 @@ class NeedsTable
                     ->placeholder('—')
                     ->toggleable(),
                 TextColumn::make('matchings_count')
-                    ->label('Candidatures')
+                    ->label('Candidats proposés')
                     ->badge()
                     ->color(fn (int $state): string => $state === 0 ? 'gray' : 'info')
                     ->formatStateUsing(fn (int $state): string => $state.' candidat'.($state > 1 ? 's' : ''))
                     ->alignCenter()
                     ->sortable()
-                    ->tooltip('Candidats proposés / ayant postulé sur cette offre'),
+                    ->tooltip('Nombre de candidats proposés sur cette offre (plusieurs candidats possibles par offre)'),
                 ViewColumn::make('recrutement')
                     ->label('Recrutement')
                     ->view('filament.needs.recrutement'),
