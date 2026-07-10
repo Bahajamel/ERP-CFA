@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\CompanyStatut;
 use App\Enums\NoteType;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -133,5 +134,76 @@ class Company extends Model
         return $this->interactions()
             ->whereNotNull('prochaine_action_le')
             ->first();
+    }
+
+    /* ----------------------------------------------------------------
+     |  Workspace « Focus entreprise »
+     * ---------------------------------------------------------------- */
+
+    /** Initiales (avatar sans logo) — ex. « Boulangerie Au Bon Pain » → « BAP ». */
+    protected function initiales(): Attribute
+    {
+        return Attribute::get(function (): string {
+            $mots = preg_split('/\s+/', trim((string) $this->raison_sociale)) ?: [];
+            $lettres = collect($mots)
+                ->filter()
+                ->take(3)
+                ->map(fn (string $m): string => mb_strtoupper(mb_substr($m, 0, 1)))
+                ->implode('');
+
+            return $lettres !== '' ? $lettres : '?';
+        });
+    }
+
+    /** Nombre de besoins ouverts (postes à pourvoir). */
+    public function besoinsOuvertsCount(): int
+    {
+        return $this->relationLoaded('needs')
+            ? $this->needs->reject(fn (Need $n): bool => $n->estCloture())->count()
+            : $this->needs()->ouverts()->count();
+    }
+
+    /**
+     * Résumé de la dernière activité (dernière interaction) : libellé + date.
+     *
+     * @return array{label:?string,quand:?string}
+     */
+    public function derniereActivite(): array
+    {
+        $interaction = $this->relationLoaded('interactions')
+            ? $this->interactions->first()
+            : $this->interactions()->first();
+
+        if ($interaction === null) {
+            return ['label' => null, 'quand' => null];
+        }
+
+        return [
+            'label' => $interaction->resume ?: $interaction->type->getLabel(),
+            'quand' => $interaction->date_interaction?->diffForHumans(),
+        ];
+    }
+
+    /**
+     * Candidats les plus compatibles avec les besoins ouverts de l'entreprise,
+     * agrégés et dédoublonnés (meilleur score conservé). Réutilise le moteur de
+     * compatibilité des besoins ({@see Need::candidatsCompatibles()}).
+     *
+     * @return list<array{candidate:Candidate,score:int,besoin:string}>
+     */
+    public function matchingSuggere(int $limit = 3): array
+    {
+        return $this->needs()->ouverts()->get()
+            ->flatMap(fn (Need $need) => $need->candidatsCompatibles(5)
+                ->map(fn (array $row): array => [
+                    'candidate' => $row['candidate'],
+                    'score' => $row['score'],
+                    'besoin' => $need->intitule_poste,
+                ]))
+            ->sortByDesc('score')
+            ->unique(fn (array $row): int => $row['candidate']->id)
+            ->take($limit)
+            ->values()
+            ->all();
     }
 }

@@ -2,10 +2,12 @@
 
 namespace App\Models;
 
+use App\Enums\AdmissionStatut;
 use App\Enums\CandidateStatut;
 use App\Enums\DocumentType;
 use App\Enums\EntretienStatut;
 use App\Enums\PresenceStatut;
+use App\Http\Controllers\CandidatureController;
 use App\Matching\CompatibilityScorer;
 use App\Parcours\CycleApprenant;
 use App\StateMachine\HasStateTransitions;
@@ -328,6 +330,151 @@ class Candidate extends Model implements HasMedia
     protected function nomComplet(): Attribute
     {
         return Attribute::get(fn () => trim("{$this->prenom} {$this->nom}"));
+    }
+
+    /** Initiales (avatar sans photo) — ex. « Raslen Saadi » → « RS ». */
+    protected function initiales(): Attribute
+    {
+        return Attribute::get(fn (): string => str(mb_substr($this->prenom ?? '', 0, 1).mb_substr($this->nom ?? '', 0, 1))
+            ->upper()->whenEmpty(fn () => str('?'))->value());
+    }
+
+    /**
+     * Pièces réellement exigées d'un candidat — alignées sur le formulaire de
+     * candidature ({@see CandidatureController} :
+     * pièce d'identité, CV et carte vitale sont « required »). On ne liste QUE
+     * ces pièces demandées (pas de document inventé type diplômes/bulletins).
+     * L'attestation de projet (30 ans et +) est stockée en type « Autre »,
+     * non distinguable de façon fiable, donc exclue de ce suivi.
+     *
+     * @return list<DocumentType>
+     */
+    public static function piecesAttendues(): array
+    {
+        return [DocumentType::PieceIdentite, DocumentType::CvCandidat, DocumentType::CarteVitale];
+    }
+
+    /**
+     * Libellés des pièces attendues encore absentes du dossier (« Documents
+     * manquants » du panneau Focus).
+     *
+     * @return list<string>
+     */
+    public function piecesManquantes(): array
+    {
+        $presents = $this->documents()->pluck('type')
+            ->map(fn ($t): string => $t instanceof \BackedEnum ? $t->value : (string) $t)
+            ->all();
+
+        return collect(self::piecesAttendues())
+            ->reject(fn (DocumentType $t): bool => in_array($t->value, $presents, true))
+            ->map(fn (DocumentType $t): string => $t->getLabel())
+            ->values()->all();
+    }
+
+    /**
+     * Étapes de progression du candidat dans le cycle apprenant, chacune avec
+     * son état (done / current / todo / refuse). Alimente la timeline de la
+     * liste et le panneau Focus. Reflète le cycle réel (Candidature → Entretien
+     * → Accepté → Matching → Admission), pas un parcours théorique.
+     *
+     * @return list<array{cle:string,label:string,court:string,etat:string}>
+     */
+    public function progressionEtapes(): array
+    {
+        $statut = $this->statut;
+        $refuse = $statut === CandidateStatut::Refuse;
+
+        $etapes = [
+            ['cle' => 'candidature', 'label' => 'Candidature', 'court' => 'Cand.', 'fait' => true],
+            ['cle' => 'entretien', 'label' => 'Entretien', 'court' => 'Entr.',
+                'fait' => in_array($statut, [CandidateStatut::EntretienRealise, CandidateStatut::Accepte], true)],
+            ['cle' => 'decision', 'label' => 'Accepté', 'court' => 'Décis.',
+                'fait' => $statut === CandidateStatut::Accepte],
+            ['cle' => 'matching', 'label' => 'Matching', 'court' => 'Match.',
+                'fait' => $this->relationLoaded('matchings')
+                    ? $this->matchings->isNotEmpty()
+                    : $this->matchings()->exists()],
+            ['cle' => 'admission', 'label' => 'Admission', 'court' => 'Adm.',
+                'fait' => $this->relationLoaded('admissions')
+                    ? $this->admissions->contains(fn ($a): bool => $a->statut === AdmissionStatut::Valide)
+                    : $this->admissions()->where('statut', AdmissionStatut::Valide->value)->exists()],
+        ];
+
+        $couranteTrouvee = false;
+        foreach ($etapes as &$e) {
+            if ($e['fait']) {
+                $e['etat'] = 'done';
+            } elseif (! $couranteTrouvee) {
+                $e['etat'] = ($refuse && $e['cle'] === 'decision') ? 'refuse' : 'current';
+                $couranteTrouvee = true;
+            } else {
+                $e['etat'] = 'todo';
+            }
+            unset($e['fait']);
+        }
+        unset($e);
+
+        return $etapes;
+    }
+
+    /**
+     * Étape courante du parcours pour le panneau Focus — dérivée de la timeline
+     * réelle du cycle apprenant ({@see CycleApprenant::etapes()}). Évite les
+     * suggestions absurdes (ex. « planifier un entretien » alors que le candidat
+     * est déjà accepté et en matching).
+     *
+     * @return array{cle:string,libelle:string,detail:string,etat:string}
+     */
+    public function parcoursFocus(): array
+    {
+        $etapes = app(CycleApprenant::class)->etapes($this);
+        $parCle = collect($etapes)->keyBy('cle');
+
+        // Rupture en cours → prioritaire.
+        $rupture = $parCle->get('rupture');
+        if ($rupture !== null && $rupture['etat'] === CycleApprenant::ETAT_EN_COURS) {
+            return ['cle' => 'rupture', 'libelle' => 'Rupture', 'detail' => $rupture['detail'], 'etat' => CycleApprenant::ETAT_EN_COURS];
+        }
+
+        if ($this->statut === CandidateStatut::Refuse) {
+            return ['cle' => 'refuse', 'libelle' => 'Candidature refusée', 'detail' => 'Aucune action requise.', 'etat' => CycleApprenant::ETAT_BLOQUEE];
+        }
+
+        // Étape active = première non terminée du parcours principal.
+        foreach (['candidat', 'entretien', 'matching', 'contrat', 'opco', 'admission'] as $cle) {
+            $etape = $parCle->get($cle);
+            if ($etape !== null && $etape['etat'] !== CycleApprenant::ETAT_TERMINEE) {
+                // Les étapes « candidat »/« entretien » se traitent via l'entretien.
+                $libelle = in_array($cle, ['candidat', 'entretien'], true) ? 'Entretien' : $etape['libelle'];
+
+                return ['cle' => in_array($cle, ['candidat', 'entretien'], true) ? 'entretien' : $cle,
+                    'libelle' => $libelle, 'detail' => $etape['detail'], 'etat' => $etape['etat']];
+            }
+        }
+
+        return ['cle' => 'complet', 'libelle' => 'Apprenant inscrit', 'detail' => 'Parcours complet.', 'etat' => CycleApprenant::ETAT_TERMINEE];
+    }
+
+    /**
+     * Résumé de la dernière activité (dernière interaction) : libellé + date.
+     *
+     * @return array{label:string,quand:?string}|null
+     */
+    public function derniereActivite(): ?array
+    {
+        $interaction = $this->relationLoaded('interactions')
+            ? $this->interactions->first()
+            : $this->interactions()->first();
+
+        if ($interaction === null) {
+            return ['label' => null, 'quand' => null];
+        }
+
+        return [
+            'label' => $interaction->resume ?: $interaction->type->getLabel(),
+            'quand' => $interaction->date_interaction?->diffForHumans(),
+        ];
     }
 
     public function formationVisee(): BelongsTo

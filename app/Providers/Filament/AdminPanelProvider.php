@@ -2,6 +2,7 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Pages\Auth\EditProfile;
 use App\Filament\Pages\Dashboard;
 use Filament\Auth\MultiFactor\App\AppAuthentication;
 use Filament\Enums\ThemeMode;
@@ -39,12 +40,15 @@ class AdminPanelProvider extends PanelProvider
             // clair/sombre reste dans le menu utilisateur, préférence mémorisée).
             ->defaultThemeMode(ThemeMode::Dark)
             ->sidebarCollapsibleOnDesktop()
+            // Sidebar compacte (16rem au lieu de 20rem) : plus de largeur pour
+            // les tableaux des sections (le contenu s'ajuste automatiquement).
+            ->sidebarWidth('16rem')
             ->globalSearchKeyBindings(['mod+k'])
             // Page de connexion premium « Meridian CFA » (écran divisé) — la logique
             // d'auth reste celle de Filament, seule la vue est personnalisée.
             ->login(\App\Filament\Auth\Login::class)
-            // Page profil : l'utilisateur y active/désactive sa double authentification.
-            ->profile(isSimple: false)
+            // Page profil enrichie : photo de profil + double authentification.
+            ->profile(EditProfile::class, isSimple: false)
             // Double authentification par application (TOTP) avec codes de secours.
             // Facultative pour l'instant (isRequired: false) afin de ne pas verrouiller
             // les comptes existants ; passer à `isRequired: true` pour l'imposer à tous.
@@ -90,6 +94,11 @@ class AdminPanelProvider extends PanelProvider
             ->renderHook(
                 PanelsRenderHook::GLOBAL_SEARCH_BEFORE,
                 fn (): string => auth()->check() ? view('filament.topbar-tools')->render() : '',
+            )
+            // Identité utilisateur (nom + rôle métier) à gauche de l'avatar.
+            ->renderHook(
+                PanelsRenderHook::USER_MENU_BEFORE,
+                fn (): string => auth()->check() ? view('filament.user-identity')->render() : '',
             )
             // Bouton d'accès rapide (démo) sous le formulaire de connexion — hors production uniquement.
             ->renderHook(

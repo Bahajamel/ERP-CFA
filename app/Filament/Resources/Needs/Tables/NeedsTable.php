@@ -16,6 +16,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Columns\ViewColumn;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -26,12 +27,16 @@ class NeedsTable
     public static function configure(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(function (Builder $query, $livewire): void {
+                $query->with(['company', 'formation'])->withCount('matchings');
+                self::appliquerScopeRapide($query, self::scopeDe($livewire));
+            })
             ->columns([
-                TextColumn::make('intitule_poste')
-                    ->label('Poste')
-                    ->description(fn ($record) => $record->company?->raison_sociale)
-                    ->searchable()
-                    ->sortable(),
+                ViewColumn::make('identite')
+                    ->label('Offre')
+                    ->view('filament.needs.col-identite')
+                    ->searchable(['intitule_poste'])
+                    ->sortable(['intitule_poste']),
                 TextColumn::make('formation.libelle')
                     ->label('Formation')
                     ->badge()
@@ -42,32 +47,22 @@ class NeedsTable
                     ->label('Lieu')
                     ->placeholder('—')
                     ->toggleable(),
-                TextColumn::make('nb_postes')
-                    ->label('Postes')
-                    ->numeric()
-                    ->alignCenter()
-                    ->sortable(),
-                TextColumn::make('postes_restants')
-                    ->label('Restants')
-                    ->state(fn (Need $record): int => $record->postesRestants())
-                    ->badge()
-                    ->color(fn (int $state): string => $state === 0 ? 'success' : 'warning')
-                    ->alignCenter()
-                    ->tooltip('Postes encore à pourvoir (demandés − candidats acceptés)'),
                 TextColumn::make('matchings_count')
                     ->label('Candidats proposés')
-                    ->counts('matchings')
                     ->badge()
-                    ->color('info')
-                    ->alignCenter(),
+                    ->color(fn (int $state): string => $state === 0 ? 'gray' : 'info')
+                    ->formatStateUsing(fn (int $state): string => $state.' candidat'.($state > 1 ? 's' : ''))
+                    ->alignCenter()
+                    ->sortable()
+                    ->tooltip('Nombre de candidats proposés sur cette offre (plusieurs candidats possibles par offre)'),
+                ViewColumn::make('recrutement')
+                    ->label('Recrutement')
+                    ->view('filament.needs.recrutement'),
                 TextColumn::make('date_demarrage')
                     ->label('Démarrage')
                     ->date('d/m/Y')
                     ->placeholder('—')
                     ->sortable(),
-                TextColumn::make('statut')
-                    ->label('Statut')
-                    ->badge(),
                 TextColumn::make('date_cloture')
                     ->label('Clôturé le')
                     ->date('d/m/Y')
@@ -75,6 +70,9 @@ class NeedsTable
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
+            // Clic sur une ligne = ouvre la page de modification de l'offre
+            // (description, entreprise, formation, candidats proposés…).
+            ->recordUrl(fn (Need $record): string => \App\Filament\Resources\Needs\NeedResource::getUrl('edit', ['record' => $record]))
             ->filters([
                 Filter::make('ouverts')
                     ->label('Besoins ouverts uniquement')
@@ -160,7 +158,33 @@ class NeedsTable
             ])
             ->defaultSort('created_at', 'desc')
             ->emptyStateIcon('heroicon-o-briefcase')
-            ->emptyStateHeading('Aucun besoin de recrutement')
-            ->emptyStateDescription('Enregistrez le premier poste à pourvoir d\'une entreprise : le matching pourra ensuite proposer des candidats compatibles.');
+            ->emptyStateHeading('Aucune offre proposée')
+            ->emptyStateDescription('Enregistrez la première offre d\'une entreprise (poste à pourvoir) : le matching pourra ensuite proposer des candidats compatibles.');
+    }
+
+    /** Scope rapide courant lu sur la page (null hors ListNeeds). */
+    private static function scopeDe($livewire): ?string
+    {
+        return (is_object($livewire) && property_exists($livewire, 'quickScope'))
+            ? $livewire->quickScope
+            : null;
+    }
+
+    /**
+     * Applique un filtre rapide « orienté action » à la requête du tableau.
+     * Réutilisé par les compteurs des blocs (ListNeeds) pour rester cohérent.
+     *
+     *  - a_pourvoir : offres ouvertes (postes encore en recrutement) ;
+     *  - sans_candidat : offres ouvertes sans aucun candidat proposé ;
+     *  - en_matching : offres ouvertes ayant au moins un candidat proposé.
+     */
+    public static function appliquerScopeRapide(Builder $query, ?string $scope): void
+    {
+        match ($scope) {
+            'a_pourvoir' => $query->ouverts(),
+            'sans_candidat' => $query->ouverts()->whereDoesntHave('matchings'),
+            'en_matching' => $query->ouverts()->whereHas('matchings'),
+            default => null,
+        };
     }
 }
