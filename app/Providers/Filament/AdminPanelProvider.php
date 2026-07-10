@@ -89,6 +89,11 @@ class AdminPanelProvider extends PanelProvider
                 PanelsRenderHook::GLOBAL_SEARCH_BEFORE,
                 fn (): string => auth()->check() ? view('filament.topbar-tools')->render() : '',
             )
+            // Identité utilisateur (nom + rôle métier) à gauche de l'avatar.
+            ->renderHook(
+                PanelsRenderHook::USER_MENU_BEFORE,
+                fn (): string => auth()->check() ? view('filament.user-identity')->render() : '',
+            )
             // Bouton d'accès rapide (démo) sous le formulaire de connexion — hors production uniquement.
             ->renderHook(
                 PanelsRenderHook::AUTH_LOGIN_FORM_AFTER,
