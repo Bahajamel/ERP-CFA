@@ -1157,14 +1157,23 @@ a.cfa-prio-card:hover {
 .fi-ta-filters { padding: .5rem .85rem !important; row-gap: .3rem !important; }
 .fi-ta-filters-header { margin-bottom: 0 !important; align-items: center; }
 .fi-ta-filters-heading { font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; opacity: .7; }
-.fi-ta-filters-above-content-ctn .fi-fo-field-wrp-label,
-.fi-ta-filters-above-content-ctn .fi-fo-field-wrp-label > * {
-  font-size: .68rem; font-weight: 600;
-}
-.fi-ta-filters-above-content-ctn .fi-fo-field-wrp-label { margin-bottom: .1rem; }
+/* Étiquettes de filtre plus petites. */
+.fi-ta-filters-above-content-ctn .fi-fo-field-label,
+.fi-ta-filters-above-content-ctn .fi-fo-field-label-content { font-size: .68rem; font-weight: 600; }
 /* Hauteur des champs de filtre resserrée. */
 .fi-ta-filters-above-content-ctn .fi-input-wrp,
 .fi-ta-filters-above-content-ctn .fi-select-input { min-height: 2rem; }
-/* Largeur des listes déroulantes plafonnée : elles s'étiraient sur tout leur
-   tiers de colonne (trop large). Ne concerne pas la case à cocher. */
-.fi-ta-filters-above-content-ctn .fi-fo-field-content-col { max-width: 15rem; }
+/* Listes déroulantes : étiquette EN LIGNE (à gauche du champ) au lieu d'au-dessus.
+   Tout tient sur une seule ligne, alignée avec la case à cocher → on récupère la
+   hauteur du label. La case à cocher (« Besoins ouverts ») n'a pas .fi-fo-select-wrp,
+   elle n'est donc pas touchée. Largeur du select plafonnée. */
+.fi-ta-filters-above-content-ctn .fi-fo-select-wrp {
+  grid-template-columns: auto minmax(0, 13rem);
+  align-items: center;
+  column-gap: .45rem;
+  row-gap: 0;
+}
+.fi-ta-filters-above-content-ctn .fi-fo-select-wrp .fi-fo-field-label-col { padding-top: 0; height: auto; }
+.fi-ta-filters-above-content-ctn .fi-fo-select-wrp .fi-fo-field-label { white-space: nowrap; }
+/* Aligne la case à cocher sur la même ligne que les listes déroulantes. */
+.fi-ta-filters-above-content-ctn > .fi-ta-filters > .fi-sc { align-items: center; }
