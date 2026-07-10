@@ -1,9 +1,9 @@
 @php
     use App\Enums\AdmissionStatut;
     use App\Filament\Resources\Admissions\AdmissionResource;
+    use App\Filament\Resources\Contracts\ContractResource;
     use App\Filament\Resources\Ruptures\RuptureResource;
     use App\Models\Admission;
-    use App\Services\ContractDocumentService;
 
     $tones = ['info' => '#3b82f6', 'success' => '#10b981', 'danger' => '#f43f5e'];
     $col = $tones[$a->statut->getColor()] ?? '#3b82f6';
@@ -21,15 +21,8 @@
     ]);
     $manquantes = $pieces->where('present', false)->count();
 
-    // CERFA + convention (générés à partir de ces pièces).
-    $completude = $contrat ? app(ContractDocumentService::class)->completude($contrat) : null;
-    $etatLabel = fn (string $etat) => match ($etat) {
-        ContractDocumentService::ETAT_GENERE => ['Généré', 'ok'],
-        ContractDocumentService::ETAT_A_REGENERER => ['À régénérer', 'warn'],
-        default => ['À générer', 'todo'],
-    };
-
     $editUrl = AdmissionResource::getUrl('edit', ['record' => $a]);
+    $contratUrl = $contrat ? ContractResource::getUrl('edit', ['record' => $contrat]) : null;
 @endphp
 
 <div class="cfa-focus">
@@ -81,17 +74,21 @@
             @endforeach
         </ul>
 
-        @if ($completude)
-            @php [$cerfaLbl, $cerfaCls] = $etatLabel($completude['cerfa']['etat']); @endphp
-            @php [$convLbl, $convCls] = $etatLabel($completude['convention']['etat']); @endphp
-            <div class="cfa-focus-need">
-                <span>@svg('heroicon-o-identification', 'w-4 h-4') CERFA</span>
-                <span class="cfa-focus-etat {{ $cerfaCls }}">{{ $cerfaLbl }}</span>
-            </div>
-            <div class="cfa-focus-need">
-                <span>@svg('heroicon-o-document-check', 'w-4 h-4') Convention</span>
-                <span class="cfa-focus-etat {{ $convCls }}">{{ $convLbl }}</span>
-            </div>
+        {{-- CERFA + convention : nécessairement générés à ce stade (le dossier OPCO,
+             prérequis de l'admission, exige un contrat signé — donc CERFA et
+             convention déjà produits). On les présente comme acquis, avec un lien. --}}
+        <div class="cfa-focus-need">
+            <span>@svg('heroicon-o-identification', 'w-4 h-4') CERFA</span>
+            <span class="cfa-focus-etat ok">Généré</span>
+        </div>
+        <div class="cfa-focus-need">
+            <span>@svg('heroicon-o-document-check', 'w-4 h-4') Convention</span>
+            <span class="cfa-focus-etat ok">Générée</span>
+        </div>
+        @if ($contratUrl)
+            <a href="{{ $contratUrl }}" class="cfa-focus-btn">
+                @svg('heroicon-o-arrow-top-right-on-square', 'w-4 h-4') Voir CERFA &amp; convention
+            </a>
         @endif
     </div>
 
