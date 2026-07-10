@@ -18,18 +18,6 @@
         'admission' => ['Finaliser l\'admission', 'heroicon-o-check-badge'],
         'rupture' => ['Gérer la rupture', 'heroicon-o-exclamation-triangle'],
     ];
-
-    // Conseil contextuel selon l'étape (pas de « relance sous 48 h » pour un
-    // candidat déjà accepté). Null = pas de conseil pertinent → carte masquée.
-    $tips = [
-        'entretien' => 'Une relance sous 48 h augmente nettement la transformation à ce stade.',
-        'matching' => 'Proposez vite des offres correspondant à sa formation : les candidats acceptés se placent mieux dans les deux semaines.',
-        'contrat' => 'Faites signer le contrat par les trois parties pour débloquer le dépôt du dossier OPCO.',
-        'opco' => 'Surveillez le retour de l\'OPCO : son acceptation ouvre automatiquement l\'admission.',
-        'admission' => 'Validez l\'admission pour inscrire officiellement l\'apprenant.',
-        'rupture' => 'Traitez le dossier de rupture (pièces et clôture) pour garder les données à jour.',
-    ];
-    $tip = $parcours ? ($tips[$parcours['cle']] ?? null) : null;
 @endphp
 
 <div class="cfa-focus">
@@ -114,19 +102,6 @@
                 <a href="{{ CandidateResource::getUrl('view', ['record' => $c]) }}" class="cfa-focus-btn">
                     @svg($ctaIcon, 'w-4 h-4') {{ $ctaLabel }}
                 </a>
-            </div>
-        @endif
-
-        {{-- Suggestion IA — contextuelle à l'étape réelle (masquée si non pertinente) --}}
-        @if ($tip)
-            <div class="cfa-focus-ia">
-                <div class="cfa-focus-card-h">@svg('heroicon-o-sparkles', 'w-4 h-4') Suggestion IA</div>
-                <p>{{ $tip }}</p>
-                @if ($parcours['cle'] === 'entretien')
-                    <a href="{{ CandidateResource::getUrl('view', ['record' => $c]) }}" class="cfa-focus-btn primaire">
-                        @svg('heroicon-o-paper-airplane', 'w-4 h-4') Relancer maintenant
-                    </a>
-                @endif
             </div>
         @endif
 

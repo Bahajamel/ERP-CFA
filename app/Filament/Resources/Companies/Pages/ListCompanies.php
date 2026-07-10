@@ -69,14 +69,14 @@ class ListCompanies extends ListRecords
     /**
      * Compteurs des trois filtres rapides.
      *
-     * @return array{a_relancer:int,besoins_ouverts:int,prospects:int}
+     * @return array{a_relancer:int,besoins_ouverts:int,sans_besoin:int}
      */
     public function getQuickCounts(): array
     {
         return [
             'a_relancer' => Company::query()->tap(fn ($q) => CompaniesTable::appliquerScopeRapide($q, 'a_relancer'))->count(),
             'besoins_ouverts' => Company::query()->tap(fn ($q) => CompaniesTable::appliquerScopeRapide($q, 'besoins_ouverts'))->count(),
-            'prospects' => Company::query()->tap(fn ($q) => CompaniesTable::appliquerScopeRapide($q, 'prospects'))->count(),
+            'sans_besoin' => Company::query()->tap(fn ($q) => CompaniesTable::appliquerScopeRapide($q, 'sans_besoin'))->count(),
         ];
     }
 
