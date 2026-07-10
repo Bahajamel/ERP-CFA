@@ -34,13 +34,13 @@ it('renvoie les six cartes KPI avec une mini-courbe à six points', function () 
     }
 });
 
-it('reflète les candidats actifs dans la première carte KPI', function () {
+it('reflète les entretiens à planifier dans la première carte KPI', function () {
     $this->seed(RolePermissionSeeder::class);
     Candidate::factory()->count(3)->create(['statut' => \App\Enums\CandidateStatut::EntretienAPlanifier]);
 
-    $candidats = collect(app(CockpitData::class)->kpis())->firstWhere('cle', 'candidats');
+    $entretiens = collect(app(CockpitData::class)->kpis())->firstWhere('cle', 'entretiens');
 
-    expect($candidats['valeur'])->toBe('3');
+    expect($entretiens['valeur'])->toBe('3');
 });
 
 it('construit un entonnoir décroissant candidats → contrats', function () {
