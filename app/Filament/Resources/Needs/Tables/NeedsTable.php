@@ -71,9 +71,11 @@ class NeedsTable
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
-            // Clic sur une ligne = ouvre la page de modification de l'offre
-            // (description, entreprise, formation, candidats proposés…).
-            ->recordUrl(fn (Need $record): string => \App\Filament\Resources\Needs\NeedResource::getUrl('edit', ['record' => $record]))
+            // Clic sur une ligne = ouvre le panneau « Focus offre » (la page de
+            // modification reste accessible via « Aperçu » → « Ouvrir/modifier »
+            // ou le menu d'actions).
+            ->recordAction('focus')
+            ->recordUrl(null)
             ->filters([
                 Filter::make('ouverts')
                     ->label('Besoins ouverts uniquement')
@@ -96,6 +98,13 @@ class NeedsTable
                 'lg' => 3,
             ])
             ->recordActions([
+                // Sélectionne l'offre dans le panneau « Focus offre » (clic sur la
+                // ligne = même action, sans navigation).
+                Action::make('focus')
+                    ->label('Aperçu')
+                    ->icon('heroicon-o-eye')
+                    ->color('gray')
+                    ->action(fn (Need $record, $livewire) => $livewire->focusId = $record->getKey()),
                 Action::make('changerStatut')
                     ->label('Changer le statut')
                     ->icon('heroicon-o-arrows-right-left')
