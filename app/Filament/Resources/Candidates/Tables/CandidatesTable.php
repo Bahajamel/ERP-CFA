@@ -32,6 +32,7 @@ use Filament\Notifications\Notification;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\ViewColumn;
+use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -115,6 +116,13 @@ class CandidatesTable
                         ->orderBy('source')
                         ->pluck('source', 'source')
                         ->all()),
+            ])
+            // Listes déroulantes toujours visibles en barre au-dessus du tableau
+            // (au lieu du menu déroulant « Filtres »), comme le workspace attendu.
+            ->filtersLayout(FiltersLayout::AboveContent)
+            ->filtersFormColumns([
+                'sm' => 2,
+                'lg' => 4,
             ])
             ->recordActions([
                 // Sélectionne le candidat dans le panneau « Focus du jour »
