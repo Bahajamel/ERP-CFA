@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\AdmissionStatut;
 use App\Enums\CandidateStatut;
 use App\Enums\DocumentType;
 use App\Enums\EntretienStatut;
@@ -328,6 +329,108 @@ class Candidate extends Model implements HasMedia
     protected function nomComplet(): Attribute
     {
         return Attribute::get(fn () => trim("{$this->prenom} {$this->nom}"));
+    }
+
+    /** Initiales (avatar sans photo) — ex. « Raslen Saadi » → « RS ». */
+    protected function initiales(): Attribute
+    {
+        return Attribute::get(fn (): string => str(mb_substr($this->prenom ?? '', 0, 1).mb_substr($this->nom ?? '', 0, 1))
+            ->upper()->whenEmpty(fn () => str('?'))->value());
+    }
+
+    /**
+     * Pièces attendues d'un dossier candidat (socle de complétude opérationnelle).
+     *
+     * @return list<DocumentType>
+     */
+    public static function piecesAttendues(): array
+    {
+        return [DocumentType::PieceIdentite, DocumentType::CvCandidat, DocumentType::DiplomeBulletins];
+    }
+
+    /**
+     * Libellés des pièces attendues encore absentes du dossier (« Documents
+     * manquants » du panneau Focus).
+     *
+     * @return list<string>
+     */
+    public function piecesManquantes(): array
+    {
+        $presents = $this->documents()->pluck('type')
+            ->map(fn ($t): string => $t instanceof \BackedEnum ? $t->value : (string) $t)
+            ->all();
+
+        return collect(self::piecesAttendues())
+            ->reject(fn (DocumentType $t): bool => in_array($t->value, $presents, true))
+            ->map(fn (DocumentType $t): string => $t->getLabel())
+            ->values()->all();
+    }
+
+    /**
+     * Étapes de progression du candidat dans le cycle apprenant, chacune avec
+     * son état (done / current / todo / refuse). Alimente la timeline de la
+     * liste et le panneau Focus. Reflète le cycle réel (Candidature → Entretien
+     * → Accepté → Matching → Admission), pas un parcours théorique.
+     *
+     * @return list<array{cle:string,label:string,court:string,etat:string}>
+     */
+    public function progressionEtapes(): array
+    {
+        $statut = $this->statut;
+        $refuse = $statut === CandidateStatut::Refuse;
+
+        $etapes = [
+            ['cle' => 'candidature', 'label' => 'Candidature', 'court' => 'Cand.', 'fait' => true],
+            ['cle' => 'entretien', 'label' => 'Entretien', 'court' => 'Entr.',
+                'fait' => in_array($statut, [CandidateStatut::EntretienRealise, CandidateStatut::Accepte], true)],
+            ['cle' => 'decision', 'label' => 'Accepté', 'court' => 'Décis.',
+                'fait' => $statut === CandidateStatut::Accepte],
+            ['cle' => 'matching', 'label' => 'Matching', 'court' => 'Match.',
+                'fait' => $this->relationLoaded('matchings')
+                    ? $this->matchings->isNotEmpty()
+                    : $this->matchings()->exists()],
+            ['cle' => 'admission', 'label' => 'Admission', 'court' => 'Adm.',
+                'fait' => $this->relationLoaded('admissions')
+                    ? $this->admissions->contains(fn ($a): bool => $a->statut === AdmissionStatut::Valide)
+                    : $this->admissions()->where('statut', AdmissionStatut::Valide->value)->exists()],
+        ];
+
+        $couranteTrouvee = false;
+        foreach ($etapes as &$e) {
+            if ($e['fait']) {
+                $e['etat'] = 'done';
+            } elseif (! $couranteTrouvee) {
+                $e['etat'] = ($refuse && $e['cle'] === 'decision') ? 'refuse' : 'current';
+                $couranteTrouvee = true;
+            } else {
+                $e['etat'] = 'todo';
+            }
+            unset($e['fait']);
+        }
+        unset($e);
+
+        return $etapes;
+    }
+
+    /**
+     * Résumé de la dernière activité (dernière interaction) : libellé + date.
+     *
+     * @return array{label:string,quand:?string}|null
+     */
+    public function derniereActivite(): ?array
+    {
+        $interaction = $this->relationLoaded('interactions')
+            ? $this->interactions->first()
+            : $this->interactions()->first();
+
+        if ($interaction === null) {
+            return ['label' => 'Candidature reçue', 'quand' => $this->created_at?->diffForHumans()];
+        }
+
+        return [
+            'label' => $interaction->resume ?: $interaction->type->getLabel(),
+            'quand' => $interaction->date_interaction?->diffForHumans(),
+        ];
     }
 
     public function formationVisee(): BelongsTo
