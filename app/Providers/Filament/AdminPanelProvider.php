@@ -2,6 +2,7 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Pages\Auth\EditProfile;
 use App\Filament\Pages\Dashboard;
 use Filament\Auth\MultiFactor\App\AppAuthentication;
 use Filament\Enums\ThemeMode;
@@ -44,8 +45,8 @@ class AdminPanelProvider extends PanelProvider
             ->sidebarWidth('16rem')
             ->globalSearchKeyBindings(['mod+k'])
             ->login()
-            // Page profil : l'utilisateur y active/désactive sa double authentification.
-            ->profile(isSimple: false)
+            // Page profil enrichie : photo de profil + double authentification.
+            ->profile(EditProfile::class, isSimple: false)
             // Double authentification par application (TOTP) avec codes de secours.
             // Facultative pour l'instant (isRequired: false) afin de ne pas verrouiller
             // les comptes existants ; passer à `isRequired: true` pour l'imposer à tous.
