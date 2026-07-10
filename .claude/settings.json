@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(php artisan *)"
+      "Bash(php artisan *)",
+      "PowerShell(cd \"c:\\\\Users\\\\MSI\\\\Desktop\\\\projets\\\\ERP-CFA\"; $sp=\"C:\\\\Users\\\\MSI\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-MSI-Desktop-projets-ERP-CFA\\\\06be87b0-a477-4ac2-a865-25a37944f801\\\\scratchpad\"; php artisan tinker \"$sp\\\\render_completude.php\" 2>&1 | Out-File -Encoding utf8 \"$sp\\\\baseline.html\"; Write-Output \"Exit: $LASTEXITCODE\"; \\(Get-Content \"$sp\\\\baseline.html\" -Raw\\).Length)"
     ]
   }
 }
