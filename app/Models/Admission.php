@@ -131,6 +131,32 @@ class Admission extends Model
     }
 
     /**
+     * Pièces obligatoires de l'admission (pièce d'identité, CV, diplôme /
+     * bulletins) encore absentes du dossier du candidat — libellés lisibles.
+     * S'appuie sur les documents réels du candidat (source fiable), comme le
+     * suivi documentaire côté candidat.
+     *
+     * @return list<string>
+     */
+    public function piecesAdmissionManquantes(): array
+    {
+        $candidate = $this->candidate;
+
+        if ($candidate === null) {
+            return array_map(fn (DocumentType $t): string => $t->getLabel(), self::PIECES_OBLIGATOIRES);
+        }
+
+        $presents = $candidate->documents()->pluck('type')
+            ->map(fn ($t): string => $t instanceof BackedEnum ? $t->value : (string) $t)
+            ->all();
+
+        return collect(self::PIECES_OBLIGATOIRES)
+            ->reject(fn (DocumentType $t): bool => in_array($t->value, $presents, true))
+            ->map(fn (DocumentType $t): string => $t->getLabel())
+            ->values()->all();
+    }
+
+    /**
      * Effets de bord après une transition : métadonnées de validation,
      * commentaire, et ouverture automatique du dossier de rupture quand
      * l'admission passe en « Rupture » (idempotent : un dossier par contrat).

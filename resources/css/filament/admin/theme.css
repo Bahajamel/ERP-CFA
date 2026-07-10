@@ -1067,6 +1067,8 @@ a.cfa-prio-card:hover {
 .cfa-focus-req { margin-left: auto; font-size: .64rem; font-weight: 700; color: #f43f5e; background: color-mix(in srgb, #f43f5e 15%, transparent); padding: .05rem .4rem; border-radius: 999px; }
 .cfa-focus-dot { width: .5rem; height: .5rem; border-radius: 50%; flex: none; }
 .cfa-focus-dot.danger { background: #f43f5e; }
+.cfa-focus-dot.ok { background: #10b981; }
+.cfa-focus-req.ok { color: #10b981; background: color-mix(in srgb, #10b981 15%, transparent); }
 /* Encart d'anomalie (pièce obligatoire absente = dossier créé hors formulaire). */
 .cfa-focus-alerte {
   display: flex; align-items: flex-start; gap: .4rem; margin-bottom: .5rem;

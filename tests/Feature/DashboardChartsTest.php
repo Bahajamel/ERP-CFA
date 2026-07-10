@@ -3,7 +3,6 @@
 use App\Enums\ContractStatut;
 use App\Enums\PresenceStatut;
 use App\Filament\Pages\Assiduite;
-use App\Filament\Resources\Admissions\Pages\ListAdmissions;
 use App\Filament\Resources\Seances\Pages\ListSeances;
 use App\Filament\Widgets\AssiduiteParPromotionChart;
 use App\Filament\Widgets\ContratsSignesParMoisChart;
@@ -95,14 +94,6 @@ it('rend l\'assiduité par promotion, cliquable vers la page filtrée', function
 // ---------------------------------------------------------------------------
 // Placement de chaque graphique dans sa section (widgets d'en-tête)
 // ---------------------------------------------------------------------------
-
-it('embarque l\'entonnoir en tête de la liste des admissions', function () {
-    connecteAvecRole('Direction');
-
-    Livewire::test(ListAdmissions::class)
-        ->assertSuccessful()
-        ->assertSeeLivewire(ConversionFunnelChart::class);
-});
 
 it('embarque le graphique d\'assiduité en tête de la page Assiduité', function () {
     $promo = Promotion::factory()->create();

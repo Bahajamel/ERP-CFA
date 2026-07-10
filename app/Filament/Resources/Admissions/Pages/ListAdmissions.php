@@ -3,7 +3,8 @@
 namespace App\Filament\Resources\Admissions\Pages;
 
 use App\Filament\Resources\Admissions\AdmissionResource;
-use App\Filament\Widgets\ConversionFunnelChart;
+use App\Filament\Resources\Admissions\Tables\AdmissionsTable;
+use App\Models\Admission;
 use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ListRecords;
 
@@ -11,24 +12,64 @@ class ListAdmissions extends ListRecords
 {
     protected static string $resource = AdmissionResource::class;
 
+    protected string $view = 'filament.admissions.list';
+
+    /** Filtre rapide actif (null = aucun). */
+    public ?string $quickScope = null;
+
+    /** Admission affichée dans le panneau Focus (clic sur une ligne). */
+    public ?int $focusId = null;
+
     public function getSubheading(): ?string
     {
-        return 'La vérification du dossier avant contractualisation : cochez les pièces obligatoires, '
-            .'contrôlez leur conformité, puis validez ou refusez l\'admission. Un dossier incomplet '
-            .'bloque le passage à l\'étape suivante — la protection du financement commence ici.';
+        return 'La vérification du dossier avant contractualisation : contrôlez les pièces obligatoires, '
+            .'puis validez ou refusez l\'admission. Un dossier incomplet bloque le passage à l\'étape '
+            .'suivante — la protection du financement commence ici.';
+    }
+
+    /** Active/désactive un filtre rapide (bascule si déjà actif). */
+    public function setQuickScope(?string $scope): void
+    {
+        $this->quickScope = $this->quickScope === $scope ? null : $scope;
+        $this->resetTable();
+    }
+
+    /** Ferme le panneau Focus. */
+    public function unfocus(): void
+    {
+        $this->focusId = null;
+    }
+
+    /** Admission courante du panneau Focus (null tant qu'aucune sélection). */
+    public function getFocusAdmission(): ?Admission
+    {
+        if ($this->focusId === null) {
+            return null;
+        }
+
+        return Admission::query()
+            ->with(['candidate.documents', 'contract.company', 'contract.formation', 'contract.opcoFile', 'contract.rupture'])
+            ->find($this->focusId);
+    }
+
+    /**
+     * Compteurs des trois filtres rapides.
+     *
+     * @return array{a_verifier:int,pretes:int,pieces_manquantes:int}
+     */
+    public function getQuickCounts(): array
+    {
+        return [
+            'a_verifier' => Admission::query()->whereHas('candidate')->tap(fn ($q) => AdmissionsTable::appliquerScopeRapide($q, 'a_verifier'))->count(),
+            'pretes' => Admission::query()->whereHas('candidate')->tap(fn ($q) => AdmissionsTable::appliquerScopeRapide($q, 'pretes'))->count(),
+            'pieces_manquantes' => Admission::query()->whereHas('candidate')->tap(fn ($q) => AdmissionsTable::appliquerScopeRapide($q, 'pieces_manquantes'))->count(),
+        ];
     }
 
     protected function getHeaderActions(): array
     {
         return [
             CreateAction::make(),
-        ];
-    }
-
-    protected function getHeaderWidgets(): array
-    {
-        return [
-            ConversionFunnelChart::class,
         ];
     }
 }
