@@ -1165,3 +1165,6 @@ a.cfa-prio-card:hover {
 /* Hauteur des champs de filtre resserrée. */
 .fi-ta-filters-above-content-ctn .fi-input-wrp,
 .fi-ta-filters-above-content-ctn .fi-select-input { min-height: 2rem; }
+/* Largeur des listes déroulantes plafonnée : elles s'étiraient sur tout leur
+   tiers de colonne (trop large). Ne concerne pas la case à cocher. */
+.fi-ta-filters-above-content-ctn .fi-fo-field-content-col { max-width: 15rem; }
