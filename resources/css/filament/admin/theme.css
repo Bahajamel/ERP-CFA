@@ -1137,3 +1137,19 @@ a.cfa-prio-card:hover {
 @media (prefers-reduced-motion: reduce) {
   .cfa-need-bar-fill { transition: none; }
 }
+
+/* ============================================================
+   BARRE DE FILTRES COMPACTE (au-dessus des tableaux workspace)
+   ============================================================ */
+/* Moins de hauteur : padding réduit, titre discret, labels resserrés. */
+.fi-ta-filters { padding: .6rem .85rem !important; }
+.fi-ta-filters-header { margin-bottom: .35rem; align-items: center; }
+.fi-ta-filters-heading { font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; opacity: .7; }
+.fi-ta-filters-above-content-ctn .fi-fo-field-wrp-label,
+.fi-ta-filters-above-content-ctn .fi-fo-field-wrp-label > * {
+  font-size: .68rem; font-weight: 600;
+}
+.fi-ta-filters-above-content-ctn .fi-fo-field-wrp-label { margin-bottom: .15rem; }
+/* Champs de filtre un peu plus bas pour gagner en hauteur. */
+.fi-ta-filters-above-content-ctn .fi-input-wrp,
+.fi-ta-filters-above-content-ctn .fi-select-input { min-height: 2.1rem; }
