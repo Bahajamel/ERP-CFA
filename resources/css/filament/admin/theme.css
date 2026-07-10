@@ -950,3 +950,135 @@ a.cfa-prio-card:hover {
 @media (max-width: 640px) {
   .cfa-user-identity { display: none; }
 }
+
+/* ============================================================
+   WORKSPACE CANDIDATS (liste opérationnelle)
+   ============================================================ */
+
+/* Filtres rapides orientés action */
+.cfa-cand-quick { display: grid; grid-template-columns: repeat(3, 1fr); gap: .75rem; margin-bottom: 1rem; }
+.cfa-quick {
+  display: flex; align-items: center; gap: .7rem; text-align: left; cursor: pointer;
+  padding: .8rem 1rem; border-radius: 12px; border: 1px solid var(--cfa-card-border);
+  background: var(--cfa-card); box-shadow: var(--cfa-shadow-card);
+  transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+.cfa-quick:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--q) 45%, var(--cfa-card-border)); }
+.cfa-quick.actif {
+  border-color: var(--q);
+  box-shadow: 0 0 0 1px var(--q), var(--cfa-shadow-card);
+  background: color-mix(in srgb, var(--q) 8%, var(--cfa-card));
+}
+.cfa-quick-ico {
+  width: 2.4rem; height: 2.4rem; flex: none; border-radius: 10px; display: grid; place-items: center;
+  color: var(--q); background: color-mix(in srgb, var(--q) 15%, transparent);
+}
+.cfa-quick-txt { display: grid; line-height: 1.2; }
+.cfa-quick-txt b { font-size: .92rem; font-weight: 700; }
+.cfa-quick-txt small { font-size: .72rem; color: var(--cfa-ink-soft); }
+
+/* Disposition : tableau + panneau Focus */
+.cfa-cand-layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 1rem; align-items: start; }
+.cfa-cand-main { min-width: 0; }
+.cfa-cand-focus-col { position: sticky; top: 5rem; }
+
+/* Colonne identité (avatar initiales + nom + formation) */
+.cfa-cand-identite { display: flex; align-items: center; gap: .6rem; }
+.cfa-cand-avatar {
+  width: 2.1rem; height: 2.1rem; flex: none; border-radius: 50%; display: grid; place-items: center;
+  font-size: .72rem; font-weight: 700; color: #fff; background: var(--cfa-grad);
+}
+.cfa-cand-identite-txt { display: grid; line-height: 1.2; min-width: 0; }
+.cfa-cand-name { font-weight: 600; font-size: .86rem; }
+.cfa-cand-formation { font-size: .7rem; color: var(--cfa-ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Timeline de progression compacte */
+.cfa-prog { display: flex; align-items: flex-start; gap: 0; }
+.cfa-prog-step {
+  position: relative; display: grid; justify-items: center; gap: .25rem; flex: 1; min-width: 42px;
+}
+.cfa-prog-step::before {
+  content: ''; position: absolute; top: 6px; left: -50%; width: 100%; height: 2px;
+  background: var(--cfa-card-border);
+}
+.cfa-prog-step:first-child::before { display: none; }
+.cfa-prog-dot {
+  width: 13px; height: 13px; border-radius: 50%; z-index: 1;
+  background: var(--cfa-card); border: 2px solid var(--cfa-card-border);
+}
+.cfa-prog-lbl { font-size: .6rem; color: var(--cfa-ink-soft); }
+.cfa-prog-done .cfa-prog-dot { background: #10b981; border-color: #10b981; }
+.cfa-prog-done::before { background: #10b981; }
+.cfa-prog-current .cfa-prog-dot {
+  background: var(--cfa-accent); border-color: var(--cfa-accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--cfa-accent) 25%, transparent);
+}
+.cfa-prog-current .cfa-prog-lbl { color: inherit; font-weight: 700; }
+.cfa-prog-refuse .cfa-prog-dot { background: #f43f5e; border-color: #f43f5e; }
+.cfa-prog-refuse .cfa-prog-lbl { color: #f43f5e; }
+
+/* Panneau Focus du jour */
+.cfa-focus {
+  display: grid; gap: .8rem; padding: 1rem; border-radius: 14px;
+  border: 1px solid var(--cfa-card-border); background: var(--cfa-card); box-shadow: var(--cfa-shadow-card);
+}
+.cfa-focus-h { display: flex; align-items: center; gap: .45rem; font-weight: 700; font-size: .95rem; }
+.cfa-focus-spark { color: var(--cfa-accent-2); display: inline-flex; }
+.cfa-focus-empty { display: grid; justify-items: center; gap: .5rem; text-align: center; padding: 1.5rem .5rem; color: var(--cfa-ink-soft); font-size: .82rem; }
+.cfa-focus-empty svg { color: var(--cfa-accent); }
+.cfa-focus-id { display: flex; align-items: center; gap: .6rem; }
+.cfa-focus-avatar {
+  width: 2.6rem; height: 2.6rem; flex: none; border-radius: 50%; display: grid; place-items: center;
+  font-weight: 700; color: #fff; background: color-mix(in srgb, var(--fa) 85%, black);
+}
+.cfa-focus-id-txt { display: grid; gap: .2rem; }
+.cfa-focus-name { font-weight: 700; }
+.cfa-focus-badge {
+  justify-self: start; font-size: .68rem; font-weight: 600; padding: .1rem .5rem; border-radius: 999px;
+  color: var(--fb); background: color-mix(in srgb, var(--fb) 16%, transparent);
+}
+.cfa-focus-meta { list-style: none; margin: 0; padding: 0; display: grid; gap: .4rem; }
+.cfa-focus-meta li { display: flex; align-items: center; gap: .45rem; font-size: .78rem; color: var(--cfa-ink-soft); }
+.cfa-focus-meta svg { flex: none; color: var(--cfa-ink-soft); }
+.cfa-focus-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: .4rem; width: 100%;
+  font-size: .78rem; font-weight: 600; padding: .5rem .8rem; border-radius: 9px; margin-top: .5rem;
+  border: 1px solid var(--cfa-card-border); background: var(--cfa-card-2); color: inherit;
+  transition: background .15s ease;
+}
+.cfa-focus-btn:hover { background: color-mix(in srgb, var(--cfa-accent) 12%, var(--cfa-card-2)); }
+.cfa-focus-btn.primaire { border: 0; color: #fff; background: var(--cfa-grad); }
+.cfa-focus-card { padding: .75rem; border-radius: 11px; border: 1px solid var(--cfa-card-border); background: var(--cfa-card-2); display: grid; gap: .5rem; }
+.cfa-focus-card-h { display: flex; align-items: center; gap: .4rem; font-size: .8rem; font-weight: 700; }
+.cfa-focus-card-h svg { color: var(--cfa-ink-soft); flex: none; }
+.cfa-focus-docs { list-style: none; margin: 0; padding: 0; display: grid; gap: .35rem; }
+.cfa-focus-docs li { display: flex; align-items: center; gap: .5rem; font-size: .78rem; }
+.cfa-focus-req { margin-left: auto; font-size: .64rem; font-weight: 700; color: #f43f5e; background: color-mix(in srgb, #f43f5e 15%, transparent); padding: .05rem .4rem; border-radius: 999px; }
+.cfa-focus-dot { width: .5rem; height: .5rem; border-radius: 50%; flex: none; }
+.cfa-focus-dot.danger { background: #f43f5e; }
+.cfa-focus-ok { display: flex; align-items: center; gap: .4rem; font-size: .78rem; color: #10b981; }
+.cfa-focus-ok svg { color: #10b981; }
+.cfa-focus-muted { font-size: .78rem; color: var(--cfa-ink-soft); }
+.cfa-focus-rdv { display: flex; align-items: baseline; gap: .5rem; font-size: .82rem; }
+.cfa-focus-rdv span { color: var(--cfa-ink-soft); }
+.cfa-focus-ia {
+  padding: .8rem; border-radius: 11px; display: grid; gap: .5rem;
+  border: 1px solid color-mix(in srgb, var(--cfa-accent) 30%, var(--cfa-card-border));
+  background: color-mix(in srgb, var(--cfa-accent) 9%, transparent);
+}
+.cfa-focus-ia p { font-size: .76rem; color: var(--cfa-ink-soft); line-height: 1.4; margin: 0; }
+.cfa-focus-timeline { display: flex; gap: .55rem; padding: .3rem 0; }
+.cfa-focus-tl-dot { width: .5rem; height: .5rem; border-radius: 50%; margin-top: .3rem; flex: none; background: var(--cfa-accent); }
+.cfa-focus-tl-txt { font-size: .78rem; font-weight: 500; }
+.cfa-focus-tl-date { font-size: .68rem; color: var(--cfa-ink-soft); }
+
+@media (max-width: 1280px) {
+  .cfa-cand-layout { grid-template-columns: 1fr; }
+  .cfa-cand-focus-col { position: static; }
+}
+@media (max-width: 900px) {
+  .cfa-cand-quick { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cfa-quick { transition: none; }
+}
