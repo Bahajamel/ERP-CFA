@@ -4,7 +4,6 @@ namespace App\Filament\Resources\Contracts\Pages;
 
 use App\Filament\Exports\ContractExporter;
 use App\Filament\Resources\Contracts\ContractResource;
-use App\Filament\Widgets\ContratsSignesParMoisChart;
 use Filament\Actions\CreateAction;
 use Filament\Actions\ExportAction;
 use Filament\Resources\Pages\ListRecords;
@@ -31,13 +30,6 @@ class ListContracts extends ListRecords
                 ->color('gray')
                 ->exporter(ContractExporter::class)
                 ->visible(fn (): bool => Auth::user()?->can('access_reports') ?? false),
-        ];
-    }
-
-    protected function getHeaderWidgets(): array
-    {
-        return [
-            ContratsSignesParMoisChart::class,
         ];
     }
 }
