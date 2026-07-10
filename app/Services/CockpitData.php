@@ -38,8 +38,53 @@ use Spatie\Activitylog\Models\Activity;
  */
 class CockpitData
 {
-    /** Nombre de mois d'historique pour les mini-courbes et l'évolution. */
+    /** Nombre de mois d'historique par défaut pour les mini-courbes et l'évolution. */
     private const MOIS = 6;
+
+    /** Fenêtre d'historique effective (pilotée par le filtre de période). */
+    private int $mois = self::MOIS;
+
+    /** Règle la fenêtre d'historique (3, 6 ou 12 mois) — fluide. */
+    public function periode(int $mois): static
+    {
+        $this->mois = max(1, min(12, $mois));
+
+        return $this;
+    }
+
+    /* ================================================================
+     |  Navigation par département (onglets du cockpit)
+     * ================================================================ */
+
+    /**
+     * Onglets « départements » filtrés par les droits de l'utilisateur.
+     *
+     * @return list<array{label:string,icon:string,url:string,actif:bool}>
+     */
+    public function departements(): array
+    {
+        $u = auth()->user();
+
+        $tabs = [
+            ['label' => 'Vue globale', 'icon' => 'chart-bar', 'actif' => true, 'voir' => true,
+                'url' => route('filament.admin.pages.dashboard')],
+            ['label' => 'Commercial', 'icon' => 'user-group', 'actif' => false, 'voir' => (bool) $u?->can('access_candidates'),
+                'url' => route('filament.admin.resources.candidates.index')],
+            ['label' => 'Admissions', 'icon' => 'check-badge', 'actif' => false, 'voir' => (bool) $u?->can('access_admissions'),
+                'url' => route('filament.admin.resources.admissions.index')],
+            ['label' => 'Contrats', 'icon' => 'pencil', 'actif' => false, 'voir' => (bool) $u?->can('access_contracts'),
+                'url' => route('filament.admin.resources.contracts.index')],
+            ['label' => 'Finance', 'icon' => 'banknotes', 'actif' => false, 'voir' => (bool) $u?->can('access_finance'),
+                'url' => route('filament.admin.resources.finance-lines.index')],
+            ['label' => 'Pilotage', 'icon' => 'folder-open', 'actif' => false, 'voir' => (bool) $u?->can('access_opco'),
+                'url' => route('filament.admin.resources.opco-files.index')],
+        ];
+
+        return array_values(array_map(
+            fn (array $t): array => ['label' => $t['label'], 'icon' => $t['icon'], 'url' => $t['url'], 'actif' => $t['actif']],
+            array_filter($tabs, fn (array $t): bool => $t['voir']),
+        ));
+    }
 
     /* ================================================================
      |  Bandeau « Supervision intelligente » (résumé du jour)
@@ -470,7 +515,7 @@ class CockpitData
     private function labelsMois(): array
     {
         $labels = [];
-        for ($i = self::MOIS - 1; $i >= 0; $i--) {
+        for ($i = $this->mois - 1; $i >= 0; $i--) {
             $labels[] = now()->subMonthsNoOverflow($i)->locale('fr')->translatedFormat('M');
         }
 
@@ -485,7 +530,7 @@ class CockpitData
      */
     private function serieMensuelle(Builder $query, string $colonne = 'created_at'): array
     {
-        $debut = now()->subMonthsNoOverflow(self::MOIS - 1)->startOfMonth();
+        $debut = now()->subMonthsNoOverflow($this->mois - 1)->startOfMonth();
 
         $dates = (clone $query)
             ->whereBetween($colonne, [$debut, now()->endOfMonth()])
@@ -502,7 +547,7 @@ class CockpitData
      */
     private function serieMensuelleSomme(Builder $query, string $montant): array
     {
-        $debut = now()->subMonthsNoOverflow(self::MOIS - 1)->startOfMonth();
+        $debut = now()->subMonthsNoOverflow($this->mois - 1)->startOfMonth();
 
         $lignes = (clone $query)
             ->whereBetween('created_at', [$debut, now()->endOfMonth()])
@@ -537,7 +582,7 @@ class CockpitData
     private function clesMois(): array
     {
         $buckets = [];
-        for ($i = self::MOIS - 1; $i >= 0; $i--) {
+        for ($i = $this->mois - 1; $i >= 0; $i--) {
             $buckets[now()->subMonthsNoOverflow($i)->format('Y-m')] = 0;
         }
 

@@ -36,7 +36,7 @@ it('renvoie les six cartes KPI avec une mini-courbe à six points', function () 
 
 it('reflète les candidats actifs dans la première carte KPI', function () {
     $this->seed(RolePermissionSeeder::class);
-    Candidate::factory()->count(3)->create();
+    Candidate::factory()->count(3)->create(['statut' => \App\Enums\CandidateStatut::EntretienAPlanifier]);
 
     $candidats = collect(app(CockpitData::class)->kpis())->firstWhere('cle', 'candidats');
 
@@ -84,5 +84,41 @@ it('rend le widget cockpit sans erreur', function () {
         ->assertSee('Vue globale')
         ->assertSee('Supervision intelligente')
         ->assertSee('Pipeline commercial')
-        ->assertSee('Répartition des contrats');
+        ->assertSee('Répartition des contrats')
+        ->assertSeeHtml('wire:click="demanderIA"');
+});
+
+it('expose les onglets départements filtrés par les droits', function () {
+    $this->seed(RolePermissionSeeder::class);
+    $this->actingAs(cockpitUser());
+
+    $tabs = collect(app(CockpitData::class)->departements());
+
+    expect($tabs->pluck('label'))->toContain('Vue globale', 'Commercial', 'Admissions', 'Contrats', 'Finance', 'Pilotage')
+        ->and($tabs->firstWhere('label', 'Vue globale')['actif'])->toBeTrue();
+});
+
+it('change la fenêtre d\'historique via le filtre de période', function () {
+    $this->seed(RolePermissionSeeder::class);
+    $this->actingAs(cockpitUser());
+
+    Livewire::test(CockpitWidget::class)
+        ->assertSet('periode', '6')
+        ->call('definirPeriode', '12')
+        ->assertSet('periode', '12')
+        ->assertOk();
+
+    // 12 mois d'historique → 12 points sur les séries d'évolution.
+    $evolution = app(CockpitData::class)->periode(12)->evolution();
+    expect($evolution['labels'])->toHaveCount(12)
+        ->and($evolution['series'][0]['data'])->toHaveCount(12);
+});
+
+it('produit un briefing IA sans erreur', function () {
+    $this->seed(RolePermissionSeeder::class);
+    $this->actingAs(cockpitUser());
+
+    Livewire::test(CockpitWidget::class)
+        ->call('demanderIA')
+        ->assertOk();
 });
