@@ -1,9 +1,11 @@
 <?php
 
 use App\Enums\CompanyStatut;
+use App\Enums\NeedStatut;
 use App\Filament\Resources\Companies\Pages\ListCompanies;
 use App\Filament\Resources\Companies\Tables\CompaniesTable;
 use App\Models\Company;
+use App\Models\Need;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -28,7 +30,7 @@ it('rend le workspace entreprises avec ses filtres rapides', function () {
         ->assertOk()
         ->assertSee('entreprises à relancer')
         ->assertSee('entreprises avec besoins')
-        ->assertSee('prospects à convertir');
+        ->assertSee('partenaires sans besoin');
 });
 
 it('bascule le filtre rapide et le désactive au second clic', function () {
@@ -37,19 +39,23 @@ it('bascule le filtre rapide et le désactive au second clic', function () {
 
     Livewire::test(ListCompanies::class)
         ->assertSet('quickScope', null)
-        ->call('setQuickScope', 'prospects')
-        ->assertSet('quickScope', 'prospects')
-        ->call('setQuickScope', 'prospects')
+        ->call('setQuickScope', 'sans_besoin')
+        ->assertSet('quickScope', 'sans_besoin')
+        ->call('setQuickScope', 'sans_besoin')
         ->assertSet('quickScope', null);
 });
 
-it('le filtre rapide « prospects » ne garde que les prospects', function () {
+it('le filtre rapide « sans besoin » ne garde que les entreprises sans besoin ouvert', function () {
     $this->seed(RolePermissionSeeder::class);
-    Company::factory()->create(['statut' => CompanyStatut::Prospect]);
-    Company::factory()->create(['statut' => CompanyStatut::Active]);
+    $avecBesoin = Company::factory()->create();
+    Need::factory()->create([
+        'company_id' => $avecBesoin->id,
+        'statut' => NeedStatut::ProfilsRecherches,
+    ]);
+    Company::factory()->create(); // sans besoin
 
     $count = Company::query()
-        ->tap(fn ($q) => CompaniesTable::appliquerScopeRapide($q, 'prospects'))
+        ->tap(fn ($q) => CompaniesTable::appliquerScopeRapide($q, 'sans_besoin'))
         ->count();
 
     expect($count)->toBe(1);
@@ -70,10 +76,9 @@ it('n\'affiche le panneau Focus entreprise qu\'après sélection', function () {
         ->assertDontSee('Focus entreprise');
 });
 
-it('calcule des initiales lisibles et un conseil contextuel selon l\'état', function () {
+it('calcule des initiales lisibles à partir de la raison sociale', function () {
     $this->seed(RolePermissionSeeder::class);
-    $prospect = Company::factory()->create(['raison_sociale' => 'Boulangerie Au Bon Pain', 'statut' => CompanyStatut::Prospect]);
+    $e = Company::factory()->create(['raison_sociale' => 'Boulangerie Au Bon Pain']);
 
-    expect($prospect->initiales)->toBe('BAB')
-        ->and($prospect->focusEntreprise()['cle'])->toBe('prospect');
+    expect($e->initiales)->toBe('BAB');
 });

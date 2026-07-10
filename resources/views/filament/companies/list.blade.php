@@ -23,13 +23,13 @@
             </span>
         </button>
 
-        <button type="button" wire:click="setQuickScope('prospects')"
-            class="cfa-quick {{ $quickScope === 'prospects' ? 'actif' : '' }}" style="--q:#8b5cf6"
-            aria-pressed="{{ $quickScope === 'prospects' ? 'true' : 'false' }}">
-            <span class="cfa-quick-ico">@svg('heroicon-o-sparkles', 'w-5 h-5')</span>
+        <button type="button" wire:click="setQuickScope('sans_besoin')"
+            class="cfa-quick {{ $quickScope === 'sans_besoin' ? 'actif' : '' }}" style="--q:#8b5cf6"
+            aria-pressed="{{ $quickScope === 'sans_besoin' ? 'true' : 'false' }}">
+            <span class="cfa-quick-ico">@svg('heroicon-o-inbox', 'w-5 h-5')</span>
             <span class="cfa-quick-txt">
-                <b>{{ $qc['prospects'] }} prospects à convertir</b>
-                <small>Action commerciale</small>
+                <b>{{ $qc['sans_besoin'] }} partenaires sans besoin</b>
+                <small>À solliciter pour de nouveaux postes</small>
             </span>
         </button>
     </div>

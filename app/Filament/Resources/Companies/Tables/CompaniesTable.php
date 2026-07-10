@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\Companies\Tables;
 
-use App\Enums\CompanyStatut;
 use App\Models\Company;
 use App\Models\Formation;
 use Filament\Actions\Action;
@@ -60,9 +59,6 @@ class CompaniesTable
                     ->color(fn (Company $record): string => $record->besoinsOuvertsCount() > 0 ? 'warning' : 'gray')
                     ->state(fn (Company $record): string => $record->besoinsOuvertsCount().' poste'
                         .($record->besoinsOuvertsCount() > 1 ? 's' : '')),
-                TextColumn::make('statut')
-                    ->label('Statut')
-                    ->badge(),
                 TextColumn::make('derniere_activite')
                     ->label('Dernière activité')
                     ->state(fn (Company $record): ?string => $record->derniereActivite()['label'])
@@ -76,9 +72,6 @@ class CompaniesTable
             ->recordAction('focus')
             ->recordUrl(null)
             ->filters([
-                SelectFilter::make('statut')
-                    ->label('Statut')
-                    ->options(CompanyStatut::class),
                 SelectFilter::make('secteur')
                     ->label('Secteur')
                     ->options(fn (): array => Company::query()
@@ -150,7 +143,7 @@ class CompaniesTable
      *
      *  - a_relancer : aucune interaction depuis plus de 7 jours (sans activité récente) ;
      *  - besoins_ouverts : au moins un besoin ouvert (à pourvoir) ;
-     *  - prospects : entreprises encore au statut Prospect (à convertir).
+     *  - sans_besoin : partenaire sans aucun besoin ouvert (à solliciter).
      */
     public static function appliquerScopeRapide(Builder $query, ?string $scope): void
     {
@@ -160,7 +153,7 @@ class CompaniesTable
                 fn (Builder $q) => $q->where('date_interaction', '>=', now()->subDays(7)),
             ),
             'besoins_ouverts' => $query->whereHas('needs', fn (Builder $q) => $q->ouverts()),
-            'prospects' => $query->where('statut', CompanyStatut::Prospect->value),
+            'sans_besoin' => $query->whereDoesntHave('needs', fn (Builder $q) => $q->ouverts()),
             default => null,
         };
     }

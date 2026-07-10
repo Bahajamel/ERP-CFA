@@ -1,14 +1,13 @@
 @php
     use App\Filament\Resources\Companies\CompanyResource;
 
-    $tones = ['gray' => '#64748b', 'info' => '#3b82f6', 'warning' => '#f59e0b', 'success' => '#10b981', 'danger' => '#f43f5e'];
-    $col = $tones[$e->statut->getColor()] ?? '#64748b';
+    // Pas de notion de statut ici : toute entreprise listée est un partenaire.
+    $col = '#14b8a6';
 
     $principal = $e->contactPrincipal->first() ?? $e->contacts->first();
     $tuteur = $e->tuteurs->first();
     $besoins = $e->needs()->ouverts()->get();
     $suggestions = $e->matchingSuggere(3);
-    $focus = $e->focusEntreprise();
     $interactions = $e->interactions()->limit(3)->get();
     $ficheUrl = CompanyResource::getUrl('view', ['record' => $e]);
 @endphp
@@ -27,7 +26,7 @@
         <span class="cfa-focus-avatar" style="--fa:{{ $col }}">{{ $e->initiales }}</span>
         <div class="cfa-focus-id-txt">
             <div class="cfa-focus-name">{{ $e->raison_sociale }}</div>
-            <span class="cfa-focus-badge" style="--fb:{{ $col }}">{{ $e->statut->getLabel() }}</span>
+            <span class="cfa-focus-badge" style="--fb:{{ $col }}">Partenaire</span>
         </div>
     </div>
 
@@ -92,17 +91,6 @@
                     <span class="cfa-focus-match-score">{{ $s['score'] }}%</span>
                 </div>
             @endforeach
-        </div>
-    @endif
-
-    {{-- Suggestion IA contextuelle --}}
-    @if ($focus['tip'])
-        <div class="cfa-focus-ia">
-            <div class="cfa-focus-card-h">@svg('heroicon-o-sparkles', 'w-4 h-4') Suggestion IA</div>
-            <p>{{ $focus['tip'] }}</p>
-            <a href="{{ $ficheUrl }}" class="cfa-focus-btn primaire">
-                @svg('heroicon-o-bolt', 'w-4 h-4') {{ $focus['libelle'] }}
-            </a>
         </div>
     @endif
 
