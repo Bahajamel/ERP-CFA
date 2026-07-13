@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Admissions\RelationManagers;
 use App\Enums\ChecklistItemStatut;
 use App\Enums\DocumentType;
 use App\Models\AdmissionChecklistItem;
+use App\Support\SecureMedia;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\CreateAction;
@@ -78,7 +79,7 @@ class ItemsRelationManager extends RelationManager
                     ->label('Télécharger')
                     ->icon(Heroicon::OutlinedArrowDownTray)
                     ->color('gray')
-                    ->url(fn (AdmissionChecklistItem $record) => $record->document?->getFirstMediaUrl('fichier'))
+                    ->url(fn (AdmissionChecklistItem $record) => SecureMedia::url($record->document?->getFirstMedia('fichier')))
                     ->openUrlInNewTab()
                     ->visible(fn (AdmissionChecklistItem $record) => $record->document?->getFirstMedia('fichier') !== null),
                 EditAction::make(),

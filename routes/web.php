@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\CandidatureController;
 use App\Http\Controllers\EntrepriseFormController;
+use App\Http\Controllers\SecureMediaController;
 use App\Http\Controllers\SignatureWebhookController;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
@@ -9,6 +10,13 @@ use Illuminate\Support\Facades\Route;
 
 // La racine renvoie directement vers le panneau d'administration (l'application).
 Route::redirect('/', '/admin');
+
+// Accès aux pièces sensibles (données personnelles / NIR) stockées sur disque
+// privé : jamais d'URL publique. Double verrou — session ERP (`auth`) ET lien
+// signé non expiré (`signed`), généré par App\Support\SecureMedia.
+Route::get('/documents-securises/{media}', SecureMediaController::class)
+    ->middleware(['auth', 'signed'])
+    ->name('documents.securise');
 
 // Formulaire public de candidature (sans accès ERP) : crée un candidat « Dossier
 // incomplet » avec ses pièces (collections média cv / piece_identite / carte_vitale / attestation_projet).

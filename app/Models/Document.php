@@ -63,7 +63,9 @@ class Document extends Model implements HasMedia
 
     public function registerMediaCollections(): void
     {
-        $this->addMediaCollection('fichier')->singleFile();
+        // GED : CERFA, conventions, factures, feuilles d'émargement… → données
+        // personnelles/contractuelles. Disque privé, accès via lien sécurisé signé.
+        $this->addMediaCollection('fichier')->useDisk(config('documents.disque_prive'))->singleFile();
     }
 
     public function getActivitylogOptions(): LogOptions

@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Contracts\RelationManagers;
 
 use App\Enums\DocumentStatut;
 use App\Enums\DocumentType;
+use App\Support\SecureMedia;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\CreateAction;
@@ -83,7 +84,7 @@ class DocumentsRelationManager extends RelationManager
                     ->label('Télécharger')
                     ->icon(Heroicon::OutlinedArrowDownTray)
                     ->color('gray')
-                    ->url(fn ($record) => $record->getFirstMediaUrl('fichier'))
+                    ->url(fn ($record) => SecureMedia::pour($record, 'fichier'))
                     ->openUrlInNewTab()
                     ->visible(fn ($record) => $record->getFirstMedia('fichier') !== null),
                 EditAction::make(),

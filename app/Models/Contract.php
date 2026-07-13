@@ -33,7 +33,8 @@ class Contract extends Model implements HasMedia
     /** Le CERFA (contrat d'apprentissage) signé, rattaché directement au contrat. */
     public function registerMediaCollections(): void
     {
-        $this->addMediaCollection('cerfa')->singleFile();
+        // Contient NIR + état civil : disque privé, accès via lien sécurisé signé.
+        $this->addMediaCollection('cerfa')->useDisk(config('documents.disque_prive'))->singleFile();
     }
 
     protected $guarded = [];

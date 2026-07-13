@@ -10,6 +10,7 @@ use App\Models\Contract;
 use App\Models\Document;
 use App\Models\OpcoFile;
 use App\Support\DocumentableTypes;
+use App\Support\SecureMedia;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
@@ -104,7 +105,7 @@ class DocumentsTable
                     ->label('Télécharger')
                     ->icon(Heroicon::OutlinedArrowDownTray)
                     ->color('gray')
-                    ->url(fn (Document $record) => $record->getFirstMediaUrl('fichier'))
+                    ->url(fn (Document $record) => SecureMedia::pour($record, 'fichier'))
                     ->openUrlInNewTab()
                     ->visible(fn (Document $record) => $record->getFirstMedia('fichier') !== null),
                 Action::make('remplacer')

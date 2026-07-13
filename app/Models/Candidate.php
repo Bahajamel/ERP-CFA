@@ -12,6 +12,7 @@ use App\Matching\CompatibilityScorer;
 use App\Parcours\CycleApprenant;
 use App\StateMachine\HasStateTransitions;
 use App\StateMachine\ManagesState;
+use App\Support\SecureMedia;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -109,7 +110,12 @@ class Candidate extends Model implements HasMedia
      */
     public function registerMediaCollections(): void
     {
+        // Pièces sensibles (données personnelles / NIR) : disque PRIVÉ, jamais
+        // d'URL publique — accès uniquement via la route sécurisée signée.
+        $disquePrive = config('documents.disque_prive');
+
         $this->addMediaCollection('cv')
+            ->useDisk($disquePrive)
             ->singleFile()
             ->acceptsMimeTypes([
                 'application/pdf',
@@ -117,11 +123,12 @@ class Candidate extends Model implements HasMedia
                 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
             ]);
 
-        $this->addMediaCollection('piece_identite')->singleFile()->acceptsMimeTypes(self::MIMES_JUSTIFICATIFS);
-        $this->addMediaCollection('carte_vitale')->singleFile()->acceptsMimeTypes(self::MIMES_JUSTIFICATIFS);
-        $this->addMediaCollection('attestation_projet')->singleFile()->acceptsMimeTypes(self::MIMES_JUSTIFICATIFS);
+        $this->addMediaCollection('piece_identite')->useDisk($disquePrive)->singleFile()->acceptsMimeTypes(self::MIMES_JUSTIFICATIFS);
+        $this->addMediaCollection('carte_vitale')->useDisk($disquePrive)->singleFile()->acceptsMimeTypes(self::MIMES_JUSTIFICATIFS);
+        $this->addMediaCollection('attestation_projet')->useDisk($disquePrive)->singleFile()->acceptsMimeTypes(self::MIMES_JUSTIFICATIFS);
 
-        // Photo de profil de l'apprenant (fiche apprenant, trombinoscope).
+        // Photo de profil de l'apprenant (fiche apprenant, trombinoscope) :
+        // faible sensibilité, affichée en <img> inline → reste sur le disque public.
         $this->addMediaCollection('photo')
             ->singleFile()
             ->acceptsMimeTypes(['image/jpeg', 'image/png', 'image/webp']);
@@ -293,7 +300,7 @@ class Candidate extends Model implements HasMedia
                 'mime' => $media->mime_type,
                 'extension' => $media->extension,
                 'added_at' => $media->created_at,
-                'url' => $media->getUrl(),
+                'url' => SecureMedia::url($media),
             ];
         }
 
@@ -314,7 +321,7 @@ class Candidate extends Model implements HasMedia
             'mime' => $media->mime_type,
             'extension' => $media->extension,
             'added_at' => $media->created_at,
-            'url' => $media->getUrl(),
+            'url' => SecureMedia::url($media),
         ];
     }
 

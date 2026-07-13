@@ -41,7 +41,9 @@ class Presence extends Model implements HasMedia
 
     public function registerMediaCollections(): void
     {
-        $this->addMediaCollection('justificatif')->singleFile();
+        // Justificatif d'absence (peut contenir une donnée personnelle/médicale) :
+        // disque privé, accès via lien sécurisé signé.
+        $this->addMediaCollection('justificatif')->useDisk(config('documents.disque_prive'))->singleFile();
     }
 
     public function cleAlerteAbsence(): string

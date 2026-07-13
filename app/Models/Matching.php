@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\CandidateStatut;
 use App\Enums\MatchingStatut;
 use App\Parcours\CycleApprenant;
+use App\Parcours\CycleBloqueException;
 use App\StateMachine\ManagesState;
 use BackedEnum;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -42,7 +43,9 @@ class Matching extends Model implements HasMedia
      */
     public function registerMediaCollections(): void
     {
+        // CV du candidat (donnée personnelle) : disque privé, lien sécurisé signé.
         $this->addMediaCollection('cv')
+            ->useDisk(config('documents.disque_prive'))
             ->singleFile()
             ->acceptsMimeTypes([
                 'application/pdf',
@@ -150,7 +153,7 @@ class Matching extends Model implements HasMedia
 
             try {
                 $contract = app(CycleApprenant::class)->creerContratDepuisMatching($matching);
-            } catch (\App\Parcours\CycleBloqueException) {
+            } catch (CycleBloqueException) {
                 return; // Sans entreprise rattachée, rien à créer (déjà bloqué en amont).
             }
 
