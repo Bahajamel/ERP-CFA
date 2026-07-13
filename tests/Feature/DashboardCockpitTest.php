@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\ContractSignatureStatut;
+use App\Filament\Pages\Dashboard;
 use App\Filament\Widgets\PrioritesDuJourWidget;
 use App\Models\Contract;
 use App\Models\User;
@@ -43,5 +44,6 @@ it('rend le dashboard complet avec le cockpit', function () {
     $this->seed(RolePermissionSeeder::class);
     $this->actingAs(cockpitAdmin());
 
-    $this->get('/admin')->assertOk();
+    // En multi-tenant, le dashboard vit sous /admin/{cfa} : on cible l'URL du tenant courant.
+    $this->get(Dashboard::getUrl())->assertOk();
 });

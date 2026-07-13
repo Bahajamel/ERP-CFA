@@ -19,6 +19,9 @@ class CfaMissionResource extends Resource
 {
     protected static ?string $model = CfaMission::class;
 
+    // Référence nationale partagée (14 missions L6231-2) : non cloisonné par CFA.
+    protected static bool $isScopedToTenant = false;
+
     public static function canAccess(): bool
     {
         return auth()->user()?->can('access_documents') ?? false;

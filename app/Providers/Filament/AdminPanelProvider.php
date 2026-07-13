@@ -2,8 +2,10 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Auth\Login;
 use App\Filament\Pages\Auth\EditProfile;
 use App\Filament\Pages\Dashboard;
+use App\Models\Organisation;
 use Filament\Auth\MultiFactor\App\AppAuthentication;
 use Filament\Enums\ThemeMode;
 use Filament\Http\Middleware\Authenticate;
@@ -32,6 +34,11 @@ class AdminPanelProvider extends PanelProvider
             ->default()
             ->id('admin')
             ->path('admin')
+            // Multi-tenant : chaque CFA (Organisation) est un tenant. Les données
+            // rattachées (organisation_id, relation `organisation`) sont cloisonnées
+            // automatiquement ; les resources de référence sont exclues via
+            // $isScopedToTenant = false.
+            ->tenant(Organisation::class, slugAttribute: 'slug', ownershipRelationship: 'organisation')
             ->viteTheme('resources/css/filament/admin/theme.css')
             ->brandName('ERP CFA')
             ->brandLogo(fn () => view('filament.brand'))
@@ -46,7 +53,7 @@ class AdminPanelProvider extends PanelProvider
             ->globalSearchKeyBindings(['mod+k'])
             // Page de connexion premium « Meridian CFA » (écran divisé) — la logique
             // d'auth reste celle de Filament, seule la vue est personnalisée.
-            ->login(\App\Filament\Auth\Login::class)
+            ->login(Login::class)
             // Page profil enrichie : photo de profil + double authentification.
             ->profile(EditProfile::class, isSimple: false)
             // Double authentification par application (TOTP) avec codes de secours.

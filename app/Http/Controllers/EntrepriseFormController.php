@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\CompanyStatut;
 use App\Models\Company;
 use App\Models\Opco;
+use App\Models\Organisation;
 use App\Support\EntrepriseAnnuaire;
 use App\Support\OpcoDetector;
 use Illuminate\Http\JsonResponse;
@@ -103,6 +104,8 @@ class EntrepriseFormController extends Controller
 
         DB::transaction(function () use ($data): void {
             $company = Company::create([
+                // Formulaire public (hors panel) : rattachement au CFA par défaut.
+                'organisation_id' => Organisation::defaut()?->id,
                 'raison_sociale' => $data['raison_sociale'],
                 'siret' => $data['siret'],
                 'secteur' => $data['secteur'] ?? null,

@@ -9,17 +9,19 @@ uses(RefreshDatabase::class);
 
 it('rattache un utilisateur à une ou plusieurs organisations', function () {
     $user = User::factory()->create();
+    $user->organisations()->detach(); // repart d'un état propre (le CFA de test s'auto-rattache)
     $cfaA = Organisation::factory()->create();
     $cfaB = Organisation::factory()->create();
 
     $user->organisations()->attach([$cfaA->id, $cfaB->id]);
 
-    expect($user->organisations)->toHaveCount(2)
+    expect($user->refresh()->organisations)->toHaveCount(2)
         ->and($cfaA->users)->toHaveCount(1);
 });
 
 it('ne propose dans le sélecteur de tenant que les organisations actives du membre', function () {
     $user = User::factory()->create();
+    $user->organisations()->detach();
     $active = Organisation::factory()->create(['actif' => true]);
     $inactive = Organisation::factory()->create(['actif' => false]);
     Organisation::factory()->create(); // autre CFA, non membre

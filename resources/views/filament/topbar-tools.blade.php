@@ -2,11 +2,11 @@
 @php
     $user = auth()->user();
     $liens = collect([
-        ['label' => 'Nouveau candidat', 'permission' => 'access_candidates', 'url' => route('filament.admin.resources.candidates.create'), 'icon' => 'heroicon-m-user-plus'],
-        ['label' => 'Nouvelle entreprise', 'permission' => 'access_companies', 'url' => route('filament.admin.resources.companies.create'), 'icon' => 'heroicon-m-building-office-2'],
-        ['label' => 'Nouveau besoin', 'permission' => 'access_needs', 'url' => route('filament.admin.resources.needs.create'), 'icon' => 'heroicon-m-briefcase'],
-        ['label' => 'Nouvelle proposition', 'permission' => 'access_matching', 'url' => route('filament.admin.resources.matchings.create'), 'icon' => 'heroicon-m-arrows-right-left'],
-        ['label' => 'Nouveau contrat', 'permission' => 'access_contracts', 'url' => route('filament.admin.resources.contracts.create'), 'icon' => 'heroicon-m-document-text'],
+        ['label' => 'Nouveau candidat', 'permission' => 'access_candidates', 'url' => \App\Filament\Resources\Candidates\CandidateResource::getUrl('create'), 'icon' => 'heroicon-m-user-plus'],
+        ['label' => 'Nouvelle entreprise', 'permission' => 'access_companies', 'url' => \App\Filament\Resources\Companies\CompanyResource::getUrl('create'), 'icon' => 'heroicon-m-building-office-2'],
+        ['label' => 'Nouveau besoin', 'permission' => 'access_needs', 'url' => \App\Filament\Resources\Needs\NeedResource::getUrl('create'), 'icon' => 'heroicon-m-briefcase'],
+        ['label' => 'Nouvelle proposition', 'permission' => 'access_matching', 'url' => \App\Filament\Resources\Matchings\MatchingResource::getUrl('create'), 'icon' => 'heroicon-m-arrows-right-left'],
+        ['label' => 'Nouveau contrat', 'permission' => 'access_contracts', 'url' => \App\Filament\Resources\Contracts\ContractResource::getUrl('create'), 'icon' => 'heroicon-m-document-text'],
     ])->filter(fn (array $l): bool => $user?->can($l['permission']) ?? false);
 @endphp
 

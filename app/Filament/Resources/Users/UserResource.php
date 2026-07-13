@@ -19,6 +19,10 @@ class UserResource extends Resource
 {
     protected static ?string $model = User::class;
 
+    // Comptes rattachés aux CFA via une relation many-to-many (organisation_user),
+    // pas par organisation_id : non scopé par le mécanisme d'ownership Filament.
+    protected static bool $isScopedToTenant = false;
+
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedUsers;
 
     protected static string|UnitEnum|null $navigationGroup = 'Administration';

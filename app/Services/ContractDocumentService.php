@@ -7,6 +7,7 @@ use App\Documents\ConventionFormation;
 use App\Enums\DocumentSource;
 use App\Enums\DocumentStatut;
 use App\Enums\DocumentType;
+use App\Filament\Pages\ParametresCfa;
 use App\Models\CfaProfile;
 use App\Models\Contract;
 use App\Models\Document;
@@ -184,7 +185,7 @@ class ContractDocumentService
             'convention' => $convention,
             'cfa' => [
                 'manquants' => $manquantsCfa,
-                'url' => route('filament.admin.pages.parametres-cfa'),
+                'url' => ParametresCfa::getUrl(),
             ],
             'message' => $this->message($cerfa, $convention),
         ];

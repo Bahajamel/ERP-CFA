@@ -8,6 +8,7 @@ use App\Enums\DocumentStatut;
 use App\Enums\DocumentType;
 use App\Models\Candidate;
 use App\Models\Formation;
+use App\Models\Organisation;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -53,6 +54,8 @@ class CandidatureController extends Controller
 
         DB::transaction(function () use ($data, $request): void {
             $candidate = Candidate::create([
+                // Formulaire public (hors panel) : rattachement au CFA par défaut.
+                'organisation_id' => Organisation::defaut()?->id,
                 'nom' => $data['nom'],
                 'prenom' => $data['prenom'],
                 'email' => $data['email'] ?? null,

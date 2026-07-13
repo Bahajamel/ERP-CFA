@@ -14,6 +14,9 @@ class ActivityResource extends Resource
 {
     protected static ?string $model = Activity::class;
 
+    // Journal d'audit transverse : non cloisonné par CFA (multi-tenant).
+    protected static bool $isScopedToTenant = false;
+
     public static function canAccess(): bool
     {
         return auth()->user()?->can('access_users') ?? false;
