@@ -100,6 +100,11 @@ class AdminPanelProvider extends PanelProvider
                 PanelsRenderHook::USER_MENU_BEFORE,
                 fn (): string => auth()->check() ? view('filament.user-identity')->render() : '',
             )
+            // Assistant d'aide « Demander à l'IA » : bouton flottant sur toutes les pages.
+            ->renderHook(
+                PanelsRenderHook::BODY_END,
+                fn (): string => auth()->check() ? Blade::render('@livewire(\App\Livewire\AssistantIa::class)') : '',
+            )
             // Bouton d'accès rapide (démo) sous le formulaire de connexion — hors production uniquement.
             ->renderHook(
                 PanelsRenderHook::AUTH_LOGIN_FORM_AFTER,
