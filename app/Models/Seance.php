@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\DocumentType;
 use App\Enums\PresenceStatut;
 use App\Enums\SeanceStatut;
+use App\Models\Concerns\BelongsToOrganisation;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -19,6 +20,7 @@ use Illuminate\Validation\ValidationException;
  */
 class Seance extends Model
 {
+    use BelongsToOrganisation;
     use HasFactory;
 
     protected $guarded = [];

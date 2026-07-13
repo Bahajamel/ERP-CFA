@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\FinanceLineStatut;
 use App\Enums\InvoiceStatut;
+use App\Models\Concerns\BelongsToOrganisation;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -18,6 +19,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
  */
 class FinanceLine extends Model
 {
+    use BelongsToOrganisation;
     use HasFactory;
     use LogsActivity;
 

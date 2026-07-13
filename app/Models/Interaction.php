@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\InteractionType;
 use App\Enums\TaskPriorite;
 use App\Enums\TaskStatut;
+use App\Models\Concerns\BelongsToOrganisation;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -13,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class Interaction extends Model
 {
+    use BelongsToOrganisation;
     use HasFactory;
 
     protected $guarded = [];

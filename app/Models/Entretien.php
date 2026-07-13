@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\EntretienMode;
 use App\Enums\EntretienStatut;
+use App\Models\Concerns\BelongsToOrganisation;
 use App\Parcours\CycleApprenant;
 use App\StateMachine\ManagesState;
 use BackedEnum;
@@ -22,6 +23,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
  */
 class Entretien extends Model
 {
+    use BelongsToOrganisation;
     use HasFactory;
     use LogsActivity;
     use ManagesState;

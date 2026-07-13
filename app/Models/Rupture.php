@@ -8,6 +8,7 @@ use App\Enums\RuptureMotif;
 use App\Enums\RuptureStatut;
 use App\Enums\TaskPriorite;
 use App\Enums\TaskStatut;
+use App\Models\Concerns\BelongsToOrganisation;
 use App\StateMachine\ManagesState;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -24,6 +25,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
  */
 class Rupture extends Model
 {
+    use BelongsToOrganisation;
     use HasFactory;
     use LogsActivity;
     use ManagesState;
