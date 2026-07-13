@@ -16,7 +16,23 @@ it('déclare le fournisseur de double authentification par application sur le pa
     expect($providers)->toHaveCount(1)
         ->and($providers[0])->toBeInstanceOf(AppAuthentication::class)
         ->and($providers[0]->isRecoverable())->toBeTrue()
+        // Sans utilisateur connecté (visiteur), la MFA n'est pas requise.
         ->and(Filament::getPanel('admin')->isMultiFactorAuthenticationRequired())->toBeFalse();
+});
+
+it('impose la MFA aux administrateurs, pas aux autres rôles', function () {
+    $this->seed(\Database\Seeders\RolePermissionSeeder::class);
+    $panel = Filament::getPanel('admin');
+
+    $admin = User::factory()->create();
+    $admin->syncRoles('Administrateur');
+    $this->actingAs($admin);
+    expect($panel->isMultiFactorAuthenticationRequired())->toBeTrue();
+
+    $commercial = User::factory()->create();
+    $commercial->syncRoles('Commercial');
+    $this->actingAs($commercial);
+    expect($panel->isMultiFactorAuthenticationRequired())->toBeFalse();
 });
 
 it('expose un modèle utilisateur compatible MFA', function () {

@@ -15,9 +15,23 @@ use App\Models\Document;
 use App\Models\Need;
 use App\Models\OpcoFile;
 use App\Models\Task;
+use App\Models\User;
+use Database\Seeders\RolePermissionSeeder;
+use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
+
+beforeEach(function () {
+    // La recherche globale respecte désormais les policies : elle exige un
+    // utilisateur autorisé (ici un administrateur, qui a toutes les permissions).
+    $this->seed(RolePermissionSeeder::class);
+    Filament::setCurrentPanel(Filament::getPanel('admin'));
+
+    $admin = User::factory()->create();
+    $admin->syncRoles('Administrateur');
+    $this->actingAs($admin);
+});
 
 it('trouve un candidat et une entreprise par la recherche globale', function () {
     Candidate::factory()->create(['nom' => 'Zoubairi', 'prenom' => 'Karim']);
