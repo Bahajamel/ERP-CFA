@@ -24,6 +24,8 @@ class DatabaseSeeder extends Seeder
             DemoSeeder::class,
             DemoAccountsSeeder::class,
             ClasseDemoSeeder::class,
+            // Rattache tout le personnel au CFA « maison » (organisation par défaut).
+            OrganisationSeeder::class,
         ]);
     }
 }

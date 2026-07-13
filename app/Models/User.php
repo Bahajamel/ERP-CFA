@@ -8,22 +8,26 @@ use Filament\Auth\MultiFactor\App\Contracts\HasAppAuthentication;
 use Filament\Auth\MultiFactor\App\Contracts\HasAppAuthenticationRecovery;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Models\Contracts\HasAvatar;
+use Filament\Models\Contracts\HasTenants;
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use SensitiveParameter;
 use Spatie\Permission\Traits\HasRoles;
 
 #[Fillable(['name', 'email', 'avatar_url', 'password', 'is_active'])]
 #[Hidden(['password', 'remember_token', 'app_authentication_secret', 'app_authentication_recovery_codes'])]
-class User extends Authenticatable implements FilamentUser, HasAppAuthentication, HasAppAuthenticationRecovery, HasAvatar
+class User extends Authenticatable implements FilamentUser, HasAppAuthentication, HasAppAuthenticationRecovery, HasAvatar, HasTenants
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable, HasRoles;
+    use HasFactory, HasRoles, Notifiable;
 
     /**
      * Get the attributes that should be cast.
@@ -50,6 +54,32 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
     public function canAccessPanel(Panel $panel): bool
     {
         return $this->is_active && $this->roles()->exists();
+    }
+
+    // --- Multi-tenant (Filament) : rattachement du personnel aux CFA ---
+
+    /** CFA (organisations) auxquels cet utilisateur appartient. */
+    public function organisations(): BelongsToMany
+    {
+        return $this->belongsToMany(Organisation::class);
+    }
+
+    /**
+     * Organisations proposées à l'utilisateur dans le sélecteur de tenant Filament.
+     *
+     * @return Collection<int, Organisation>
+     */
+    public function getTenants(Panel $panel): Collection
+    {
+        return $this->organisations()->where('actif', true)->get();
+    }
+
+    /** L'utilisateur peut-il accéder à ce CFA ? (membre + CFA actif) */
+    public function canAccessTenant(Model $tenant): bool
+    {
+        return $tenant instanceof Organisation
+            && $tenant->actif
+            && $this->organisations()->whereKey($tenant->getKey())->exists();
     }
 
     /**
