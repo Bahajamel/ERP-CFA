@@ -492,7 +492,10 @@ class Candidate extends Model implements HasMedia
     /** Les classes (matières) suivies — toutes au sein de SA formation. */
     public function promotions(): BelongsToMany
     {
-        return $this->belongsToMany(Promotion::class)->withTimestamps();
+        return $this->belongsToMany(Promotion::class)
+            ->using(CandidatePromotion::class)
+            ->withPivot(['matieres', 'invitation_token', 'invited_at', 'responded_at'])
+            ->withTimestamps();
     }
 
     public function commercial(): BelongsTo

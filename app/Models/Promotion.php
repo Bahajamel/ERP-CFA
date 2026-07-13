@@ -45,10 +45,13 @@ class Promotion extends Model
         ));
     }
 
-    /** Les apprentis rattachés à cette classe (matière). */
+    /** Les apprentis rattachés à cette cohorte (avec leur inscription : matières choisies, invitation). */
     public function apprentis(): BelongsToMany
     {
-        return $this->belongsToMany(Candidate::class)->withTimestamps();
+        return $this->belongsToMany(Candidate::class)
+            ->using(CandidatePromotion::class)
+            ->withPivot(['matieres', 'invitation_token', 'invited_at', 'responded_at'])
+            ->withTimestamps();
     }
 
     /** Les séances (créneaux d'émargement) de la classe. */

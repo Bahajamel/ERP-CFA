@@ -78,6 +78,7 @@ class AdmissionsTable
                     ->color('gray')
                     ->action(fn (Admission $record, $livewire) => $livewire->focusId = $record->getKey()),
                 AdmissionActions::valider(),
+                AdmissionActions::affecterClasse(),
                 ActionGroup::make([
                     AdmissionActions::declarerRupture(),
                     // Lien vers le dossier lié créé automatiquement (cycle apprenant).
