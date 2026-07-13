@@ -2,14 +2,18 @@
 
 namespace App\Filament\Pages;
 
+use App\Enums\DocumentStatut;
+use App\Enums\DocumentType;
 use App\Enums\EvaluationType;
 use App\Filament\Resources\Evaluations\EvaluationResource;
 use App\Models\Candidate;
+use App\Models\Document;
 use App\Models\Evaluation;
 use App\Models\Promotion;
 use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
@@ -128,13 +132,55 @@ class Notes extends Page
 
                 $poids = $notes->sum(fn (Evaluation $e) => (float) $e->coefficient);
                 $somme = $notes->sum(fn (Evaluation $e) => $e->noteSur20() * (float) $e->coefficient);
+                $copies = $this->examensApprenant($c);
 
                 return [
                     'apprenant' => $c,
                     'notes' => $notes,
                     'moyenne' => $poids > 0 ? round($somme / $poids, 2) : null,
+                    'copies' => $copies,                        // pour la colonne « Examen (preuve) »
+                    'copiesParType' => $copies->keyBy('type_value'), // note cliquable UNIQUEMENT vers la copie de SON type
                 ];
             });
+    }
+
+    /**
+     * Les copies d'examen déposées par un apprenant pour la matière courante,
+     * une par type d'épreuve (Contrôle, Examen…). Chaque entrée : id, type, url, nom.
+     *
+     * @return Collection<int, array{id:int, type_value:?string, type:string, nom:?string, url:string}>
+     */
+    private function examensApprenant(Candidate $c): Collection
+    {
+        if (blank($this->promotionId) || blank($this->matiere)) {
+            return collect();
+        }
+
+        return $c->documents()
+            ->where('type', DocumentType::Examen->value)
+            ->with('media')
+            ->latest()
+            ->get()
+            ->filter(function (Document $d): bool {
+                $media = $d->getFirstMedia('fichier');
+
+                return $media?->getCustomProperty('matiere') === $this->matiere
+                    && (int) $media?->getCustomProperty('promotion_id') === (int) $this->promotionId;
+            })
+            ->map(function (Document $d): array {
+                $media = $d->getFirstMedia('fichier');
+                $tv = $media?->getCustomProperty('type');
+
+                return [
+                    'id' => $d->id,
+                    'type_value' => $tv,
+                    'type' => $tv ? (EvaluationType::tryFrom($tv)?->getLabel() ?? 'Copie') : 'Copie',
+                    'nom' => $d->nom_fichier,
+                    'url' => $d->getFirstMediaUrl('fichier'),
+                ];
+            })
+            ->unique('type_value')
+            ->values();
     }
 
     protected function getViewData(): array
@@ -148,6 +194,92 @@ class Notes extends Page
             'lignes' => $this->lignes(),
             'urlEdition' => fn (Evaluation $e): string => EvaluationResource::getUrl('edit', ['record' => $e]),
         ];
+    }
+
+    /**
+     * Importer la copie d'examen d'UN apprenant, en preuve de sa note pour la
+     * matière courante. Rattachée à l'apprenant (GED) avec matière + classe en
+     * propriétés du média. Remplace la copie précédente s'il y en avait une.
+     */
+    public function importerExamenApprenantAction(): Action
+    {
+        return Action::make('importerExamenApprenant')
+            ->modalHeading(fn (array $arguments): string => 'Importer la copie d\'examen — '
+                .(Candidate::find($arguments['candidate'] ?? null)?->nom_complet ?? ''))
+            ->modalDescription(fn (): string => 'Matière : '.$this->matiere.'. La copie est archivée comme preuve de la note.')
+            ->schema([
+                Select::make('type_examen')
+                    ->label('Type d\'épreuve')
+                    ->options(EvaluationType::class)
+                    ->default(EvaluationType::Examen->value)
+                    ->required(),
+                FileUpload::make('fichier')
+                    ->label('Copie de l\'examen (PDF ou image)')
+                    ->acceptedFileTypes(['application/pdf', 'image/jpeg', 'image/png'])
+                    ->maxSize(20480)
+                    ->storeFileNamesIn('nom')
+                    ->disk('public')
+                    ->required(),
+            ])
+            ->action(function (array $data, array $arguments): void {
+                $candidate = Candidate::find($arguments['candidate'] ?? null);
+
+                if ($candidate === null || blank($this->matiere)) {
+                    return;
+                }
+
+                // Une copie par type : on remplace celle du même type si elle existe.
+                $type = $data['type_examen'] ?? EvaluationType::Examen->value;
+                $existante = $this->examensApprenant($candidate)->firstWhere('type_value', $type);
+
+                if ($existante) {
+                    Document::find($existante['id'])?->delete();
+                }
+
+                $doc = $candidate->documents()->create([
+                    'type' => DocumentType::Examen->value,
+                    'statut' => DocumentStatut::Recu->value,
+                    'nom_fichier' => $data['nom'] ?? 'examen.pdf',
+                    'version' => 1,
+                    'uploaded_by' => Auth::id(),
+                ]);
+
+                $doc->addMediaFromDisk($data['fichier'], 'public')
+                    ->withCustomProperties([
+                        'matiere' => $this->matiere,
+                        'promotion_id' => $this->promotionId,
+                        'type' => $data['type_examen'] ?? EvaluationType::Examen->value,
+                    ])
+                    ->toMediaCollection('fichier');
+
+                Notification::make()->success()
+                    ->title('Copie importée')
+                    ->body($candidate->nom_complet.' — preuve enregistrée pour « '.$this->matiere.' ».')
+                    ->send();
+            })
+            ->modalSubmitActionLabel('Importer');
+    }
+
+    /** Retirer la copie d'examen d'un apprenant pour un type d'épreuve donné. */
+    public function retirerExamenApprenantAction(): Action
+    {
+        return Action::make('retirerExamenApprenant')
+            ->requiresConfirmation()
+            ->modalHeading('Retirer cette copie ?')
+            ->modalDescription('La copie sera archivée (retirée des preuves de cet apprenant pour cette matière).')
+            ->action(function (array $arguments): void {
+                $candidate = Candidate::find($arguments['candidate'] ?? null);
+
+                if ($candidate !== null) {
+                    $copie = $this->examensApprenant($candidate)->firstWhere('type_value', $arguments['type'] ?? null);
+
+                    if ($copie) {
+                        Document::find($copie['id'])?->delete();
+                    }
+                }
+
+                Notification::make()->success()->title('Copie retirée')->send();
+            });
     }
 
     /** Saisir une nouvelle épreuve (une note par apprenant) pour la matière courante. */
