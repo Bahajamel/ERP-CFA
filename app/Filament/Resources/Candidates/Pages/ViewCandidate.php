@@ -2,15 +2,26 @@
 
 namespace App\Filament\Resources\Candidates\Pages;
 
+use App\Enums\EntretienMode;
+use App\Enums\EntretienStatut;
 use App\Filament\Resources\Candidates\CandidateResource;
+use App\Filament\Resources\Entretiens\EntretienResource;
+use App\Filament\Resources\Matchings\MatchingResource;
 use App\Models\Candidate;
 use App\Parcours\CycleApprenant;
+use App\Support\SecureMedia;
+use Filament\Actions\Action;
 use Filament\Actions\EditAction;
+use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TimePicker;
 use Filament\Infolists\Components\TextEntry;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Illuminate\Support\HtmlString;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Vue 360° « Parcours de l'apprenant » : timeline du cycle (Candidat →
@@ -26,7 +37,7 @@ class ViewCandidate extends ViewRecord
         return [
             // Point de création UNIQUE d'un entretien (masqué si un entretien
             // actif existe déjà → « Gérer l'entretien »).
-            \Filament\Actions\Action::make('planifierEntretien')
+            Action::make('planifierEntretien')
                 ->label('Planifier un entretien')
                 ->icon('heroicon-o-calendar-days')
                 ->color('info')
@@ -35,59 +46,59 @@ class ViewCandidate extends ViewRecord
                 ->modalHeading(fn (): string => 'Planifier un entretien — '.$this->getRecord()->nom_complet)
                 ->modalDescription('Le candidat passera automatiquement à « Entretien prévu ».')
                 ->schema([
-                    \Filament\Forms\Components\DatePicker::make('date_entretien')
+                    DatePicker::make('date_entretien')
                         ->label('Date')->displayFormat('d/m/Y')->native(false)->required(),
-                    \Filament\Forms\Components\TimePicker::make('heure_debut')
+                    TimePicker::make('heure_debut')
                         ->label('Heure de début')->seconds(false)->required(),
-                    \Filament\Forms\Components\TimePicker::make('heure_fin')
+                    TimePicker::make('heure_fin')
                         ->label('Heure de fin')->seconds(false)->required()->after('heure_debut'),
-                    \Filament\Forms\Components\Select::make('mode')
+                    Select::make('mode')
                         ->label('Mode')
-                        ->options(\App\Enums\EntretienMode::class)
-                        ->default(\App\Enums\EntretienMode::Presentiel->value)
+                        ->options(EntretienMode::class)
+                        ->default(EntretienMode::Presentiel->value)
                         ->required(),
                 ])
                 ->action(function (array $data): void {
                     try {
                         $entretien = $this->getRecord()->entretiens()->create($data + [
-                            'statut' => \App\Enums\EntretienStatut::Planifie->value,
+                            'statut' => EntretienStatut::Planifie->value,
                             'responsable_id' => auth()->id(),
                         ]);
-                    } catch (\Illuminate\Validation\ValidationException $e) {
-                        \Filament\Notifications\Notification::make()->danger()->title('Planification impossible')
+                    } catch (ValidationException $e) {
+                        Notification::make()->danger()->title('Planification impossible')
                             ->body(collect($e->errors())->flatten()->first())->send();
 
                         return;
                     }
 
-                    \Filament\Notifications\Notification::make()->success()
+                    Notification::make()->success()
                         ->title('Entretien planifié')
                         ->body($entretien->creneauLisible().' — le candidat passe à « Entretien prévu ».')
                         ->send();
                 }),
             // Un entretien est déjà en cours : lien direct pour le gérer.
-            \Filament\Actions\Action::make('gererEntretien')
+            Action::make('gererEntretien')
                 ->label('Gérer l\'entretien')
                 ->icon('heroicon-o-calendar-days')
                 ->color('warning')
                 ->visible(fn (): bool => ! $this->getRecord()->statut->estFinal()
                     && $this->getRecord()->entretienActif() !== null)
-                ->url(fn (): string => \App\Filament\Resources\Entretiens\EntretienResource::getUrl(
+                ->url(fn (): string => EntretienResource::getUrl(
                     'edit',
                     ['record' => $this->getRecord()->entretienActif()],
                 )),
-            \Filament\Actions\Action::make('voirEntretiens')
+            Action::make('voirEntretiens')
                 ->label('Entretiens')
                 ->icon('heroicon-o-arrow-top-right-on-square')
                 ->color('gray')
                 ->visible(fn (): bool => $this->getRecord()->entretiens()->exists())
-                ->url(fn (): string => \App\Filament\Resources\Entretiens\EntretienResource::getUrl('index')),
-            \Filament\Actions\Action::make('voirMatching')
+                ->url(fn (): string => EntretienResource::getUrl('index')),
+            Action::make('voirMatching')
                 ->label('Voir le matching')
                 ->icon('heroicon-o-arrow-top-right-on-square')
                 ->color('gray')
                 ->visible(fn (): bool => $this->getRecord()->matchings()->exists())
-                ->url(fn (): string => \App\Filament\Resources\Matchings\MatchingResource::getUrl('index')),
+                ->url(fn (): string => MatchingResource::getUrl('index')),
             EditAction::make(),
         ];
     }
@@ -221,13 +232,13 @@ class ViewCandidate extends ViewRecord
                         ->state(fn (Candidate $record) => $record->getFirstMedia('piece_identite') ? 'Fournie' : 'Manquante')
                         ->badge()
                         ->color(fn (string $state) => $state === 'Fournie' ? 'success' : 'gray')
-                        ->url(fn (Candidate $record) => $record->getFirstMediaUrl('piece_identite') ?: null, shouldOpenInNewTab: true),
+                        ->url(fn (Candidate $record) => SecureMedia::pour($record, 'piece_identite'), shouldOpenInNewTab: true),
                     TextEntry::make('carte_vitale')
                         ->label('Carte Vitale / sécu')
                         ->state(fn (Candidate $record) => $record->getFirstMedia('carte_vitale') ? 'Fournie' : 'Manquante')
                         ->badge()
                         ->color(fn (string $state) => $state === 'Fournie' ? 'success' : 'gray')
-                        ->url(fn (Candidate $record) => $record->getFirstMediaUrl('carte_vitale') ?: null, shouldOpenInNewTab: true),
+                        ->url(fn (Candidate $record) => SecureMedia::pour($record, 'carte_vitale'), shouldOpenInNewTab: true),
                     TextEntry::make('attestation_projet')
                         ->label('Attestation de projet (30 ans et plus)')
                         ->state(fn (Candidate $record) => $record->getFirstMedia('attestation_projet')
@@ -239,7 +250,7 @@ class ViewCandidate extends ViewRecord
                             str_starts_with($state, 'Manquante') => 'danger',
                             default => 'gray',
                         })
-                        ->url(fn (Candidate $record) => $record->getFirstMediaUrl('attestation_projet') ?: null, shouldOpenInNewTab: true)
+                        ->url(fn (Candidate $record) => SecureMedia::pour($record, 'attestation_projet'), shouldOpenInNewTab: true)
                         ->visible(fn (Candidate $record) => $record->plusDe30Ans() || $record->getFirstMedia('attestation_projet')),
                 ]),
 

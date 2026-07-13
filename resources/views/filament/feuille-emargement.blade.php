@@ -22,7 +22,7 @@
     @else
         <div class="fe-liste">
             @foreach ($feuilles as $feuille)
-                <a class="fe-item" href="{{ $feuille->getFirstMediaUrl('fichier') }}" target="_blank" rel="noopener">
+                <a class="fe-item" href="{{ \App\Support\SecureMedia::pour($feuille, 'fichier') }}" target="_blank" rel="noopener">
                     <span class="fe-version">v{{ $feuille->version }}</span>
                     <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                         📄 {{ $feuille->nom_fichier }}

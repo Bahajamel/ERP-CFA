@@ -110,7 +110,7 @@
     <div class="fa-section-titre">Documents pédagogiques ({{ $documents->count() }})</div>
     <div class="fa-docs">
         @forelse ($documents as $document)
-            <a class="fa-doc" href="{{ $document->getFirstMediaUrl('fichier') }}" target="_blank" rel="noopener">
+            <a class="fa-doc" href="{{ \App\Support\SecureMedia::pour($document, 'fichier') }}" target="_blank" rel="noopener">
                 <span>📄 {{ $document->nom_fichier }}</span>
                 <span class="fa-doc-date">{{ $document->created_at->format('d/m/Y') }}</span>
             </a>

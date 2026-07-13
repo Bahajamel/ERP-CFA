@@ -11,6 +11,7 @@ use App\Models\Admission;
 use App\Models\Contract;
 use App\Models\Document;
 use App\Parcours\CycleApprenant;
+use App\Support\SecureMedia;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -164,9 +165,9 @@ class AdmissionForm
 
         foreach ($attendus as $type => $libelle) {
             $doc = $documents->get($type);
-            $url = $doc?->getFirstMediaUrl('fichier');
+            $url = SecureMedia::url($doc?->getFirstMedia('fichier'));
 
-            if ($doc !== null && $url !== '') {
+            if ($doc !== null && $url !== null) {
                 $lignes[] = '<div class="flex items-center gap-2">'
                     .'<span class="font-medium">📄 '.e($libelle).'</span>'
                     .'<a href="'.e($url).'" target="_blank" rel="noopener" '

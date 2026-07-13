@@ -32,8 +32,13 @@ class CfaProfile extends Model implements HasMedia
 
     public function registerMediaCollections(): void
     {
+        // Logo : figure sur les documents générés → reste public.
         $this->addMediaCollection('logo')->singleFile();
-        $this->addMediaCollection('signature')->singleFile();
-        $this->addMediaCollection('cachet')->singleFile();
+
+        // Signature et cachet du CFA : détournables (risque de falsification) →
+        // disque privé. Utilisés côté serveur (getPath) pour la génération PDF.
+        $disquePrive = config('documents.disque_prive');
+        $this->addMediaCollection('signature')->useDisk($disquePrive)->singleFile();
+        $this->addMediaCollection('cachet')->useDisk($disquePrive)->singleFile();
     }
 }

@@ -21,6 +21,11 @@ return Application::configure(basePath: dirname(__DIR__))
         // Les webhooks (callbacks des prestataires de signature eIDAS) sont
         // authentifiés par secret partagé, pas par jeton CSRF de session.
         $middleware->validateCsrfTokens(except: ['webhooks/*']);
+
+        // Un invité qui tente d'accéder à une ressource protégée (ex. pièce
+        // sensible via un vieux lien signé) est renvoyé vers le login Filament :
+        // il n'existe pas de route nommée « login » générique dans l'application.
+        $middleware->redirectGuestsTo(fn () => route('filament.admin.auth.login'));
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

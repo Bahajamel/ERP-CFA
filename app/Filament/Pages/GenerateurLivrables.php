@@ -2,13 +2,13 @@
 
 namespace App\Filament\Pages;
 
-use App\Filament\Pages\ParametresCfa;
 use App\Jobs\GenererLivrablesJob;
 use App\Livret\LivretRsClient;
 use App\Models\CfaProfile;
 use App\Models\Contract;
 use App\Models\Document;
 use App\Models\User;
+use App\Support\SecureMedia;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Toggle;
@@ -23,7 +23,6 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 
 /**
@@ -204,7 +203,7 @@ class GenerateurLivrables extends Page implements HasSchemas, HasTable
                     ->label('Télécharger')
                     ->icon(Heroicon::OutlinedArrowDownTray)
                     ->color('gray')
-                    ->url(fn (Document $record) => $record->getFirstMediaUrl('fichier'))
+                    ->url(fn (Document $record) => SecureMedia::pour($record, 'fichier'))
                     ->openUrlInNewTab()
                     ->visible(fn (Document $record) => $record->getFirstMedia('fichier') !== null),
             ])
