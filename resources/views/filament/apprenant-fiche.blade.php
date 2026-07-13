@@ -96,9 +96,19 @@
                 @if ($apprenant->promotions->isEmpty())
                     <span class="fa-vide">Aucune classe</span>
                 @else
-                    <div class="fa-badges">
+                    <div class="fa-badges" style="flex-direction:column;align-items:flex-start;gap:.4rem;">
                         @foreach ($apprenant->promotions as $classe)
-                            <span class="fa-badge">{{ $classe->nom_complet }}</span>
+                            <div>
+                                <span class="fa-badge">{{ $classe->nom_complet }}</span>
+                                @php $mats = $classe->pivot->matieres ?? []; @endphp
+                                @if (! empty($mats))
+                                    @foreach ($mats as $mat)
+                                        <span class="fa-badge" style="background:#eef2ff;color:#4338ca;">{{ $mat }}</span>
+                                    @endforeach
+                                @elseif ($classe->pivot->invited_at && ! $classe->pivot->responded_at)
+                                    <span class="fa-vide">— en attente du choix des matières</span>
+                                @endif
+                            </div>
                         @endforeach
                     </div>
                 @endif
