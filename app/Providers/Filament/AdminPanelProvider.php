@@ -50,11 +50,12 @@ class AdminPanelProvider extends PanelProvider
             // Page profil enrichie : photo de profil + double authentification.
             ->profile(EditProfile::class, isSimple: false)
             // Double authentification par application (TOTP) avec codes de secours.
-            // Facultative pour l'instant (isRequired: false) afin de ne pas verrouiller
-            // les comptes existants ; passer à `isRequired: true` pour l'imposer à tous.
+            // OBLIGATOIRE pour les administrateurs (accès total, cible privilégiée) :
+            // à leur prochaine connexion, ils sont dirigés vers la mise en place du MFA.
+            // Facultative pour les autres rôles (pas de verrouillage des comptes métier).
             ->multiFactorAuthentication(
                 AppAuthentication::make()->recoverable(),
-                isRequired: false,
+                isRequired: fn (): bool => auth()->user()?->hasRole('Administrateur') ?? false,
             )
             ->databaseNotifications()
             ->databaseNotificationsPolling('30s')

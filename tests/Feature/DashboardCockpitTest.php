@@ -41,7 +41,11 @@ it('remonte les contrats à faire signer dans les priorités', function () {
 
 it('rend le dashboard complet avec le cockpit', function () {
     $this->seed(RolePermissionSeeder::class);
-    $this->actingAs(cockpitAdmin());
+    // Le MFA est obligatoire pour les admins : on l'active pour accéder au panel
+    // sans être redirigé vers sa mise en place.
+    $admin = cockpitAdmin();
+    $admin->saveAppAuthenticationSecret(\Filament\Auth\MultiFactor\App\AppAuthentication::make()->generateSecret());
+    $this->actingAs($admin);
 
     $this->get('/admin')->assertOk();
 });
