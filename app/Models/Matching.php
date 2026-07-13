@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\CandidateStatut;
 use App\Enums\MatchingStatut;
+use App\Models\Concerns\BelongsToOrganisation;
 use App\Parcours\CycleApprenant;
 use App\Parcours\CycleBloqueException;
 use App\StateMachine\ManagesState;
@@ -19,6 +20,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
 
 class Matching extends Model implements HasMedia
 {
+    use BelongsToOrganisation;
     use HasFactory;
     use InteractsWithMedia;
     use LogsActivity;

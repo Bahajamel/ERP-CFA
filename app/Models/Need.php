@@ -6,6 +6,7 @@ use App\Enums\CandidateStatut;
 use App\Enums\MatchingStatut;
 use App\Enums\NeedStatut;
 use App\Matching\CompatibilityScorer;
+use App\Models\Concerns\BelongsToOrganisation;
 use App\StateMachine\ManagesState;
 use BackedEnum;
 use Illuminate\Database\Eloquent\Builder;
@@ -18,6 +19,7 @@ use Illuminate\Support\Collection;
 
 class Need extends Model
 {
+    use BelongsToOrganisation;
     use HasFactory;
     use ManagesState;
 

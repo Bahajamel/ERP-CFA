@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\AdmissionStatut;
 use App\Enums\ChecklistItemStatut;
 use App\Enums\DocumentType;
+use App\Models\Concerns\BelongsToOrganisation;
 use App\Parcours\CycleApprenant;
 use App\StateMachine\ManagesState;
 use BackedEnum;
@@ -26,6 +27,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
  */
 class Admission extends Model
 {
+    use BelongsToOrganisation;
     use HasFactory;
     use LogsActivity;
     use ManagesState;

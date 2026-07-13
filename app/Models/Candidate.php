@@ -9,6 +9,7 @@ use App\Enums\EntretienStatut;
 use App\Enums\PresenceStatut;
 use App\Http\Controllers\CandidatureController;
 use App\Matching\CompatibilityScorer;
+use App\Models\Concerns\BelongsToOrganisation;
 use App\Parcours\CycleApprenant;
 use App\StateMachine\HasStateTransitions;
 use App\StateMachine\ManagesState;
@@ -34,6 +35,7 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class Candidate extends Model implements HasMedia
 {
+    use BelongsToOrganisation;
     use HasFactory;
     use InteractsWithMedia;
     use LogsActivity;

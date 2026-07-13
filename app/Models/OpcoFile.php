@@ -8,6 +8,7 @@ use App\Enums\OpcoStatut;
 use App\Enums\PaymentStatut;
 use App\Enums\TaskPriorite;
 use App\Enums\TaskStatut;
+use App\Models\Concerns\BelongsToOrganisation;
 use App\Parcours\CycleApprenant;
 use App\Services\FinanceService;
 use App\StateMachine\ManagesState;
@@ -25,6 +26,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
 
 class OpcoFile extends Model
 {
+    use BelongsToOrganisation;
     use HasFactory;
     use LogsActivity;
     use ManagesState;
