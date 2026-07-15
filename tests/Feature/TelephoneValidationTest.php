@@ -67,28 +67,33 @@ it('combine l\'indicatif choisi avec le numéro national (formulaire public)', f
     // Pays France + numéro national « 06… » → accepté (indicatif ajouté).
     $this->post(route('candidature.store'), [
         'nom' => 'Martin', 'prenom' => 'Léa', 'email' => 'lea@example.test',
-        'indicatif_pays' => '+33', 'telephone' => '0612345678',
+        'indicatif_pays' => 'FR', 'telephone' => '0612345678',
     ])->assertSessionDoesntHaveErrors('telephone');
 
     // Numéro réellement invalide (lettres) → rejeté même après combinaison.
     $this->post(route('candidature.store'), [
         'nom' => 'Martin', 'prenom' => 'Léa', 'email' => 'lea@example.test',
-        'indicatif_pays' => '+33', 'telephone' => 'abc',
+        'indicatif_pays' => 'FR', 'telephone' => 'abc',
     ])->assertSessionHasErrors('telephone');
 });
 
-it('combine, détecte et applique correctement les indicatifs (helper)', function () {
-    // Combinaison côté contrôleur.
-    expect(Indicatifs::combiner('0612345678', '+33'))->toBe('+33 612345678')
-        ->and(Indicatifs::combiner('+32 470 12 34 56', '+33'))->toBe('+32 470 12 34 56') // déjà international : conservé
-        ->and(Indicatifs::combiner('', '+33'))->toBe('');
+it('combine, détecte et applique correctement selon le pays ISO (helper)', function () {
+    // Combinaison côté contrôleur (le pays est un code ISO).
+    expect(Indicatifs::combiner('0612345678', 'FR'))->toBe('+33 612345678')
+        ->and(Indicatifs::combiner('+32 470 12 34 56', 'FR'))->toBe('+32 470 12 34 56') // déjà international : conservé
+        ->and(Indicatifs::combiner('', 'FR'))->toBe('');
 
-    // Détection de l'indicatif d'un numéro stocké (pour présélection en édition).
-    expect(Indicatifs::detecter('+32470123456'))->toBe('+32')
-        ->and(Indicatifs::detecter('+33612345678'))->toBe('+33')
-        ->and(Indicatifs::detecter(null))->toBe('+33');
+    // Détection du pays d'un numéro stocké (présélection en édition) → code ISO.
+    expect(Indicatifs::detecter('+32470123456'))->toBe('BE')
+        ->and(Indicatifs::detecter('+33612345678'))->toBe('FR')
+        ->and(Indicatifs::detecter(null))->toBe('FR');
 
-    // Application côté formulaire (préfixe le champ avec l'indicatif choisi).
-    expect(Indicatifs::appliquer('0612345678', '+33'))->toBe('+33 612345678')
-        ->and(Indicatifs::appliquer('+33 6 12', '+32'))->toBe('+32 612'); // change de pays
+    // Application côté formulaire (préfixe le champ avec l'indicatif du pays).
+    expect(Indicatifs::appliquer('0612345678', 'FR'))->toBe('+33 612345678')
+        ->and(Indicatifs::appliquer('+33 6 12', 'BE'))->toBe('+32 612'); // change de pays
+
+    // Drapeau calculé depuis le code ISO (indicateurs régionaux Unicode).
+    expect(Indicatifs::drapeau('FR'))->toBe('🇫🇷')
+        ->and(Indicatifs::drapeau('BE'))->toBe('🇧🇪')
+        ->and(count(Indicatifs::options()))->toBeGreaterThan(150);
 });
