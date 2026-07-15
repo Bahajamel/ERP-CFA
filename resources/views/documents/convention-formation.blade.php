@@ -34,6 +34,9 @@
         .sign-wrap { width: 100%; margin-top: 26px; }
         .sign-wrap td { width: 50%; vertical-align: top; padding: 8px; border: 1px solid #d5dbe8; height: 90px; }
         .sign-h { font-weight: bold; margin-bottom: 4px; }
+        .sign-qui { font-size: 9px; margin-bottom: 2px; }
+        .sign-img img { max-height: 48px; max-width: 110px; vertical-align: bottom; }
+        .sign-img img + img { margin-left: 8px; }
         .foot-note { font-size: 8px; color: #9aa2b1; margin-top: 4px; }
     </style>
 </head>
@@ -176,11 +179,32 @@
             </td>
             <td>
                 <div class="sign-h">Pour l'organisme (CFA)</div>
-                <div class="muted">Nom et qualité du signataire · cachet du CFA</div>
+                @php($cfaSigne = filled($d['cfa_signature_image']) || filled($d['cfa_cachet_image']))
+                @if ($cfaSigne)
+                    @if (filled($d['cfa_representant']))
+                        <div class="sign-qui">{{ $d['cfa_representant'] }}</div>
+                    @endif
+                    <div class="sign-img">
+                        @if (filled($d['cfa_signature_image']))
+                            <img src="{{ $d['cfa_signature_image'] }}" alt="Signature du représentant du CFA">
+                        @endif
+                        @if (filled($d['cfa_cachet_image']))
+                            <img src="{{ $d['cfa_cachet_image'] }}" alt="Cachet du CFA">
+                        @endif
+                    </div>
+                @else
+                    <div class="muted">Nom et qualité du signataire · cachet du CFA</div>
+                @endif
             </td>
         </tr>
     </table>
 
-    <div class="foot-note">Document généré automatiquement par l'ERP CFA — à vérifier et signer par les parties.</div>
+    <div class="foot-note">
+        @if ($cfaSigne)
+            Document généré automatiquement par l'ERP CFA, signé par le CFA — reste la signature de l'entreprise.
+        @else
+            Document généré automatiquement par l'ERP CFA — à vérifier et signer par les parties.
+        @endif
+    </div>
 </body>
 </html>
