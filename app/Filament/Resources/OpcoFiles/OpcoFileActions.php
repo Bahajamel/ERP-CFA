@@ -8,8 +8,8 @@ use App\Models\User;
 use App\StateMachine\InvalidTransitionException;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Support\Icons\Heroicon;
 
@@ -78,7 +78,14 @@ class OpcoFileActions
             });
     }
 
-    /** Génère l'échéancier de versement (décret 2025-585) depuis le montant accepté. */
+    /**
+     * Filet de sécurité : l'échéancier est normalement créé tout seul dès que
+     * l'OPCO accepte. Ce bouton ne sert qu'aux dossiers anciens restés sans plan.
+     *
+     * Garde sur echeancierEstDu() : un montant « accepté » saisi sur un dossier
+     * encore en attente ne vaut pas acceptation — on ne planifie pas un
+     * financement que l'OPCO n'a pas accordé.
+     */
     public static function genererEcheancier(): Action
     {
         return Action::make('genererEcheancier')
@@ -87,7 +94,7 @@ class OpcoFileActions
             ->color('info')
             ->requiresConfirmation()
             ->modalDescription('Génère les versements (40/30/20/10 pour ≥ 12 mois) à partir du montant accepté.')
-            ->visible(fn (OpcoFile $record) => (float) $record->montant_accepte > 0 && $record->payments()->doesntExist())
+            ->visible(fn (OpcoFile $record) => $record->echeancierEstDu() && $record->payments()->doesntExist())
             ->action(function (OpcoFile $record) {
                 $record->genererEcheancier();
 

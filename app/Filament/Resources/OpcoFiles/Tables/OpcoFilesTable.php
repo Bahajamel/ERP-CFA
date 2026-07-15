@@ -47,6 +47,12 @@ class OpcoFilesTable
                     ->label('Montant accepté')
                     ->money('EUR')
                     ->placeholder('—')
+                    // Visible depuis la liste : sans cela, un plan de versement
+                    // périmé ne se découvre qu'en ouvrant la fiche.
+                    ->description(fn ($record): ?string => $record->echeancierEstPerime()
+                        ? 'Échéancier périmé'
+                        : null)
+                    ->color(fn ($record): ?string => $record->echeancierEstPerime() ? 'danger' : null)
                     ->sortable(),
                 TextColumn::make('montant_verse')
                     ->label('Versé')

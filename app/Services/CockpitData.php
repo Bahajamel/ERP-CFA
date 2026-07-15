@@ -9,7 +9,6 @@ use App\Enums\ContractStatut;
 use App\Enums\EntretienStatut;
 use App\Enums\MatchingStatut;
 use App\Enums\OpcoStatut;
-use App\Enums\PaymentStatut;
 use App\Enums\TaskStatut;
 use App\Models\Admission;
 use App\Models\Candidate;
@@ -125,8 +124,7 @@ class CockpitData
         } elseif ($opcoBloques > 0) {
             $anomalies[] = "{$opcoBloques} dossier(s) OPCO à débloquer (rejet ou correction).";
         }
-        $facturesRetard = OpcoPayment::where('statut', PaymentStatut::Attendu->value)
-            ->whereDate('date_prevue', '<', now())->count();
+        $facturesRetard = OpcoPayment::enRetard()->count();
         if ($facturesRetard > 0) {
             $anomalies[] = "{$facturesRetard} versement(s) OPCO en retard à recouvrer.";
         }
@@ -209,8 +207,7 @@ class CockpitData
         $sparkOpco = $this->serieMensuelle(OpcoFile::query());
 
         // 6. Finance : versements OPCO échus non encaissés (à recouvrer).
-        $versementsRetard = OpcoPayment::where('statut', PaymentStatut::Attendu->value)
-            ->whereDate('date_prevue', '<', now())->count();
+        $versementsRetard = OpcoPayment::enRetard()->count();
         $sparkFinance = $this->serieMensuelle(OpcoPayment::query());
 
         return [
@@ -436,8 +433,7 @@ class CockpitData
                 ];
             });
 
-        $facturesRetard = OpcoPayment::where('statut', PaymentStatut::Attendu->value)
-            ->whereDate('date_prevue', '<', now())->count();
+        $facturesRetard = OpcoPayment::enRetard()->count();
         if ($facturesRetard > 0) {
             $alertes[] = [
                 'titre' => 'Versements OPCO en retard',

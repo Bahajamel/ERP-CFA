@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\OpcoFiles\RelationManagers;
 
 use App\Enums\PaymentStatut;
+use App\Models\OpcoFile;
 use App\Models\OpcoPayment;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DatePicker;
@@ -22,6 +23,27 @@ class PaymentsRelationManager extends RelationManager
     public function table(Table $table): Table
     {
         return $table
+            // Un échéancier dont le total ne fait plus le montant accepté annonce
+            // un financement qui n'existe plus. On ne peut pas le refaire (des
+            // versements sont déjà encaissés, et l'argent reçu est un fait) : on
+            // le dit, plutôt que d'afficher un plan périmé sans commentaire.
+            ->description(function (): ?string {
+                /** @var OpcoFile $dossier */
+                $dossier = $this->getOwnerRecord();
+
+                if (! $dossier->echeancierEstPerime()) {
+                    return null;
+                }
+
+                return sprintf(
+                    'Échéancier périmé : le plan totalise %s € alors que le montant accepté est de %s €. '
+                    .'Des versements sont déjà encaissés — ajustez les échéances restantes à la main.',
+                    number_format((float) $dossier->payments()->sum('montant_prevu'), 2, ',', ' '),
+                    number_format((float) $dossier->montant_accepte, 2, ',', ' '),
+                );
+            })
+            ->emptyStateHeading('Aucune échéance')
+            ->emptyStateDescription('L\'échéancier de versement est généré automatiquement dès que l\'OPCO accepte le dossier et que le montant accepté est renseigné.')
             ->columns([
                 TextColumn::make('libelle')
                     ->label('Échéance'),
