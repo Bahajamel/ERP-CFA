@@ -10,7 +10,6 @@ use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
-use Filament\Actions\ViewAction;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -105,26 +104,34 @@ class NeedsTable
                     ->icon('heroicon-o-eye')
                     ->color('gray')
                     ->action(fn (Need $record, $livewire) => $livewire->focusId = $record->getKey()),
-                Action::make('changerStatut')
-                    ->label('Changer le statut')
-                    ->icon('heroicon-o-arrows-right-left')
-                    ->visible(fn (Need $record): bool => filled($record->currentState()->transitions()))
-                    ->schema(fn (Need $record): array => [
-                        Select::make('to')
-                            ->label('Nouveau statut')
-                            ->options(collect($record->currentState()->transitions())
-                                ->mapWithKeys(fn (NeedStatut $s): array => [$s->value => $s->getLabel()])
-                                ->all())
-                            ->required(),
+                // Le statut suit désormais l'activité des candidats (cf.
+                // Need::synchroniserDepuisMatchings) : plus de sélecteur de statut.
+                // Reste le seul cas qu'aucune automatisation ne peut deviner —
+                // l'entreprise retire son offre.
+                Action::make('annuler')
+                    ->label('Annuler l\'offre')
+                    ->icon('heroicon-o-x-circle')
+                    ->color('danger')
+                    ->visible(fn (Need $record): bool => in_array(
+                        NeedStatut::Annule,
+                        $record->currentState()->transitions(),
+                        true,
+                    ))
+                    ->requiresConfirmation()
+                    ->modalHeading(fn (Need $record): string => "Annuler l'offre « {$record->intitule_poste} » ?")
+                    ->modalDescription('L\'offre sortira des offres ouvertes et les candidats encore en lice seront à repositionner. Cette action ne se défait pas.')
+                    ->schema([
                         Textarea::make('comment')
-                            ->label('Commentaire (optionnel)'),
+                            ->label('Motif de l\'annulation')
+                            ->placeholder('ex : l\'entreprise a gelé son recrutement')
+                            ->required(),
                     ])
                     ->action(function (Need $record, array $data): void {
                         try {
-                            $record->transitionTo(NeedStatut::from($data['to']), $data['comment'] ?? null);
-                            Notification::make()->success()->title('Statut mis à jour')->send();
+                            $record->transitionTo(NeedStatut::Annule, $data['comment']);
+                            Notification::make()->success()->title('Offre annulée')->send();
                         } catch (InvalidTransitionException $e) {
-                            Notification::make()->danger()->title('Transition refusée')->body($e->getMessage())->send();
+                            Notification::make()->danger()->title('Annulation refusée')->body($e->getMessage())->send();
                         }
                     }),
                 Action::make('trouverCandidats')
@@ -166,7 +173,8 @@ class NeedsTable
                             ->title($created > 0 ? "{$created} candidat(s) proposé(s)" : 'Aucun candidat proposé')
                             ->send();
                     }),
-                ViewAction::make(),
+                // Pas de ViewAction : « Aperçu » ci-dessus remplit déjà ce rôle
+                // (panneau Focus offre), sans quitter la liste.
                 EditAction::make(),
             ])
             ->toolbarActions([

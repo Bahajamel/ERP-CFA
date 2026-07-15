@@ -101,6 +101,92 @@ class Need extends Model
     }
 
     /**
+     * Avancement du besoin, du moins avancé au plus avancé. Sert à ne progresser
+     * QUE vers l'avant : un candidat refusé ne fait pas reculer le besoin (la
+     * machine à états l'interdit d'ailleurs à partir de « Candidat retenu »).
+     */
+    private const PROGRESSION = [
+        NeedStatut::Cree,
+        NeedStatut::EnQualification,
+        NeedStatut::ProfilsRecherches,
+        NeedStatut::ProfilsEnvoyes,
+        NeedStatut::EntretienPrevu,
+        NeedStatut::CandidatRetenu,
+        NeedStatut::Pourvu,
+    ];
+
+    /** Empêche la ré-entrance : clôturer un besoin modifie ses matchings. */
+    private static bool $synchronisationEnCours = false;
+
+    /**
+     * Statut que l'activité réelle des candidats justifie, aujourd'hui.
+     *
+     * Le besoin est pourvu quand TOUS les postes le sont : une offre à 2 postes
+     * dont un seul candidat est accepté continue de recruter.
+     */
+    public function statutJustifieParLesMatchings(): NeedStatut
+    {
+        // pluck() sur une relation applique les casts : on récupère des instances
+        // de MatchingStatut, pas des chaînes. Comparer à `->value` ne matcherait
+        // jamais (contrairement aux ->where(...) du reste du code, qui portent,
+        // eux, sur la colonne brute).
+        $statuts = $this->matchings()->pluck('statut');
+
+        $acceptes = $statuts->filter(fn (MatchingStatut $s): bool => $s === MatchingStatut::Accepte)->count();
+
+        return match (true) {
+            $acceptes > 0 && $acceptes >= (int) $this->nb_postes => NeedStatut::Pourvu,
+            $acceptes > 0 => NeedStatut::CandidatRetenu,
+            $statuts->contains(MatchingStatut::EntretienEntreprise) => NeedStatut::EntretienPrevu,
+            $statuts->contains(MatchingStatut::PropositionEnvoyee) => NeedStatut::ProfilsEnvoyes,
+            $statuts->contains(MatchingStatut::EnRecherche) => NeedStatut::ProfilsRecherches,
+            default => NeedStatut::Cree,
+        };
+    }
+
+    /**
+     * Aligne le statut du besoin sur l'activité réelle des candidats — appelé à
+     * chaque évolution d'un matching (cf. Matching::booted).
+     *
+     * Personne ne tenait ces statuts à jour à la main : ils restaient figés sur
+     * « Créé » et la colonne ne voulait plus rien dire. Le besoin traverse ici
+     * les étapes une à une, en passant par transitionTo() : les garde-fous, la
+     * clôture automatique et l'historique d'activité s'appliquent normalement.
+     *
+     * Un besoin clos (pourvu, annulé, archivé) n'est jamais rouvert, et on ne
+     * revient jamais en arrière.
+     */
+    public function synchroniserDepuisMatchings(): void
+    {
+        if (self::$synchronisationEnCours || $this->estCloture()) {
+            return;
+        }
+
+        $cible = $this->statutJustifieParLesMatchings();
+
+        $rang = fn (NeedStatut $s): int|false => array_search($s, self::PROGRESSION, true);
+        $depuis = $rang($this->statut);
+
+        // Statut hors trajectoire nominale (annulé…) ou déjà au-delà : on ne touche à rien.
+        if ($depuis === false || $rang($cible) === false || $rang($cible) <= $depuis) {
+            return;
+        }
+
+        self::$synchronisationEnCours = true;
+
+        try {
+            // Les transitions sont enchaînées pas à pas : la machine à états
+            // n'autorise pas les raccourcis (« Créé » ne mène pas directement à
+            // « Profils envoyés »), et chaque étape reste tracée.
+            foreach (array_slice(self::PROGRESSION, $depuis + 1, $rang($cible) - $depuis) as $etape) {
+                $this->transitionTo($etape, 'Mise à jour automatique depuis les candidats proposés.');
+            }
+        } finally {
+            self::$synchronisationEnCours = false;
+        }
+    }
+
+    /**
      * Clôt les propositions encore en cours (Proposé, CV envoyé, entretien,
      * attente retour) en « Abandonné » : le besoin étant pourvu, les autres
      * pistes sont abandonnées. Préserve les statuts terminaux et l'accepté.

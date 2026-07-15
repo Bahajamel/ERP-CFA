@@ -23,9 +23,20 @@ it('calcule les postes restants = demandés moins candidats acceptés', function
 it('ne renvoie jamais un nombre de postes restants négatif', function () {
     $need = Need::factory()->create(['statut' => NeedStatut::ProfilsEnvoyes, 'nb_postes' => 1]);
 
-    Matching::factory()->count(2)->for($need)->create(['statut' => MatchingStatut::Accepte]);
+    // Cet état est devenu inatteignable par la voie normale : le premier candidat
+    // accepté clôt l'offre (Need::synchroniserDepuisMatchings) et l'invariant
+    // refuse alors tout accepté supplémentaire. On force donc l'état en base,
+    // hors événements, pour éprouver le garde-fou de calcul lui-même.
+    Matching::factory()->count(2)->for($need)->make(['statut' => MatchingStatut::Accepte])
+        ->each(function (Matching $matching) use ($need): void {
+            // saveQuietly() neutralise aussi le rattachement automatique au CFA :
+            // sans organisation_id, la ligne serait invisible (cloisonnement).
+            $matching->organisation_id = $need->organisation_id;
+            $matching->saveQuietly();
+        });
 
-    expect($need->postesRestants())->toBe(0);
+    expect($need->postesRestants())->toBe(0)
+        ->and($need->refresh()->statut)->toBe(NeedStatut::ProfilsEnvoyes); // aucun événement ⇒ statut inchangé
 });
 
 it('le scope ouverts exclut les besoins clôturés', function () {

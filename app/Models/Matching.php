@@ -59,6 +59,7 @@ class Matching extends Model implements HasMedia
     /** Statut terminal de refus (motif obligatoire à la transition). */
     private const REFUS = [MatchingStatut::Refuse];
 
+
     /**
      * Journalise les évolutions du matching (activity log) — traçabilité commerciale
      * et audit. Seuls les champs métier significatifs sont suivis.
@@ -167,6 +168,14 @@ class Matching extends Model implements HasMedia
                 );
             }
         });
+
+        // Le besoin suit l'activité de ses candidats (proposition envoyée,
+        // entretien entreprise, candidat accepté, tous postes pourvus) : son
+        // statut n'est plus saisi à la main. `saved` couvre création et
+        // changement de statut ; un matching « en recherche d'entreprise » n'a
+        // pas encore de besoin (need_id nul), il n'y a alors rien à aligner.
+        static::saved(fn (self $matching) => $matching->need?->synchroniserDepuisMatchings());
+        static::deleted(fn (self $matching) => $matching->need?->synchroniserDepuisMatchings());
     }
 
     /**
