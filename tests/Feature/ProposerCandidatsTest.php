@@ -47,6 +47,7 @@ function besoinAvecCandidat(): array
     $candidate = Candidate::factory()->create([
         'formation_visee_id' => $formation->id,
         'statut' => CandidateStatut::Accepte->value,
+        'cv_consentement' => true, // RGPD : consentement donné (sinon non proposable)
     ]);
 
     return [$need, $candidate];
@@ -111,6 +112,35 @@ it('envoie la proposition par email au contact (RH) de l\'entreprise', function 
         ->call('valider');
 
     Mail::assertSent(PropositionCandidats::class, fn (PropositionCandidats $mail): bool => $mail->hasTo('rh@restaurant-alpha.test'));
+});
+
+it('ne propose pas un candidat sans consentement CV (RGPD)', function () {
+    [$need] = besoinAvecCandidat();
+    $sansConsentement = Candidate::factory()->create([
+        'formation_visee_id' => $need->formation_id,
+        'statut' => CandidateStatut::Accepte->value,
+        'cv_consentement' => false,
+    ]);
+
+    // Même en forçant la sélection, le service refuse de le proposer.
+    Livewire::test(ProposerCandidatsModal::class, ['needId' => $need->id])
+        ->set('selection', [$sansConsentement->id])
+        ->set('dateRelance', now()->addDays(5)->format('Y-m-d'))
+        ->set('responsableId', $this->user->id)
+        ->call('valider');
+
+    expect(Matching::where('candidate_id', $sansConsentement->id)->exists())->toBeFalse();
+});
+
+it('horodate le consentement CV quand il est donné, l\'efface quand il est retiré', function () {
+    $c = Candidate::factory()->create(['cv_consentement' => false]);
+    expect($c->cv_consentement_at)->toBeNull();
+
+    $c->update(['cv_consentement' => true]);
+    expect($c->fresh()->cv_consentement_at)->not->toBeNull();
+
+    $c->update(['cv_consentement' => false]);
+    expect($c->fresh()->cv_consentement_at)->toBeNull();
 });
 
 it('n\'envoie pas d\'email pour un brouillon', function () {

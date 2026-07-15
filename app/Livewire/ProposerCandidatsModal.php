@@ -82,6 +82,7 @@ class ProposerCandidatsModal extends Component
                     'mobilite' => $c->mobilite ?: '—',
                     'disponibilite' => $c->disponibilite ?: '—',
                     'cvDispo' => $cvDispo,
+                    'consent' => (bool) $c->cv_consentement,
                     'score' => (int) $row['score'],
                     'pointFort' => $c->niveau_actuel ?: $row['explication'],
                 ];
@@ -123,9 +124,21 @@ class ProposerCandidatsModal extends Component
     {
         if (in_array($id, $this->selection, true)) {
             $this->selection = array_values(array_diff($this->selection, [$id]));
-        } else {
-            $this->selection[] = $id;
+
+            return;
         }
+
+        // Blocage RGPD : un candidat sans consentement ne peut pas être sélectionné.
+        if (! \App\Models\Candidate::whereKey($id)->value('cv_consentement')) {
+            Notification::make()->warning()
+                ->title('Consentement requis')
+                ->body('Ce candidat n\'a pas autorisé la transmission de son CV. Recueillez son accord sur sa fiche.')
+                ->send();
+
+            return;
+        }
+
+        $this->selection[] = $id;
     }
 
     public function chargerPlus(): void

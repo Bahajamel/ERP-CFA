@@ -42,7 +42,8 @@ class PropositionService
 
             $candidate = Candidate::find($candidateId);
 
-            if ($candidate === null) {
+            // Sans consentement RGPD, un candidat n'est jamais proposé (garde-fou serveur).
+            if ($candidate === null || ! $candidate->cv_consentement) {
                 continue;
             }
 

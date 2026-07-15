@@ -70,6 +70,10 @@
         .dark .pc-facts { color: #cbd5e1; }
         .pc-facts b { color: #334155; font-weight: 600; } .dark .pc-facts b { color: #e2e8f0; }
         .pc-ok { color: #16a34a; } .pc-warn { color: #ea580c; }
+        .pc-consent-warn { color: #b45309; font-weight: 600; }
+        .dark .pc-consent-warn { color: #fdba74; }
+        .pc-cand.is-bloque { opacity: .72; background: #fffbeb; border-color: #fde68a; }
+        .dark .pc-cand.is-bloque { background: rgba(180,83,9,.1); border-color: rgba(180,83,9,.4); }
 
         /* Donut score */
         .pc-donut { position: relative; width: 3.4rem; height: 3.4rem; border-radius: 50%; display: grid; place-items: center;
@@ -164,8 +168,8 @@
                 <div class="pc-cands">
                     @forelse ($this->candidats as $c)
                         @php [$col, $lbl] = $scoreMeta($c['score']); $sel = in_array($c['id'], $selection, true); @endphp
-                        <div class="pc-cand {{ $sel ? 'is-sel' : '' }}" wire:key="cand-{{ $c['id'] }}">
-                            <input type="checkbox" class="pc-check" @checked($sel) wire:click="toggle({{ $c['id'] }})">
+                        <div class="pc-cand {{ $sel ? 'is-sel' : '' }} {{ $c['consent'] ? '' : 'is-bloque' }}" wire:key="cand-{{ $c['id'] }}">
+                            <input type="checkbox" class="pc-check" @checked($sel) @disabled(! $c['consent']) wire:click="toggle({{ $c['id'] }})">
                             <div class="pc-id">
                                 <span class="pc-avatar">{{ $c['initiales'] }}</span>
                                 <div>
@@ -178,6 +182,9 @@
                                 <span><b>Mobilité</b> · {{ $c['mobilite'] }}</span>
                                 <span><b>Dispo</b> · {{ $c['disponibilite'] }}</span>
                                 <span class="{{ $c['cvDispo'] ? 'pc-ok' : 'pc-warn' }}"><b>CV</b> · {{ $c['cvDispo'] ? 'Disponible' : 'Non disponible' }}</span>
+                                @unless ($c['consent'])
+                                    <span class="pc-consent-warn">⚠ CV non autorisé — accord requis sur sa fiche</span>
+                                @endunless
                             </div>
                             <div style="text-align:center">
                                 <div class="pc-donut" style="--v: {{ $c['score'] }}; --col: {{ $col }}"><span>{{ $c['score'] }}%</span></div>
@@ -188,9 +195,13 @@
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
                                     Voir fiche
                                 </a>
-                                <button type="button" class="pc-btn {{ $sel ? 'pc-btn--sel' : '' }}" wire:click="toggle({{ $c['id'] }})">
-                                    @if ($sel) ✓ Sélectionné @else + Sélectionner @endif
-                                </button>
+                                @if (! $c['consent'])
+                                    <span class="pc-btn" style="opacity:.5;cursor:not-allowed">⚠ CV non autorisé</span>
+                                @else
+                                    <button type="button" class="pc-btn {{ $sel ? 'pc-btn--sel' : '' }}" wire:click="toggle({{ $c['id'] }})">
+                                        @if ($sel) ✓ Sélectionné @else + Sélectionner @endif
+                                    </button>
+                                @endif
                             </div>
                         </div>
                     @empty
