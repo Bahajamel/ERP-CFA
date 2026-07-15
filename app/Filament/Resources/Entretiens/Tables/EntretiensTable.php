@@ -11,6 +11,7 @@ use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -64,6 +65,15 @@ class EntretiensTable
                     ->query(fn (Builder $query): Builder => $query
                         ->whereDate('date_entretien', '>=', now()->toDateString())
                         ->whereIn('statut', [EntretienStatut::Planifie->value, EntretienStatut::APlanifier->value])),
+            ])
+            // Listes déroulantes toujours visibles en barre au-dessus du tableau
+            // (au lieu du menu déroulant « Filtres »), comme Candidats et Entreprises.
+            // Filtres instantanés (sans bouton « Appliquer ») pour une barre compacte.
+            ->filtersLayout(FiltersLayout::AboveContent)
+            ->deferFilters(false)
+            ->filtersFormColumns([
+                'sm' => 2,
+                'lg' => 3,
             ])
             ->recordActions([
                 EntretienActions::planifier(),
