@@ -105,7 +105,9 @@ class CandidatesTable
                 // candidat accepté cherche encore une entreprise ou attend son
                 // admission.
                 SelectFilter::make('etape')
-                    ->label('Où en est le candidat')
+                    // Même nom que la colonne qu'il filtre : on cherche « Progression »
+                    // dans la barre parce qu'on la voit dans le tableau.
+                    ->label('Progression')
                     ->options(Candidate::etapesProgression())
                     ->query(fn (Builder $query, array $data): Builder => filled($data['value'] ?? null)
                         ? $query->aEtape($data['value'])

@@ -12,7 +12,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 uses(RefreshDatabase::class);
 
 /**
- * Filtre « Où en est le candidat » + colonne Progression.
+ * Filtre « Progression » + colonne du même nom.
  *
  * Le filtre est le miroir SQL de progressionEtapes() : les deux doivent rester
  * d'accord. Un filtre qui contredirait les points affichés serait pire que pas

@@ -394,7 +394,7 @@ class Candidate extends Model implements HasMedia
     /**
      * Étapes de progression du candidat, chacune avec son état
      * (done / current / todo / refuse). Alimente la colonne « Progression » de la
-     * liste et le filtre « Où en est le candidat » ({@see scopeAEtape}).
+     * liste et le filtre « Progression » ({@see scopeAEtape}).
      *
      * ⚠️ LIMITE CONNUE (constatée le 2026-07-15, non corrigée — décision
      * utilisateur) : ces 5 étapes ne connaissent NI le contrat, NI l'OPCO, NI la
@@ -456,7 +456,7 @@ class Candidate extends Model implements HasMedia
     }
 
     /**
-     * Libellés des étapes du filtre « Où en est le candidat ? ».
+     * Libellés des étapes du filtre « Progression ».
      *
      * @return array<string, string>
      */
