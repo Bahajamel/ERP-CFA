@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Candidates\Schemas;
 
 use App\Models\Candidate;
+use App\Rules\TelephoneInternational;
 use App\Support\AdresseBan;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
@@ -47,7 +48,9 @@ class CandidateForm
                             TextInput::make('telephone')
                                 ->label('Téléphone')
                                 ->tel()
-                                ->placeholder('ex : 06 12 34 56 78')
+                                ->placeholder('ex : +33 6 12 34 56 78')
+                                ->helperText('Format international avec indicatif pays (+33…).')
+                                ->rule(new TelephoneInternational)
                                 ->requiredWithout('email')
                                 ->validationMessages(['required_without' => 'Renseignez au moins un email ou un téléphone.']),
                             DatePicker::make('date_naissance')

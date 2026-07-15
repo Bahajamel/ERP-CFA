@@ -8,6 +8,7 @@ use App\Enums\DocumentStatut;
 use App\Enums\DocumentType;
 use App\Models\Candidate;
 use App\Models\Formation;
+use App\Rules\TelephoneInternational;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -141,7 +142,7 @@ class CandidatureController extends Controller
             'nom' => array_merge(['required', 'string', 'max:100'], $nomHumain),
             'prenom' => array_merge(['required', 'string', 'max:100'], $nomHumain),
             'email' => ['required', 'email', 'max:255'],
-            'telephone' => ['required', 'string', 'max:30', 'regex:/^[0-9+\s().\-]{6,30}$/'],
+            'telephone' => ['required', 'string', 'max:30', new TelephoneInternational],
             'date_naissance' => ['required', 'date', 'before:today'],
             'adresse' => ['nullable', 'string', 'max:255'],
             'formation_visee_id' => ['required', 'integer', 'exists:formations,id'],
@@ -152,7 +153,6 @@ class CandidatureController extends Controller
         ], [
             'nom.regex' => 'Le nom ne peut contenir que des lettres, espaces, apostrophes et tirets.',
             'prenom.regex' => 'Le prénom ne peut contenir que des lettres, espaces, apostrophes et tirets.',
-            'telephone.regex' => 'Le numéro de téléphone est invalide.',
         ], [
             'formation_visee_id' => 'formation visée',
             'piece_identite' => "pièce d'identité",

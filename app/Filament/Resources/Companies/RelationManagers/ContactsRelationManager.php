@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Companies\RelationManagers;
 
+use App\Rules\TelephoneInternational;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
@@ -35,7 +36,10 @@ class ContactsRelationManager extends RelationManager
                     ->email(),
                 TextInput::make('telephone')
                     ->label('Téléphone')
-                    ->tel(),
+                    ->tel()
+                    ->placeholder('ex : +33 6 12 34 56 78')
+                    ->helperText('Format international avec indicatif pays (+33…).')
+                    ->rule(new TelephoneInternational),
                 TextInput::make('fonction')
                     ->label('Fonction'),
                 Toggle::make('is_principal')

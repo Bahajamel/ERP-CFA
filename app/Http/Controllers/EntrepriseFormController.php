@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\CompanyStatut;
 use App\Models\Company;
 use App\Models\Opco;
+use App\Rules\TelephoneInternational;
 use App\Support\EntrepriseAnnuaire;
 use App\Support\OpcoDetector;
 use Illuminate\Http\JsonResponse;
@@ -91,14 +92,13 @@ class EntrepriseFormController extends Controller
             'contact_nom' => ['required', 'string', 'max:100', $nomHumain],
             'contact_prenom' => ['nullable', 'string', 'max:100', $nomHumain],
             'contact_email' => ['nullable', 'email', 'max:255', 'required_without:contact_telephone'],
-            'contact_telephone' => ['nullable', 'string', 'max:30', 'regex:/^[0-9+\s().\-]{6,30}$/', 'required_without:contact_email'],
+            'contact_telephone' => ['nullable', 'string', 'max:30', new TelephoneInternational, 'required_without:contact_email'],
             'contact_fonction' => ['nullable', 'string', 'max:100'],
         ], [
             'required_without' => 'Renseignez au moins un email ou un téléphone pour le contact.',
             'siret.unique' => 'Cette entreprise (SIRET) est déjà enregistrée.',
             'contact_nom.regex' => 'Le nom ne peut contenir que des lettres, espaces, apostrophes et tirets.',
             'contact_prenom.regex' => 'Le prénom ne peut contenir que des lettres, espaces, apostrophes et tirets.',
-            'contact_telephone.regex' => 'Le numéro de téléphone est invalide.',
         ]);
 
         DB::transaction(function () use ($data): void {
