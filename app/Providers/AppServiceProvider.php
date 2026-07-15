@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Signature\Contracts\SignatureProvider;
 use App\Signature\Providers\NullSignatureProvider;
 use App\Signature\Providers\SimulationSignatureProvider;
+use App\Signature\Providers\YousignSignatureProvider;
 use Filament\Events\TenantSet;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Support\Facades\Event;
@@ -23,6 +24,10 @@ class AppServiceProvider extends ServiceProvider
         // Un prestataire eIDAS réel s'ajoute ici en implémentant SignatureProvider.
         $this->app->bind(SignatureProvider::class, fn () => match (config('signature.driver')) {
             'simulation' => new SimulationSignatureProvider,
+            // Prestataire réel. Sans clé d'API, il se déclare inactif : basculer
+            // SIGNATURE_DRIVER=yousign sans abonnement ne casse rien, la signature
+            // électronique est simplement indisponible.
+            'yousign' => $this->app->make(YousignSignatureProvider::class),
             default => new NullSignatureProvider,
         });
     }
