@@ -44,6 +44,7 @@ use App\Models\User;
 use App\Services\SignatureService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 class DemoSeeder extends Seeder
 {
@@ -432,6 +433,39 @@ class DemoSeeder extends Seeder
         ]);
 
         $this->facturer($admin);
+        $this->doterContratsSignes($admin);
+    }
+
+    /**
+     * Dote chaque contrat marqué « signé » de son contrat signé en GED.
+     *
+     * Sans cela, la démo affirmait qu'un contrat était signé sans la moindre
+     * pièce au dossier — Yanis Moreau, contrat « complet / signé », zéro
+     * document. L'application interdit d'ailleurs de marquer un contrat signé
+     * sans preuve (« un document contractuel est requis ») : le seeder écrivait
+     * le statut directement et contournait la règle.
+     */
+    private function doterContratsSignes(User $admin): void
+    {
+        Contract::query()
+            ->where('statut_signature', ContractSignatureStatut::Signe->value)
+            ->each(function (Contract $contract) use ($admin): void {
+                $document = $contract->documents()->firstOrCreate(
+                    ['type' => DocumentType::Contrat->value],
+                    [
+                        'statut' => DocumentStatut::Recu->value,
+                        'source' => DocumentSource::Manuel->value,
+                        'nom_fichier' => 'Contrat signé — '.($contract->candidate?->nom_complet ?? "contrat {$contract->id}"),
+                        'uploaded_by' => $admin->id,
+                    ],
+                );
+
+                if ($document->getFirstMedia('fichier') === null) {
+                    $document->addMediaFromString(self::pdfDemo())
+                        ->usingFileName('contrat-signe-'.$contract->id.'.pdf')
+                        ->toMediaCollection('fichier');
+                }
+            });
     }
 
     /**
@@ -546,7 +580,7 @@ class DemoSeeder extends Seeder
     private function doterPiecesCandidature(Candidate $candidate): void
     {
         foreach (Candidate::piecesAttendues() as $type) {
-            $candidate->documents()->firstOrCreate(
+            $document = $candidate->documents()->firstOrCreate(
                 ['type' => $type->value],
                 [
                     'statut' => DocumentStatut::Recu->value,
@@ -554,7 +588,22 @@ class DemoSeeder extends Seeder
                     'nom_fichier' => $type->getLabel(),
                 ],
             );
+
+            // Un fichier réel, sinon la pièce ment : elle s'annonce « reçue » et
+            // ne s'ouvre pas. La GED entière était creuse — 183 documents, aucun
+            // fichier — et l'utilisateur cliquait dans le vide.
+            if ($document->getFirstMedia('fichier') === null) {
+                $document->addMediaFromString(self::pdfDemo())
+                    ->usingFileName(Str::slug($type->getLabel()).'_'.$candidate->id.'.pdf')
+                    ->toMediaCollection('fichier');
+            }
         }
+    }
+
+    /** PDF minimal valide — défini une seule fois, dans la factory. */
+    private static function pdfDemo(): string
+    {
+        return \Database\Factories\CandidateFactory::pdfDemo();
     }
 
     /** Attache un CV de démonstration (PDF minimal valide) au candidat. */
