@@ -2,8 +2,15 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Auth\Login;
 use App\Filament\Pages\Auth\EditProfile;
 use App\Filament\Pages\Dashboard;
+use App\Filament\Resources\Candidates\Pages\CreateCandidate;
+use App\Filament\Resources\Candidates\Pages\EditCandidate;
+use App\Filament\Resources\Candidates\Pages\ViewCandidate;
+use App\Filament\Resources\Companies\Pages\CreateCompany;
+use App\Filament\Resources\Companies\Pages\EditCompany;
+use App\Filament\Resources\Companies\Pages\ViewCompany;
 use Filament\Auth\MultiFactor\App\AppAuthentication;
 use Filament\Enums\ThemeMode;
 use Filament\Http\Middleware\Authenticate;
@@ -46,7 +53,7 @@ class AdminPanelProvider extends PanelProvider
             ->globalSearchKeyBindings(['mod+k'])
             // Page de connexion premium « Meridian CFA » (écran divisé) — la logique
             // d'auth reste celle de Filament, seule la vue est personnalisée.
-            ->login(\App\Filament\Auth\Login::class)
+            ->login(Login::class)
             // Page profil enrichie : photo de profil + double authentification.
             ->profile(EditProfile::class, isSimple: false)
             // Double authentification par application (TOTP) avec codes de secours.
@@ -100,6 +107,22 @@ class AdminPanelProvider extends PanelProvider
             ->renderHook(
                 PanelsRenderHook::USER_MENU_BEFORE,
                 fn (): string => auth()->check() ? view('filament.user-identity')->render() : '',
+            )
+            // Flèche « Retour à la liste » : uniquement sur les sous-pages des
+            // ressources Candidat & Entreprise (Créer / Modifier / Voir), pas sur
+            // les listes ni le reste du logiciel. Scopée aux classes de pages
+            // concernées ; CONTENT_START couvre aussi leurs vues custom (premium).
+            ->renderHook(
+                PanelsRenderHook::CONTENT_START,
+                fn (): string => auth()->check() ? view('filament.back-button')->render() : '',
+                scopes: [
+                    CreateCandidate::class,
+                    EditCandidate::class,
+                    ViewCandidate::class,
+                    CreateCompany::class,
+                    EditCompany::class,
+                    ViewCompany::class,
+                ],
             )
             // Assistant d'aide « Demander à l'IA » : bouton flottant sur toutes les pages.
             ->renderHook(
