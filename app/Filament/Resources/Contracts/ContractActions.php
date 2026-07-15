@@ -265,6 +265,173 @@ class ContractActions
             });
     }
 
+    /**
+     * Envoyer le CERFA et la convention aux parties, pour signature manuscrite.
+     *
+     * Circuit retenu à la place d'un prestataire de signature électronique, dont
+     * l'abonnement API ne se justifie pas au volume du CFA : on envoie, la partie
+     * imprime, signe, scanne et renvoie ; le scan est déposé via
+     * {@see deposerDocumentsSignes()}, qui clôt le contrat.
+     *
+     * Les documents sont aussi enregistrés en GED au passage : on garde trace de
+     * ce qui a été envoyé, exactement.
+     */
+    public static function envoyerDocumentsASigner(): Action
+    {
+        return Action::make('envoyerDocumentsASigner')
+            ->label('Envoyer à signer')
+            ->icon(Heroicon::OutlinedPaperAirplane)
+            ->color('primary')
+            ->visible(fn (Contract $record): bool => (auth()->user()?->can('access_contracts') ?? false)
+                && $record->statut_signature !== ContractSignatureStatut::Signe)
+            ->modalHeading('Envoyer le contrat à signer')
+            ->modalDescription('Le CERFA et la convention seront joints au message. Les destinataires impriment, signent, scannent et renvoient les documents.')
+            ->modalSubmitActionLabel('Envoyer')
+            ->fillForm(fn (Contract $record): array => [
+                'destinataires' => array_values(array_filter([
+                    $record->candidate?->email,
+                    $record->tuteur?->email ?? $record->company?->contactPrincipal->first()?->email,
+                ])),
+            ])
+            ->schema([
+                Select::make('destinataires')
+                    ->label('Destinataires')
+                    ->multiple()
+                    ->required()
+                    ->options(fn (Contract $record): array => collect([
+                        $record->candidate?->email => 'Apprenti — '.($record->candidate?->nom_complet ?? ''),
+                        $record->tuteur?->email => 'Tuteur — '.($record->tuteur?->nom_complet ?? ''),
+                        // ⚠️ contactPrincipal() est un HasMany malgré son nom au
+                        // singulier : il renvoie une collection, pas un contact.
+                        $record->company?->contactPrincipal->first()?->email => 'Contact entreprise — '.($record->company?->contactPrincipal->first()?->nom_complet ?? ''),
+                    ])->filter(fn ($libelle, $email): bool => filled($email))->all())
+                    ->helperText('Pré-rempli depuis le dossier. Ajoutez ou retirez librement.'),
+                \Filament\Forms\Components\Textarea::make('message')
+                    ->label('Message d\'accompagnement (optionnel)')
+                    ->rows(3)
+                    ->placeholder('ex : merci de nous retourner les documents signés avant le 30 du mois.'),
+            ])
+            ->action(function (Contract $record, array $data): void {
+                $service = app(ContractDocumentService::class);
+
+                // Bloquer sur un document incomplet vaut mieux qu'envoyer un CERFA
+                // troué à un employeur : il faudrait refaire tout le circuit
+                // (impression, signature, scan, retour). Une convention sans SIRET
+                // du CFA n'est de toute façon pas valable.
+                $manquantsCfa = $service->champsManquantsCfa();
+                $manquantsContrat = array_values(array_diff(
+                    array_unique(array_merge(
+                        $service->champsManquantsCerfa($record),
+                        $service->champsManquantsConvention($record),
+                    )),
+                    $manquantsCfa,
+                ));
+
+                if ($manquantsCfa !== [] || $manquantsContrat !== []) {
+                    // On distingue ce qui se corrige dans le contrat de ce qui
+                    // relève des paramètres du CFA : sans ça, l'utilisateur cherche
+                    // le « SIRET du CFA » dans la fiche contrat, où il n'est pas.
+                    $body = collect([
+                        $manquantsContrat !== []
+                            ? 'Dans ce contrat : '.implode(', ', $manquantsContrat).'.'
+                            : null,
+                        $manquantsCfa !== []
+                            ? 'Dans Administration → Paramètres du CFA : '.implode(', ', $manquantsCfa).'.'
+                            : null,
+                    ])->filter()->implode(' ');
+
+                    Notification::make()
+                        ->danger()
+                        ->title('Envoi annulé — documents incomplets')
+                        ->body($body)
+                        ->persistent()
+                        ->send();
+
+                    return;
+                }
+
+                $pieces = [
+                    'CERFA_'.$record->id.'.pdf' => app(CerfaApprentissage::class)->pour($record),
+                    'Convention_'.$record->id.'.pdf' => app(\App\Documents\ConventionFormation::class)->pour($record),
+                ];
+
+                // Trace de ce qui part réellement.
+                $service->genererCerfa($record);
+                $service->genererConvention($record);
+
+                foreach ($data['destinataires'] as $email) {
+                    \Illuminate\Support\Facades\Mail::to($email)->send(
+                        new \App\Mail\DocumentsASigner($record, $pieces, $data['message'] ?? '')
+                    );
+                }
+
+                $record->forceFill([
+                    'statut_signature' => ContractSignatureStatut::Envoye->value,
+                ])->save();
+
+                Notification::make()
+                    ->success()
+                    ->title('Contrat envoyé à signer')
+                    ->body(count($data['destinataires']).' destinataire(s). Déposez les documents signés dès leur retour.')
+                    ->send();
+            });
+    }
+
+    /**
+     * Déposer les documents signés reçus en retour (scan ou photo) : ils entrent
+     * en GED comme pièce contractuelle et le contrat passe à « Signé ».
+     *
+     * C'est la contrepartie de {@see envoyerDocumentsASigner()} : sans dépôt, le
+     * contrat resterait indéfiniment « Envoyé ».
+     */
+    public static function deposerDocumentsSignes(): Action
+    {
+        return Action::make('deposerDocumentsSignes')
+            ->label('Déposer les documents signés')
+            ->icon(Heroicon::OutlinedArrowUpTray)
+            ->color('success')
+            ->visible(fn (Contract $record): bool => (auth()->user()?->can('access_contracts') ?? false)
+                && $record->statut_signature !== ContractSignatureStatut::Signe)
+            ->modalHeading('Documents signés reçus')
+            ->modalDescription('Déposez le contrat signé par toutes les parties (scan ou photo lisible). Le contrat passera à « Signé ».')
+            ->modalSubmitActionLabel('Enregistrer')
+            ->schema([
+                \Filament\Forms\Components\FileUpload::make('fichiers')
+                    ->label('Documents signés')
+                    ->multiple()
+                    ->required()
+                    ->acceptedFileTypes(['application/pdf', 'image/jpeg', 'image/png'])
+                    ->maxSize(10240)
+                    ->helperText('PDF, JPEG ou PNG — 10 Mo maximum par fichier.'),
+            ])
+            ->action(function (Contract $record, array $data): void {
+                foreach ($data['fichiers'] as $fichier) {
+                    $chemin = \Illuminate\Support\Facades\Storage::disk('local')->path($fichier);
+
+                    $document = $record->documents()->create([
+                        'type' => \App\Enums\DocumentType::Contrat->value,
+                        'nom_fichier' => 'Contrat signé — '.($record->candidate?->nom_complet ?? "contrat {$record->id}"),
+                        // « Reçu » : le document nous revient signé de l'extérieur.
+                        'statut' => \App\Enums\DocumentStatut::Recu->value,
+                        'source' => \App\Enums\DocumentSource::Manuel->value,
+                        'uploaded_by' => auth()->id(),
+                    ]);
+
+                    $document->addMedia($chemin)->toMediaCollection('fichier');
+                }
+
+                $record->forceFill([
+                    'statut_signature' => ContractSignatureStatut::Signe->value,
+                ])->save();
+
+                Notification::make()
+                    ->success()
+                    ->title('Contrat signé')
+                    ->body('Les documents signés sont archivés dans les pièces du contrat.')
+                    ->send();
+            });
+    }
+
     /** Télécharge le fichier d'un document généré (PDF), sans le supprimer. */
     private static function telecharger(\App\Models\Document $document): ?StreamedResponse
     {

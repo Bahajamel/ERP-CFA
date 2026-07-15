@@ -33,8 +33,13 @@ class EditContract extends EditRecord
                 ->icon(Heroicon::OutlinedDocumentDuplicate)
                 ->button()
                 ->color('primary'),
-            // Actions de signature regroupées (une seule est visible à la fois).
+            // Actions de signature. Le circuit courant est manuel : on envoie les
+            // documents, la partie les renvoie signés, on les dépose. La signature
+            // électronique reste disponible si un prestataire est configuré
+            // (envoyerSignature/simulerSignature s'effacent sinon).
             ActionGroup::make([
+                ContractActions::envoyerDocumentsASigner(),
+                ContractActions::deposerDocumentsSignes(),
                 ContractActions::signer(),
                 ContractActions::envoyerSignature(),
                 ContractActions::simulerSignature(),

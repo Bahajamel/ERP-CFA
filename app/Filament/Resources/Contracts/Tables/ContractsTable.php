@@ -76,6 +76,8 @@ class ContractsTable
                 ViewAction::make(),
                 EditAction::make(),
                 ActionGroup::make([
+                    ContractActions::envoyerDocumentsASigner(),
+                    ContractActions::deposerDocumentsSignes(),
                     ContractActions::signer(),
                     ContractActions::envoyerSignature(),
                     ContractActions::simulerSignature(),
