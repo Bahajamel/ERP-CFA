@@ -6,6 +6,7 @@ use App\Filament\Auth\Login;
 use App\Filament\Pages\Auth\EditProfile;
 use App\Filament\Pages\Dashboard;
 use App\Filament\Pages\Tenancy\ProfilCfa;
+use App\Http\Middleware\AuthenticateCfaPanel;
 use App\Models\Organisation;
 use Filament\Auth\MultiFactor\App\AppAuthentication;
 use Filament\Enums\ThemeMode;
@@ -139,8 +140,11 @@ class AdminPanelProvider extends PanelProvider
                 DisableBladeIconComponents::class,
                 DispatchServingFilamentEvent::class,
             ])
+            // Authenticate maison : oriente au lieu de murer (403) un compte qui
+            // n'a rien à faire ici — typiquement l'éditeur, connecté via la même
+            // session et sans CFA rattaché. Voir AuthenticateCfaPanel.
             ->authMiddleware([
-                Authenticate::class,
+                AuthenticateCfaPanel::class,
             ]);
     }
 }

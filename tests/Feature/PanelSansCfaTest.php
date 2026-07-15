@@ -37,6 +37,47 @@ it('garde l’accès au panneau CFA pour le personnel rattaché', function () {
     expect($membre->canAccessPanel(Filament::getPanel('admin')))->toBeTrue();
 });
 
+it('renvoie l’éditeur vers son panneau au lieu de le murer sur un 403', function () {
+    $this->seed(RolePermissionSeeder::class);
+
+    $editeur = User::factory()->create(['is_active' => true]);
+    $editeur->organisations()->detach();
+    $editeur->syncRoles([RolePermissionSeeder::ROLE_EDITEUR]);
+
+    // Les deux panneaux partagent la session : connecté sur /editeur, l'éditeur
+    // qui clique sur /admin doit être ramené chez lui, pas bloqué sans issue.
+    $this->actingAs($editeur)
+        ->get('/admin')
+        ->assertRedirect(Filament::getPanel('editeur')->getUrl());
+});
+
+it('renvoie un compte sans CFA vers la connexion, avec une explication', function () {
+    $this->seed(RolePermissionSeeder::class);
+
+    $orphelin = User::factory()->create(['is_active' => true]);
+    $orphelin->organisations()->detach();
+    $orphelin->syncRoles(['Administrateur']); // rôle métier, mais aucun CFA
+
+    $this->actingAs($orphelin)
+        ->get('/admin')
+        ->assertRedirect(Filament::getPanel('admin')->getLoginUrl());
+
+    // On le déconnecte : le laisser « connecté à rien » n'aurait aucun sens.
+    expect(auth()->check())->toBeFalse();
+});
+
+it('laisse entrer normalement le personnel rattaché', function () {
+    $this->seed(RolePermissionSeeder::class);
+
+    $membre = User::factory()->create(['is_active' => true]);
+    $membre->syncRoles(['Administrateur']);
+
+    // /admin redirige vers le CFA de l'utilisateur : c'est le parcours nominal.
+    $this->actingAs($membre)
+        ->get('/admin')
+        ->assertRedirect(Filament::getPanel('admin')->getUrl(tenant: Filament::getTenant()));
+});
+
 it('refuse le panneau CFA si le seul CFA du compte est suspendu', function () {
     $this->seed(RolePermissionSeeder::class);
 
