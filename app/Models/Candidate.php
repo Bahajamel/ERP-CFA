@@ -383,10 +383,19 @@ class Candidate extends Model implements HasMedia
     }
 
     /**
-     * Étapes de progression du candidat dans le cycle apprenant, chacune avec
-     * son état (done / current / todo / refuse). Alimente la timeline de la
-     * liste et le panneau Focus. Reflète le cycle réel (Candidature → Entretien
-     * → Accepté → Matching → Admission), pas un parcours théorique.
+     * Étapes de progression du candidat, chacune avec son état
+     * (done / current / todo / refuse). Alimente la colonne « Progression » de la
+     * liste et le filtre « Où en est le candidat » ({@see scopeAEtape}).
+     *
+     * ⚠️ LIMITE CONNUE (constatée le 2026-07-15, non corrigée — décision
+     * utilisateur) : ces 5 étapes ne connaissent NI le contrat, NI l'OPCO, NI la
+     * rupture. L'application porte donc deux définitions concurrentes du
+     * parcours — celle-ci, et la timeline à 7 étapes de
+     * {@see \App\Parcours\CycleApprenant::etapes()} (qui, elle, couvre contrat,
+     * OPCO et rupture). Les deux peuvent se contredire sur un même candidat :
+     * un apprenti dont le contrat a été rompu s'affiche ici « Matching », comme
+     * s'il cherchait encore une entreprise, faute d'étape le concernant.
+     * Correction envisagée : aligner cette colonne sur CycleApprenant::etapes().
      *
      * @return list<array{cle:string,label:string,court:string,etat:string}>
      */
