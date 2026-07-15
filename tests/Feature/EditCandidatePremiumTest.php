@@ -37,7 +37,7 @@ it('enregistre les modifications via le formulaire embarqué (save intact)', fun
             'nom' => 'Nouveau',
             'prenom' => 'Prénom',
             'email' => 'nouveau.prenom@exemple.fr',
-            'telephone' => '0612345678',
+            'telephone' => '+33612345678',
         ])
         ->call('save')
         ->assertHasNoFormErrors();
