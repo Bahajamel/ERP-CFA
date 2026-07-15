@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\Candidates;
 
-use App\Filament\RelationManagers\InteractionsRelationManager;
 use App\Filament\Resources\Candidates\Pages\CandidatesKanban;
 use App\Filament\Resources\Candidates\Pages\CreateCandidate;
 use App\Filament\Resources\Candidates\Pages\EditCandidate;
@@ -65,7 +64,6 @@ class CandidateResource extends Resource
     public static function getRelations(): array
     {
         return [
-            InteractionsRelationManager::class,
             DocumentsRelationManager::class,
         ];
     }
