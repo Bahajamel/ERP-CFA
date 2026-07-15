@@ -5,6 +5,7 @@ namespace App\Providers\Filament;
 use App\Filament\Auth\Login;
 use App\Filament\Pages\Auth\EditProfile;
 use App\Filament\Pages\Dashboard;
+use App\Filament\Pages\Tenancy\ProfilCfa;
 use App\Models\Organisation;
 use Filament\Auth\MultiFactor\App\AppAuthentication;
 use Filament\Enums\ThemeMode;
@@ -39,6 +40,10 @@ class AdminPanelProvider extends PanelProvider
             // automatiquement ; les resources de référence sont exclues via
             // $isScopedToTenant = false.
             ->tenant(Organisation::class, slugAttribute: 'slug', ownershipRelationship: 'organisation')
+            // Fiche du CFA courant (nom). Pas de ->tenantRegistration() ici :
+            // l'ouverture d'un CFA est un acte commercial, réservé au panneau
+            // /editeur — on ne s'inscrit pas soi-même comme CFA client.
+            ->tenantProfile(ProfilCfa::class)
             ->viteTheme('resources/css/filament/admin/theme.css')
             ->brandName('ERP CFA')
             ->brandLogo(fn () => view('filament.brand'))

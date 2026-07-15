@@ -32,6 +32,15 @@ class UsersTable
                     ->badge()
                     ->color('primary'),
 
+                // La liste est déjà limitée au CFA courant : cette colonne sert à
+                // repérer les comptes partagés avec un autre CFA (ex. un formateur
+                // intervenant sur deux centres), qu'une suppression impacterait.
+                TextColumn::make('organisations.nom')
+                    ->label('CFA')
+                    ->badge()
+                    ->color('gray')
+                    ->toggleable(isToggledHiddenByDefault: true),
+
                 IconColumn::make('is_active')
                     ->label('Actif')
                     ->boolean(),

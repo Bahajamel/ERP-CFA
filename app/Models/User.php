@@ -4,6 +4,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
+use Database\Seeders\RolePermissionSeeder;
 use Filament\Auth\MultiFactor\App\Contracts\HasAppAuthentication;
 use Filament\Auth\MultiFactor\App\Contracts\HasAppAuthenticationRecovery;
 use Filament\Models\Contracts\FilamentUser;
@@ -48,12 +49,24 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
     }
 
     /**
-     * Détermine si l'utilisateur peut accéder au panel d'administration.
-     * Règle : le compte doit être actif et porter au moins un rôle.
+     * Détermine si l'utilisateur peut accéder à un panneau donné.
+     *
+     * - `editeur` : réservé à l'exploitant de la solution (création/suspension des
+     *   CFA). Exige la permission dédiée — un administrateur de CFA, même avec tous
+     *   les modules, n'y a pas accès.
+     * - `admin` (panneau CFA) : compte actif portant au moins un rôle.
      */
     public function canAccessPanel(Panel $panel): bool
     {
-        return $this->is_active && $this->roles()->exists();
+        if (! $this->is_active) {
+            return false;
+        }
+
+        if ($panel->getId() === 'editeur') {
+            return $this->can(RolePermissionSeeder::PERMISSION_EDITEUR);
+        }
+
+        return $this->roles()->exists();
     }
 
     // --- Multi-tenant (Filament) : rattachement du personnel aux CFA ---

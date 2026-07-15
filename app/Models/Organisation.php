@@ -7,6 +7,7 @@ use Filament\Models\Contracts\HasName;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * Un CFA client de la plateforme (tenant Filament). Le CFA « maison » (V2S) est
@@ -41,6 +42,15 @@ class Organisation extends Model implements HasName
     public function users(): BelongsToMany
     {
         return $this->belongsToMany(User::class);
+    }
+
+    /**
+     * Candidats du CFA. Sert au panneau éditeur (volumétrie par client) ; les
+     * autres entités métier restent accessibles via leur `organisation_id`.
+     */
+    public function candidates(): HasMany
+    {
+        return $this->hasMany(Candidate::class);
     }
 
     /**

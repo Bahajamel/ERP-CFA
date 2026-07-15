@@ -14,6 +14,11 @@ use Spatie\Permission\PermissionRegistrar;
  */
 class RolePermissionSeeder extends Seeder
 {
+    /** Rôle et permission de l'exploitant de la solution (panneau /editeur). */
+    public const ROLE_EDITEUR = 'Éditeur';
+
+    public const PERMISSION_EDITEUR = 'access_editeur';
+
     public function run(): void
     {
         app(PermissionRegistrar::class)->forgetCachedPermissions();
@@ -46,6 +51,14 @@ class RolePermissionSeeder extends Seeder
             $slugs = $modules === '*' ? $all : $modules;
             $role->syncPermissions(array_map(fn ($s) => Modules::permission($s), $slugs));
         }
+
+        // 4) Rôle « Éditeur » : nous, exploitant de la solution — hors matrice CFA.
+        // Volontairement absent de $matrix : « Administrateur » => '*' ne couvre que
+        // les modules, un administrateur de CFA n'hérite donc jamais de ce pouvoir.
+        // Seul ce rôle ouvre le panneau /editeur (création/suspension des CFA).
+        Permission::firstOrCreate(['name' => self::PERMISSION_EDITEUR]);
+        Role::firstOrCreate(['name' => self::ROLE_EDITEUR])
+            ->syncPermissions([self::PERMISSION_EDITEUR]);
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
     }

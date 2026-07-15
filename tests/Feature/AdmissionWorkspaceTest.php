@@ -26,7 +26,11 @@ function admissionStatut(Candidate $candidate, AdmissionStatut $statut = Admissi
 {
     $admission = new Admission(['statut' => $statut->value]);
     $admission->candidate_id = $candidate->id;
-    $admission->saveQuietly(); // évite l'invariant creating() (contrat requis)
+    // saveQuietly() évite l'invariant creating() (contrat requis), mais neutralise
+    // aussi le rattachement automatique au CFA courant : on le fixe donc à la main,
+    // sinon l'admission naît orpheline et reste invisible (cloisonnement par CFA).
+    $admission->organisation_id = $candidate->organisation_id;
+    $admission->saveQuietly();
 
     return $admission;
 }

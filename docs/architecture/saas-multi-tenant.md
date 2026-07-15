@@ -10,7 +10,64 @@
 
 ---
 
+## 0. ⚠️ État réel — lire ceci en premier
+
+**Le modèle « schéma-par-CFA / `stancl/tenancy` » décrit aux sections 1 à 5 n'a PAS été
+retenu.** Il s'est révélé trop lourd pour cette application (sessions/cache/queue en
+`database`, découpe de ~60 migrations, réécriture du socle de tests). `stancl` a été
+installé puis désinstallé. Les sections suivantes sont **conservées à titre de
+référence** pour le jour où un client exigerait une isolation physique.
+
+**Architecture réellement en place : multi-tenance Filament native** — base unique,
+colonne `organisation_id`, isolation logique. Une `Organisation` = un CFA ; notre CFA
+(V2S) est un tenant parmi d'autres.
+
+| Phase | Contenu | État |
+|---|---|---|
+| A | Modèle `Organisation`, pivot `organisation_user`, `User implements HasTenants` | ✅ |
+| B | `organisation_id` + trait `BelongsToOrganisation` sur 18 modèles métier (3 lots) | ✅ |
+| C | `->tenant(...)` activé, URLs `/admin/{slug}/…`, socle de tests | ✅ |
+| D | Isolation réelle, scoping des comptes, unicités par CFA, panneau éditeur | ✅ |
+
+### Ce que fait la phase D (et pourquoi)
+
+1. **`OrganisationScope` (global scope Eloquent)** — jusqu'ici le cloisonnement ne
+   venait que de l'ownership Filament, qui ne protège **que les Resources** : tout
+   service, job, commande ou widget requêtant Eloquent voyait **tous les CFA**. Le
+   scope déplace la barrière dans le modèle. Hors contexte CFA (job, commande,
+   panneau éditeur) il ne s'applique pas — c'est voulu. Échappatoire explicite :
+   `Model::query()->tousLesCfa()`.
+2. **Comptes cloisonnés** — `UserResource` n'est pas scopable par ownership (relation
+   many-to-many) : le filtrage est fait dans `getEloquentQuery()`, ce qui protège
+   aussi la résolution d'URL. Un compte créé depuis un CFA lui est rattaché
+   automatiquement (sans quoi il se connecte sans accès à aucun CFA).
+3. **Unicités par CFA** — `companies.siret` et `invoices.numero` étaient uniques
+   *globalement* : deux CFA ne pouvaient pas partager un employeur, ni numéroter
+   leurs factures librement. Index composites avec `organisation_id`.
+4. **Deux panneaux, deux audiences** — `/admin/{cfa}` (le personnel travaille dans son
+   centre) et `/editeur` (nous créons/suspendons les CFA clients). Le rôle `Éditeur`
+   est **hors matrice CFA** : `Administrateur => '*'` ouvre tous les modules mais
+   jamais le pouvoir éditeur. Un CFA se supprime jamais depuis l'UI — seulement se
+   suspend (réversible ; ses données incluent des pièces à NIR).
+5. **Tests d'isolation** — la suite tournait dans un CFA unique et ne prouvait donc
+   rien. `OrganisationIsolationTest` crée deux CFA et vérifie l'étanchéité réelle.
+
+### Points connus, non traités
+
+- `organisation_id` reste **nullable** (`nullOnDelete`). Une ligne à `organisation_id`
+  nul est invisible de tous les CFA. À resserrer en `NOT NULL` + `cascadeOnDelete`
+  le jour d'un vrai effacement RGPD par client.
+- **Formulaires publics** (candidature, entreprise) : ils fixent `organisation_id` via
+  `Organisation::defaut()` et s'exécutent sans CFA courant. En multi-CFA, il faudra
+  des **liens publics dédiés par CFA** portant l'organisation cible.
+- Pas de `->tenantRegistration()` : ouvrir un CFA est un acte commercial, il passe
+  par `/editeur`. Pas de facturation SaaS (`tenantBillingProvider`).
+
+---
+
 ## 1. Modèle de multi-tenance retenu : **schéma-par-CFA** (modèle B)
+
+> ⚠️ **Non retenu** — voir la section 0. Conservé pour référence.
 
 Un seul serveur PostgreSQL, **un schéma Postgres par CFA client**. Le CFA « central »
 (le nôtre) est un tenant comme les autres.

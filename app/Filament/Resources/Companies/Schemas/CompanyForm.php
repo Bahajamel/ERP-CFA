@@ -154,7 +154,11 @@ class CompanyForm
                                         $fail('Le SIRET doit comporter exactement 14 chiffres.');
                                     }
                                 })
-                                ->unique(ignoreRecord: true)
+                                // Unicité du SIRET *au sein du CFA* : un même employeur
+                                // travaille couramment avec plusieurs centres, chacun tenant
+                                // sa propre fiche. scopedUnique() requête via le modèle, donc
+                                // le cloisonnement par CFA (OrganisationScope) s'y applique.
+                                ->scopedUnique(ignoreRecord: true)
                                 // Détection automatique de l'OPCO dès qu'un SIRET valide est
                                 // saisi, puis contrôle de l'état administratif (F-09).
                                 ->afterStateUpdated(function (?string $state, Set $set, Get $get): void {
