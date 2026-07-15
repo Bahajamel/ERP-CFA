@@ -147,6 +147,15 @@ class ViewCandidate extends ViewRecord
                         ->label('Disponible à partir du')
                         ->date('d/m/Y')
                         ->placeholder('—'),
+                    TextEntry::make('cv_consentement')
+                        ->label('Consentement CV (RGPD)')
+                        ->state(fn (Candidate $record): string => $record->cv_consentement
+                            ? ($record->cv_consentement_at
+                                ? 'Autorisé le '.$record->cv_consentement_at->format('d/m/Y')
+                                : 'Autorisé')
+                            : 'Non autorisé')
+                        ->badge()
+                        ->color(fn (string $state): string => str_starts_with($state, 'Autorisé') ? 'success' : 'danger'),
                 ]),
 
             Section::make('Entretien de recrutement')

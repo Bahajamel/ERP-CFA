@@ -77,6 +77,17 @@
             </div>
         </fieldset>
 
+        {{-- Consentement RGPD à la transmission du CV aux entreprises partenaires. --}}
+        <label class="mb-4 flex items-start gap-3 rounded-xl bg-gray-50 p-3 ring-1 ring-gray-200">
+            <input type="checkbox" name="cv_consentement" value="1" @checked(old('cv_consentement'))
+                   class="mt-0.5 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+            <span class="text-sm text-gray-700">
+                J'accepte que mon CV et ma candidature soient transmis aux <strong>entreprises partenaires</strong>
+                du CFA dans le cadre de ma recherche d'alternance.
+                <span class="block text-xs text-gray-500">Vous pourrez retirer cet accord à tout moment en contactant le CFA.</span>
+            </span>
+        </label>
+
         <button type="submit"
             class="w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
             Envoyer ma candidature
