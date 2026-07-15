@@ -54,7 +54,14 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
      * - `editeur` : réservé à l'exploitant de la solution (création/suspension des
      *   CFA). Exige la permission dédiée — un administrateur de CFA, même avec tous
      *   les modules, n'y a pas accès.
-     * - `admin` (panneau CFA) : compte actif portant au moins un rôle.
+     * - `admin` (panneau CFA) : compte actif, portant au moins un rôle, et membre
+     *   d'au moins un CFA actif.
+     *
+     * La condition « membre d'un CFA » n'est pas cosmétique. Les deux panneaux
+     * partagent la même session : un compte éditeur (sans CFA, par nature)
+     * connecté sur /editeur puis arrivant sur /admin passait cette porte, et
+     * Filament terminait en abort(404) faute de CFA vers lequel rediriger —
+     * un 404 nu, sans explication. Mieux vaut refuser la porte que la casser.
      */
     public function canAccessPanel(Panel $panel): bool
     {
@@ -66,7 +73,8 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
             return $this->can(RolePermissionSeeder::PERMISSION_EDITEUR);
         }
 
-        return $this->roles()->exists();
+        return $this->roles()->exists()
+            && $this->organisations()->where('actif', true)->exists();
     }
 
     // --- Multi-tenant (Filament) : rattachement du personnel aux CFA ---
