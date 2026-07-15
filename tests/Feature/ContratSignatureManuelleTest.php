@@ -4,8 +4,10 @@ use App\Enums\ContractSignatureStatut;
 use App\Enums\DocumentType;
 use App\Filament\Resources\Contracts\Pages\EditContract;
 use App\Mail\DocumentsASigner;
-use App\Models\CfaProfile;
+use App\Models\Company;
+use App\Models\CompanyContact;
 use App\Models\Contract;
+use App\Models\Organisation;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -37,7 +39,7 @@ function contratEnvoyable(ContractSignatureStatut $statut = ContractSignatureSta
 {
     // Une convention sans SIRET ni représentant du CFA n'est pas valable :
     // l'action bloque tant que les paramètres du CFA ne sont pas renseignés.
-    CfaProfile::current()->update([
+    Organisation::courante()->update([
         'raison_sociale' => 'CFA V2S',
         'nom' => 'CFA V2S',
         'siret' => '11111111100011',
@@ -48,8 +50,8 @@ function contratEnvoyable(ContractSignatureStatut $statut = ContractSignatureSta
         'ville' => 'Paris',
     ]);
 
-    $company = \App\Models\Company::factory()->create();
-    $tuteur = \App\Models\CompanyContact::factory()->create([
+    $company = Company::factory()->create();
+    $tuteur = CompanyContact::factory()->create([
         'company_id' => $company->id,
         'is_tuteur' => true,
     ]);
@@ -149,7 +151,7 @@ it('refuse aussi tant que les paramètres du CFA sont incomplets', function () {
     // n'est pas valable. Le message doit envoyer l'utilisateur au bon endroit —
     // il chercherait sinon le « SIRET du CFA » dans la fiche contrat.
     $contract = contratEnvoyable();
-    CfaProfile::current()->update(['siret' => null]);
+    Organisation::courante()->update(['siret' => null]);
 
     Livewire::test(EditContract::class, ['record' => $contract->getRouteKey()])
         ->callAction('envoyerDocumentsASigner', ['destinataires' => [$contract->candidate->email]]);

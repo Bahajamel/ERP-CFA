@@ -3,25 +3,35 @@
 namespace App\Filament\Resources\Contracts;
 
 use App\Cerfa\CerfaApprentissage;
+use App\Documents\ConventionFormation;
 use App\Enums\ContractSignatureStatut;
 use App\Enums\ContractStatut;
+use App\Enums\DocumentSource;
+use App\Enums\DocumentStatut;
+use App\Enums\DocumentType;
 use App\Enums\SignatureRequestStatut;
 use App\Jobs\GenererLivrablesJob;
 use App\Livret\LivretRsClient;
-use App\Models\CfaProfile;
+use App\Mail\DocumentsASigner;
 use App\Models\Contract;
+use App\Models\Document;
+use App\Models\Organisation;
 use App\Services\ContractDocumentService;
 use App\Services\SignatureService;
 use App\StateMachine\InvalidTransitionException;
 use Filament\Actions\Action;
-use Symfony\Component\HttpFoundation\StreamedResponse;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Support\Icons\Heroicon;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 use RuntimeException;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Actions de workflow du contrat, pilotées par la machine à états
@@ -71,7 +81,7 @@ class ContractActions
                         'premium' => 'Premium graphique',
                         'sobre' => 'Sobre',
                     ])
-                    ->default(fn () => CfaProfile::current()->theme_defaut ?: 'institutionnel')
+                    ->default(fn () => Organisation::courante()->theme_defaut ?: 'institutionnel')
                     ->required(),
                 Select::make('format')
                     ->label('Format')
@@ -79,11 +89,11 @@ class ContractActions
                         'pdf' => 'PDF uniquement',
                         'pdf_docx' => 'PDF + DOCX (éditable)',
                     ])
-                    ->default(fn () => CfaProfile::current()->format_defaut ?: 'pdf')
+                    ->default(fn () => Organisation::courante()->format_defaut ?: 'pdf')
                     ->required(),
                 Toggle::make('verifier_rncp')
                     ->label('Vérifier le code RNCP en ligne')
-                    ->default(fn () => (bool) CfaProfile::current()->verifier_rncp),
+                    ->default(fn () => (bool) Organisation::courante()->verifier_rncp),
             ])
             ->action(function (Contract $record, array $data) {
                 // Génération en tâche de fond (~30 s) : on ne bloque pas la page.
@@ -213,7 +223,7 @@ class ContractActions
                 $pdf = app(CerfaApprentissage::class)->pour($record);
                 $nom = 'CERFA_'.str($record->candidate?->nom_complet ?? 'contrat_'.$record->id)->slug().'.pdf';
 
-                return response()->streamDownload(fn () => print($pdf), $nom, [
+                return response()->streamDownload(fn () => print ($pdf), $nom, [
                     'Content-Type' => 'application/pdf',
                 ]);
             });
@@ -306,7 +316,7 @@ class ContractActions
                         $record->company?->contactPrincipal->first()?->email => 'Contact entreprise — '.($record->company?->contactPrincipal->first()?->nom_complet ?? ''),
                     ])->filter(fn ($libelle, $email): bool => filled($email))->all())
                     ->helperText('Pré-rempli depuis le dossier. Ajoutez ou retirez librement.'),
-                \Filament\Forms\Components\Textarea::make('message')
+                Textarea::make('message')
                     ->label('Message d\'accompagnement (optionnel)')
                     ->rows(3)
                     ->placeholder('ex : merci de nous retourner les documents signés avant le 30 du mois.'),
@@ -336,7 +346,7 @@ class ContractActions
                             ? 'Dans ce contrat : '.implode(', ', $manquantsContrat).'.'
                             : null,
                         $manquantsCfa !== []
-                            ? 'Dans Administration → Paramètres du CFA : '.implode(', ', $manquantsCfa).'.'
+                            ? 'Dans la Fiche du CFA (menu du sélecteur de CFA) : '.implode(', ', $manquantsCfa).'.'
                             : null,
                     ])->filter()->implode(' ');
 
@@ -352,7 +362,7 @@ class ContractActions
 
                 $pieces = [
                     'CERFA_'.$record->id.'.pdf' => app(CerfaApprentissage::class)->pour($record),
-                    'Convention_'.$record->id.'.pdf' => app(\App\Documents\ConventionFormation::class)->pour($record),
+                    'Convention_'.$record->id.'.pdf' => app(ConventionFormation::class)->pour($record),
                 ];
 
                 // Trace de ce qui part réellement.
@@ -360,8 +370,8 @@ class ContractActions
                 $service->genererConvention($record);
 
                 foreach ($data['destinataires'] as $email) {
-                    \Illuminate\Support\Facades\Mail::to($email)->send(
-                        new \App\Mail\DocumentsASigner($record, $pieces, $data['message'] ?? '')
+                    Mail::to($email)->send(
+                        new DocumentsASigner($record, $pieces, $data['message'] ?? '')
                     );
                 }
 
@@ -396,7 +406,7 @@ class ContractActions
             ->modalDescription('Déposez le contrat signé par toutes les parties (scan ou photo lisible). Le contrat passera à « Signé ».')
             ->modalSubmitActionLabel('Enregistrer')
             ->schema([
-                \Filament\Forms\Components\FileUpload::make('fichiers')
+                FileUpload::make('fichiers')
                     ->label('Documents signés')
                     ->multiple()
                     ->required()
@@ -406,14 +416,14 @@ class ContractActions
             ])
             ->action(function (Contract $record, array $data): void {
                 foreach ($data['fichiers'] as $fichier) {
-                    $chemin = \Illuminate\Support\Facades\Storage::disk('local')->path($fichier);
+                    $chemin = Storage::disk('local')->path($fichier);
 
                     $document = $record->documents()->create([
-                        'type' => \App\Enums\DocumentType::Contrat->value,
+                        'type' => DocumentType::Contrat->value,
                         'nom_fichier' => 'Contrat signé — '.($record->candidate?->nom_complet ?? "contrat {$record->id}"),
                         // « Reçu » : le document nous revient signé de l'extérieur.
-                        'statut' => \App\Enums\DocumentStatut::Recu->value,
-                        'source' => \App\Enums\DocumentSource::Manuel->value,
+                        'statut' => DocumentStatut::Recu->value,
+                        'source' => DocumentSource::Manuel->value,
                         'uploaded_by' => auth()->id(),
                     ]);
 
@@ -433,7 +443,7 @@ class ContractActions
     }
 
     /** Télécharge le fichier d'un document généré (PDF), sans le supprimer. */
-    private static function telecharger(\App\Models\Document $document): ?StreamedResponse
+    private static function telecharger(Document $document): ?StreamedResponse
     {
         $media = $document->getFirstMedia('fichier');
 
@@ -442,7 +452,7 @@ class ContractActions
         }
 
         return response()->streamDownload(
-            fn () => print(file_get_contents($media->getPath())),
+            fn () => print (file_get_contents($media->getPath())),
             $media->file_name,
             ['Content-Type' => 'application/pdf'],
         );

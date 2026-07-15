@@ -7,8 +7,8 @@ use App\Enums\ContractStatut;
 use App\Enums\DocumentStatut;
 use App\Enums\DocumentType;
 use App\Enums\SignatureRequestStatut;
-use App\Models\CfaProfile;
 use App\Models\Contract;
+use App\Models\Organisation;
 use App\Models\SignatureRequest;
 use App\Signature\Contracts\SignatureProvider;
 use Illuminate\Support\Facades\DB;
@@ -27,13 +27,14 @@ class SignatureService
 {
     /** Rôles des signataires d'un contrat d'apprentissage. */
     public const ROLE_APPRENTI = 'apprenti';
+
     public const ROLE_REPRESENTANT = 'representant_legal';
+
     public const ROLE_EMPLOYEUR = 'employeur';
+
     public const ROLE_CFA = 'cfa';
 
-    public function __construct(private readonly SignatureProvider $provider)
-    {
-    }
+    public function __construct(private readonly SignatureProvider $provider) {}
 
     public function estActive(): bool
     {
@@ -72,7 +73,7 @@ class SignatureService
             $tuteur?->nom_complet ?: ($contract->company?->raison_sociale ?? 'Employeur'),
             $tuteur?->email, $ordre++);
 
-        $cfa = CfaProfile::current();
+        $cfa = Organisation::courante();
         $cfaNom = trim(($cfa->representant_prenom ?? '').' '.($cfa->representant_nom ?? '')) ?: $cfa->nom;
         $signataires[] = $this->ligne(self::ROLE_CFA, 'CFA', $cfaNom, $cfa->email, $ordre++);
 

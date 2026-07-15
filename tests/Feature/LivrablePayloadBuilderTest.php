@@ -2,18 +2,18 @@
 
 use App\Livret\LivrablePayloadBuilder;
 use App\Models\Candidate;
-use App\Models\CfaProfile;
 use App\Models\Company;
 use App\Models\CompanyContact;
 use App\Models\Contract;
 use App\Models\Formation;
+use App\Models\Organisation;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 
 uses(RefreshDatabase::class);
 
 it('construit un payload structuré complet depuis un contrat et le profil CFA', function () {
-    CfaProfile::current()->update([
+    Organisation::courante()->update([
         'nom' => 'CFA V2S',
         'representant_nom' => 'Martin',
         'representant_prenom' => 'Claire',
@@ -49,7 +49,7 @@ it('construit un payload structuré complet depuis un contrat et le profil CFA',
 
 it('inclut le logo du profil (base64) dans les assets du payload', function () {
     Storage::fake('public');
-    $profile = CfaProfile::current();
+    $profile = Organisation::courante();
     $profile->addMediaFromString('contenu-logo-png')->usingFileName('logo.png')->toMediaCollection('logo');
 
     $candidate = Candidate::factory()->create();

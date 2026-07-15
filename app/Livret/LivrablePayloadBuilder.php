@@ -2,8 +2,8 @@
 
 namespace App\Livret;
 
-use App\Models\CfaProfile;
 use App\Models\Contract;
+use App\Models\Organisation;
 use App\Support\LivrableMissionMap;
 use RuntimeException;
 
@@ -20,7 +20,7 @@ class LivrablePayloadBuilder
 {
     /**
      * @param  array{theme_code?: string, format?: string, verifier_rncp?: bool}  $options
-     *         Surcharges ponctuelles (au clic) des défauts du profil CFA.
+     *                                                                                      Surcharges ponctuelles (au clic) des défauts du profil CFA.
      */
     public function pour(Contract $contract, array $options = []): array
     {
@@ -33,7 +33,7 @@ class LivrablePayloadBuilder
         $company = $contract->company;
         $formation = $contract->formation;
         $tuteur = $contract->tuteur;
-        $profile = CfaProfile::current();
+        $profile = Organisation::courante();
 
         $dossier = self::sansVides([
             'apprenant' => self::sansVides([
@@ -88,7 +88,7 @@ class LivrablePayloadBuilder
     }
 
     /** Identité du CFA depuis le profil (singleton). */
-    private function cfa(CfaProfile $p): array
+    private function cfa(Organisation $p): array
     {
         return self::sansVides([
             'nom' => $p->nom ?: 'CFA',
@@ -113,7 +113,7 @@ class LivrablePayloadBuilder
     }
 
     /** Pièces graphiques encodées en base64 (logo, signature, cachet). */
-    private function assets(CfaProfile $p): array
+    private function assets(Organisation $p): array
     {
         $assets = [];
 

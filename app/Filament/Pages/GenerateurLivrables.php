@@ -4,12 +4,13 @@ namespace App\Filament\Pages;
 
 use App\Jobs\GenererLivrablesJob;
 use App\Livret\LivretRsClient;
-use App\Models\CfaProfile;
 use App\Models\Contract;
 use App\Models\Document;
+use App\Models\Organisation;
 use App\Models\User;
 use App\Support\SecureMedia;
 use Filament\Actions\Action;
+use Filament\Facades\Filament;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
@@ -61,7 +62,7 @@ class GenerateurLivrables extends Page implements HasSchemas, HasTable
 
     public function mount(): void
     {
-        $profile = CfaProfile::current();
+        $profile = Organisation::courante();
 
         $this->form->fill([
             'theme_code' => $profile->theme_defaut ?: 'institutionnel',
@@ -79,10 +80,10 @@ class GenerateurLivrables extends Page implements HasSchemas, HasTable
     {
         return [
             Action::make('parametresCfa')
-                ->label('Paramètres CFA')
+                ->label('Fiche du CFA')
                 ->icon(Heroicon::OutlinedBuildingLibrary)
                 ->color('gray')
-                ->url(ParametresCfa::getUrl()),
+                ->url(Filament::getTenantProfileUrl()),
         ];
     }
 
@@ -136,7 +137,7 @@ class GenerateurLivrables extends Page implements HasSchemas, HasTable
         if (! $this->serviceConfigure()) {
             Notification::make()
                 ->title('Service non configuré')
-                ->body('Renseignez LIVRETRS_URL, puis vérifiez les Paramètres CFA.')
+                ->body('Renseignez LIVRETRS_URL, puis vérifiez la Fiche du CFA.')
                 ->danger()
                 ->send();
 

@@ -2,8 +2,8 @@
 
 namespace App\Documents;
 
-use App\Models\CfaProfile;
 use App\Models\Contract;
+use App\Models\Organisation;
 use App\Support\RemunerationApprenti;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
@@ -47,13 +47,13 @@ class ConventionFormation
         $co = $contract->company;
         $tuteur = $contract->tuteur;
         $formation = $contract->formation ?? $cand?->formationVisee;
-        $cfa = CfaProfile::current();
+        $cfa = Organisation::courante();
         $principal = $co?->contactPrincipal()->first();
         $opco = $contract->opcoFile?->opco ?? $co?->opco;
 
         return [
             // ---- CFA / organisme de formation ----
-            'cfa_designation' => $cfa->raison_sociale ?: $cfa->nom,
+            'cfa_designation' => $cfa->designation(),
             'cfa_adresse' => $this->adresse($cfa->adresse, $cfa->code_postal, $cfa->ville),
             'cfa_siret' => $this->siret($cfa->siret),
             'cfa_uai' => $cfa->numero_uai,

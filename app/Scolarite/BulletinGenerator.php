@@ -5,8 +5,8 @@ namespace App\Scolarite;
 use App\Enums\DocumentStatut;
 use App\Enums\DocumentType;
 use App\Models\Candidate;
-use App\Models\CfaProfile;
 use App\Models\Document;
+use App\Models\Organisation;
 use Barryvdh\DomPDF\Facade\Pdf;
 
 /**
@@ -23,7 +23,7 @@ class BulletinGenerator
         $assiduite = $candidate->assiduite();
 
         return [
-            'cfa' => CfaProfile::current(),
+            'cfa' => Organisation::courante(),
             'apprenant' => $candidate,
             'classe' => $candidate->promotions->first(),
             'formation' => $candidate->formationVisee,

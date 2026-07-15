@@ -7,10 +7,10 @@ use App\Documents\ConventionFormation;
 use App\Enums\DocumentSource;
 use App\Enums\DocumentStatut;
 use App\Enums\DocumentType;
-use App\Filament\Pages\ParametresCfa;
-use App\Models\CfaProfile;
 use App\Models\Contract;
 use App\Models\Document;
+use App\Models\Organisation;
+use Filament\Facades\Filament;
 
 /**
  * « Tour de contrôle » documentaire du contrat d'apprentissage.
@@ -109,7 +109,7 @@ class ContractDocumentService
      */
     public function champsManquantsCfa(): array
     {
-        $cfa = CfaProfile::current();
+        $cfa = Organisation::courante();
 
         $manquants = [];
 
@@ -185,7 +185,7 @@ class ContractDocumentService
             'convention' => $convention,
             'cfa' => [
                 'manquants' => $manquantsCfa,
-                'url' => ParametresCfa::getUrl(),
+                'url' => Filament::getTenantProfileUrl(),
             ],
             'message' => $this->message($cerfa, $convention),
         ];
