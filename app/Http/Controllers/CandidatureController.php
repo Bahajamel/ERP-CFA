@@ -9,6 +9,7 @@ use App\Enums\DocumentType;
 use App\Models\Candidate;
 use App\Models\Formation;
 use App\Rules\TelephoneInternational;
+use App\Support\Indicatifs;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -130,7 +131,13 @@ class CandidatureController extends Controller
     /** @return array<string, mixed> */
     private function valider(Request $request): array
     {
-        $request->merge($this->assainir($request, ['nom', 'prenom', 'email', 'telephone', 'adresse']));
+        // Indicatif pays choisi + numéro → numéro international complet (validé
+        // ensuite). Non assaini : la règle rejette d'éventuelles balises.
+        $request->merge([
+            'telephone' => Indicatifs::combiner($request->input('telephone'), $request->input('indicatif_pays')),
+        ]);
+
+        $request->merge($this->assainir($request, ['nom', 'prenom', 'email', 'adresse']));
 
         // Lettres (accents compris), espaces, apostrophes, tirets — rien d'autre.
         $nomHumain = ['regex:/^[\p{L}\p{M}\s\'\’\-\.]+$/u'];

@@ -3,14 +3,19 @@
 namespace App\Filament\Resources\Companies\RelationManagers;
 
 use App\Rules\TelephoneInternational;
+use App\Support\Indicatifs;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Resources\RelationManagers\RelationManager;
+use Filament\Schemas\Components\Group;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
@@ -34,12 +39,30 @@ class ContactsRelationManager extends RelationManager
                 TextInput::make('email')
                     ->label('Adresse e-mail')
                     ->email(),
-                TextInput::make('telephone')
-                    ->label('Téléphone')
-                    ->tel()
-                    ->placeholder('ex : +33 6 12 34 56 78')
-                    ->helperText('Format international avec indicatif pays (+33…).')
-                    ->rule(new TelephoneInternational),
+                Group::make([
+                    Select::make('indicatif_pays')
+                        ->label('Pays')
+                        ->options(Indicatifs::options())
+                        ->default(Indicatifs::defaut())
+                        ->selectablePlaceholder(false)
+                        ->searchable()
+                        ->dehydrated(false)
+                        ->live()
+                        ->afterStateUpdated(fn ($state, Set $set, Get $get) => $set('telephone', Indicatifs::appliquer($get('telephone'), $state)))
+                        ->afterStateHydrated(function (Select $component, Get $get): void {
+                            if (filled($get('telephone'))) {
+                                $component->state(Indicatifs::detecter($get('telephone')));
+                            }
+                        })
+                        ->columnSpan(2),
+                    TextInput::make('telephone')
+                        ->label('Téléphone')
+                        ->tel()
+                        ->placeholder('ex : +33 6 12 34 56 78')
+                        ->helperText('Choisissez le pays puis saisissez le numéro.')
+                        ->rule(new TelephoneInternational)
+                        ->columnSpan(3),
+                ])->columns(5),
                 TextInput::make('fonction')
                     ->label('Fonction'),
                 Toggle::make('is_principal')

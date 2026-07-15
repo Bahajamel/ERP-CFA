@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Candidates\Schemas;
 use App\Models\Candidate;
 use App\Rules\TelephoneInternational;
 use App\Support\AdresseBan;
+use App\Support\Indicatifs;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
@@ -45,14 +46,32 @@ class CandidateForm
                                 ->placeholder('ex : marie.dupont@email.com')
                                 ->requiredWithout('telephone')
                                 ->validationMessages(['required_without' => 'Renseignez au moins un email ou un téléphone.']),
-                            TextInput::make('telephone')
-                                ->label('Téléphone')
-                                ->tel()
-                                ->placeholder('ex : +33 6 12 34 56 78')
-                                ->helperText('Format international avec indicatif pays (+33…).')
-                                ->rule(new TelephoneInternational)
-                                ->requiredWithout('email')
-                                ->validationMessages(['required_without' => 'Renseignez au moins un email ou un téléphone.']),
+                            Group::make([
+                                Select::make('indicatif_pays')
+                                    ->label('Pays')
+                                    ->options(Indicatifs::options())
+                                    ->default(Indicatifs::defaut())
+                                    ->selectablePlaceholder(false)
+                                    ->searchable()
+                                    ->dehydrated(false)
+                                    ->live()
+                                    ->afterStateUpdated(fn ($state, Set $set, Get $get) => $set('telephone', Indicatifs::appliquer($get('telephone'), $state)))
+                                    ->afterStateHydrated(function (Select $component, Get $get): void {
+                                        if (filled($get('telephone'))) {
+                                            $component->state(Indicatifs::detecter($get('telephone')));
+                                        }
+                                    })
+                                    ->columnSpan(2),
+                                TextInput::make('telephone')
+                                    ->label('Téléphone')
+                                    ->tel()
+                                    ->placeholder('ex : +33 6 12 34 56 78')
+                                    ->helperText('Choisissez le pays puis saisissez le numéro.')
+                                    ->rule(new TelephoneInternational)
+                                    ->requiredWithout('email')
+                                    ->validationMessages(['required_without' => 'Renseignez au moins un email ou un téléphone.'])
+                                    ->columnSpan(3),
+                            ])->columns(5)->columnSpanFull(),
                             DatePicker::make('date_naissance')
                                 ->label('Date de naissance')
                                 ->placeholder('ex : 15/03/2004')

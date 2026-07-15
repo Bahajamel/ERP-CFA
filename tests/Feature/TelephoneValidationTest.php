@@ -4,6 +4,7 @@ use App\Filament\Resources\Candidates\Pages\CreateCandidate;
 use App\Models\Formation;
 use App\Models\User;
 use App\Rules\TelephoneInternational;
+use App\Support\Indicatifs;
 use Database\Seeders\RolePermissionSeeder;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -60,13 +61,34 @@ it('bloque un téléphone sans indicatif à la création d\'un candidat (en-app)
         ->assertHasNoFormErrors();
 });
 
-it('bloque un téléphone sans indicatif sur le formulaire public de candidature', function () {
+it('combine l\'indicatif choisi avec le numéro national (formulaire public)', function () {
     Formation::factory()->create();
 
+    // Pays France + numéro national « 06… » → accepté (indicatif ajouté).
     $this->post(route('candidature.store'), [
-        'nom' => 'Martin',
-        'prenom' => 'Léa',
-        'email' => 'lea@example.test',
-        'telephone' => '0612345678',
+        'nom' => 'Martin', 'prenom' => 'Léa', 'email' => 'lea@example.test',
+        'indicatif_pays' => '+33', 'telephone' => '0612345678',
+    ])->assertSessionDoesntHaveErrors('telephone');
+
+    // Numéro réellement invalide (lettres) → rejeté même après combinaison.
+    $this->post(route('candidature.store'), [
+        'nom' => 'Martin', 'prenom' => 'Léa', 'email' => 'lea@example.test',
+        'indicatif_pays' => '+33', 'telephone' => 'abc',
     ])->assertSessionHasErrors('telephone');
+});
+
+it('combine, détecte et applique correctement les indicatifs (helper)', function () {
+    // Combinaison côté contrôleur.
+    expect(Indicatifs::combiner('0612345678', '+33'))->toBe('+33 612345678')
+        ->and(Indicatifs::combiner('+32 470 12 34 56', '+33'))->toBe('+32 470 12 34 56') // déjà international : conservé
+        ->and(Indicatifs::combiner('', '+33'))->toBe('');
+
+    // Détection de l'indicatif d'un numéro stocké (pour présélection en édition).
+    expect(Indicatifs::detecter('+32470123456'))->toBe('+32')
+        ->and(Indicatifs::detecter('+33612345678'))->toBe('+33')
+        ->and(Indicatifs::detecter(null))->toBe('+33');
+
+    // Application côté formulaire (préfixe le champ avec l'indicatif choisi).
+    expect(Indicatifs::appliquer('0612345678', '+33'))->toBe('+33 612345678')
+        ->and(Indicatifs::appliquer('+33 6 12', '+32'))->toBe('+32 612'); // change de pays
 });

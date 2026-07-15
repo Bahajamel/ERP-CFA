@@ -7,6 +7,7 @@ use App\Models\Company;
 use App\Models\Opco;
 use App\Rules\TelephoneInternational;
 use App\Support\EntrepriseAnnuaire;
+use App\Support\Indicatifs;
 use App\Support\OpcoDetector;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -61,12 +62,21 @@ class EntrepriseFormController extends Controller
             return redirect()->route('entreprise.merci');
         }
 
+        // Indicatif pays choisi + numéro → numéro international complet (validé
+        // ensuite). Non assaini ci-dessous : la règle rejette d'éventuelles balises.
+        $request->merge([
+            'contact_telephone' => Indicatifs::combiner(
+                $request->input('contact_telephone'),
+                $request->input('contact_indicatif'),
+            ),
+        ]);
+
         // Assainissement des champs texte (défense en profondeur anti-XSS) :
         // balises HTML retirées, espaces normalisés, valeurs non-texte ignorées.
         $request->merge(
             collect($request->only([
                 'raison_sociale', 'secteur', 'adresse',
-                'contact_nom', 'contact_prenom', 'contact_email', 'contact_telephone', 'contact_fonction',
+                'contact_nom', 'contact_prenom', 'contact_email', 'contact_fonction',
             ]))
                 ->map(function ($valeur) {
                     if (! is_string($valeur)) {
