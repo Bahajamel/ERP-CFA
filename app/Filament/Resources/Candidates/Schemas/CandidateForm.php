@@ -8,6 +8,7 @@ use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
@@ -100,6 +101,17 @@ class CandidateForm
                             DatePicker::make('date_disponibilite')
                                 ->label('Disponible à partir du')
                                 ->displayFormat('d/m/Y'),
+                        ]),
+
+                    Section::make('Consentement RGPD')
+                        ->icon('heroicon-o-shield-check')
+                        ->description('Sans cet accord, le candidat ne peut pas être proposé aux entreprises.')
+                        ->schema([
+                            Toggle::make('cv_consentement')
+                                ->label('CV autorisé pour candidatures')
+                                ->helperText(fn (?Candidate $record): string => $record?->cv_consentement_at
+                                    ? 'Consentement donné le '.$record->cv_consentement_at->format('d/m/Y')
+                                    : 'L\'apprenant accepte que son CV soit transmis aux entreprises partenaires.'),
                         ]),
                 ])->columnSpan(1),
 

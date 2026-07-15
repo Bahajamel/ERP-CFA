@@ -55,6 +55,8 @@ class Candidate extends Model implements HasMedia
         return [
             'date_naissance' => 'date',
             'date_disponibilite' => 'date',
+            'cv_consentement' => 'boolean',
+            'cv_consentement_at' => 'datetime',
             'statut' => CandidateStatut::class,
         ];
     }
@@ -172,6 +174,13 @@ class Candidate extends Model implements HasMedia
                 throw ValidationException::withMessages([
                     'email' => 'Un candidat doit avoir au moins un email ou un téléphone.',
                 ]);
+            }
+
+            // Horodate le consentement CV dès qu'il est donné, l'efface s'il est retiré.
+            if ($candidate->isDirty('cv_consentement')) {
+                $candidate->cv_consentement_at = $candidate->cv_consentement
+                    ? ($candidate->cv_consentement_at ?? now())
+                    : null;
             }
         });
 
@@ -569,7 +578,10 @@ class Candidate extends Model implements HasMedia
     /** Les classes (matières) suivies — toutes au sein de SA formation. */
     public function promotions(): BelongsToMany
     {
-        return $this->belongsToMany(Promotion::class)->withTimestamps();
+        return $this->belongsToMany(Promotion::class)
+            ->using(CandidatePromotion::class)
+            ->withPivot(['matieres', 'invitation_token', 'invited_at', 'responded_at'])
+            ->withTimestamps();
     }
 
     public function commercial(): BelongsTo

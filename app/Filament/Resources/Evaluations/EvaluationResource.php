@@ -2,18 +2,16 @@
 
 namespace App\Filament\Resources\Evaluations;
 
-use App\Filament\Resources\Evaluations\Pages\CreateEvaluation;
+use App\Filament\Pages\Notes;
 use App\Filament\Resources\Evaluations\Pages\EditEvaluation;
-use App\Filament\Resources\Evaluations\Pages\ListEvaluations;
 use App\Filament\Resources\Evaluations\Schemas\EvaluationForm;
-use App\Filament\Resources\Evaluations\Tables\EvaluationsTable;
 use App\Models\Evaluation;
 use App\Models\User;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
-use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 
 class EvaluationResource extends Resource
@@ -30,8 +28,9 @@ class EvaluationResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedClipboardDocumentCheck;
 
-    // Le menu « Notes » est la page cahier de notes (Pages\Notes) ; la ressource
-    // ne sert qu'à créer/éditer une note individuelle (routes conservées).
+    // Le cahier de notes (Pages\Notes) remplace toute gestion « en liste » des
+    // évaluations : cette ressource ne conserve QUE la route d'édition d'une note
+    // individuelle (ouverte depuis une pastille du cahier). Ni liste, ni création.
     protected static bool $shouldRegisterNavigation = false;
 
     protected static ?string $modelLabel = 'note';
@@ -43,17 +42,21 @@ class EvaluationResource extends Resource
         return EvaluationForm::configure($schema);
     }
 
-    public static function table(Table $table): Table
-    {
-        return EvaluationsTable::configure($table);
-    }
-
     public static function getPages(): array
     {
         return [
-            'index' => ListEvaluations::route('/'),
-            'create' => CreateEvaluation::route('/create'),
+            // Uniquement l'édition d'une note (depuis le cahier de notes) :
+            // plus aucune page « liste » ni « création » sur /admin/evaluations.
             'edit' => EditEvaluation::route('/{record}/edit'),
         ];
+    }
+
+    /**
+     * La ressource n'a plus de page « liste » : son URL d'index (fil d'Ariane,
+     * lien retour…) pointe vers le cahier de notes, qui la remplace entièrement.
+     */
+    public static function getIndexUrl(array $parameters = [], bool $isAbsolute = true, ?string $panel = null, ?Model $tenant = null, bool $shouldGuessMissingParameters = false): string
+    {
+        return Notes::getUrl(panel: $panel, isAbsolute: $isAbsolute);
     }
 }

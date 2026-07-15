@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\Companies;
 
-use App\Filament\RelationManagers\InteractionsRelationManager;
 use App\Filament\RelationManagers\NotesRelationManager;
 use App\Filament\Resources\Companies\Pages\CreateCompany;
 use App\Filament\Resources\Companies\Pages\EditCompany;
@@ -66,7 +65,6 @@ class CompanyResource extends Resource
     {
         return [
             ContactsRelationManager::class,
-            InteractionsRelationManager::class,
             NotesRelationManager::class,
         ];
     }

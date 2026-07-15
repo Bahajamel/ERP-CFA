@@ -1,10 +1,6 @@
 <?php
 
 use App\Enums\DocumentType;
-use App\Enums\EvaluationType;
-use App\Filament\Resources\Candidates\Pages\ViewCandidate;
-use App\Filament\Resources\Evaluations\Pages\CreateEvaluation;
-use App\Filament\Resources\Evaluations\Pages\ListEvaluations;
 use App\Models\Candidate;
 use App\Models\Evaluation;
 use App\Models\Formation;
@@ -67,51 +63,6 @@ it('calcule la moyenne générale (moyenne des moyennes de matières)', function
 
     expect($candidate->moyenneGenerale())->toBe(14.0)  // (16 + 12) / 2
         ->and(Candidate::factory()->create()->moyenneGenerale())->toBeNull(); // aucune note
-});
-
-it('crée une note via le formulaire (auteur tracé)', function () {
-    [, $classe, $apprenants] = classeAvecApprenants();
-
-    Livewire::test(CreateEvaluation::class)
-        ->fillForm([
-            'promotion_id' => $classe->id,
-            'candidate_id' => $apprenants->first()->id,
-            'matiere' => 'Développement web',
-            'type' => EvaluationType::Examen->value,
-            'note' => 15,
-            'bareme' => 20,
-            'coefficient' => 2,
-        ])
-        ->call('create')
-        ->assertHasNoFormErrors();
-
-    $eval = Evaluation::first();
-    expect($eval)->not->toBeNull()
-        ->and($eval->matiere)->toBe('Développement web')
-        ->and((float) $eval->note)->toBe(15.0)
-        ->and($eval->author_id)->not->toBeNull();
-});
-
-it('saisit les notes de toute une classe d\'un coup', function () {
-    [, $classe, $apprenants] = classeAvecApprenants(3);
-    [$a, $b, $c] = $apprenants;
-
-    Livewire::test(ListEvaluations::class)
-        ->callAction('saisirClasse', data: [
-            'promotion_id' => $classe->id,
-            'matiere' => 'Développement web',
-            'type' => EvaluationType::Controle->value,
-            'bareme' => 20,
-            'coefficient' => 1,
-            'note_'.$a->id => 15,
-            'note_'.$b->id => 12,
-            // $c laissé vide → ignoré
-        ])
-        ->assertHasNoActionErrors();
-
-    expect(Evaluation::count())->toBe(2)
-        ->and(Evaluation::where('candidate_id', $a->id)->value('note'))->toEqual(15)
-        ->and(Evaluation::where('candidate_id', $c->id)->exists())->toBeFalse();
 });
 
 it('génère le bulletin PDF et l\'archive en GED', function () {

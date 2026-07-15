@@ -63,11 +63,12 @@ class AdminPanelProvider extends PanelProvider
             // Page profil enrichie : photo de profil + double authentification.
             ->profile(EditProfile::class, isSimple: false)
             // Double authentification par application (TOTP) avec codes de secours.
-            // Facultative pour l'instant (isRequired: false) afin de ne pas verrouiller
-            // les comptes existants ; passer à `isRequired: true` pour l'imposer à tous.
+            // OBLIGATOIRE pour les administrateurs (accès total, cible privilégiée) :
+            // à leur prochaine connexion, ils sont dirigés vers la mise en place du MFA.
+            // Facultative pour les autres rôles (pas de verrouillage des comptes métier).
             ->multiFactorAuthentication(
                 AppAuthentication::make()->recoverable(),
-                isRequired: false,
+                isRequired: fn (): bool => auth()->user()?->hasRole('Administrateur') ?? false,
             )
             ->databaseNotifications()
             ->databaseNotificationsPolling('30s')
@@ -112,6 +113,11 @@ class AdminPanelProvider extends PanelProvider
             ->renderHook(
                 PanelsRenderHook::USER_MENU_BEFORE,
                 fn (): string => auth()->check() ? view('filament.user-identity')->render() : '',
+            )
+            // Assistant d'aide « Demander à l'IA » : bouton flottant sur toutes les pages.
+            ->renderHook(
+                PanelsRenderHook::BODY_END,
+                fn (): string => auth()->check() ? Blade::render('@livewire(\App\Livewire\AssistantIa::class)') : '',
             )
             // Bouton d'accès rapide (démo) sous le formulaire de connexion — hors production uniquement.
             ->renderHook(

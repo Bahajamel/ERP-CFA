@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Validation\ValidationException;
 
 class Promotion extends Model
@@ -46,10 +47,13 @@ class Promotion extends Model
         ));
     }
 
-    /** Les apprentis rattachés à cette classe (matière). */
+    /** Les apprentis rattachés à cette cohorte (avec leur inscription : matières choisies, invitation). */
     public function apprentis(): BelongsToMany
     {
-        return $this->belongsToMany(Candidate::class)->withTimestamps();
+        return $this->belongsToMany(Candidate::class)
+            ->using(CandidatePromotion::class)
+            ->withPivot(['matieres', 'invitation_token', 'invited_at', 'responded_at'])
+            ->withTimestamps();
     }
 
     /** Les séances (créneaux d'émargement) de la classe. */
@@ -62,6 +66,12 @@ class Promotion extends Model
     public function evaluations(): HasMany
     {
         return $this->hasMany(Evaluation::class);
+    }
+
+    /** Documents rattachés à la classe (ex. examens/copies déposés en preuve). */
+    public function documents(): MorphMany
+    {
+        return $this->morphMany(Document::class, 'documentable');
     }
 
     /**

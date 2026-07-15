@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\Needs\Tables;
 
-use App\Enums\MatchingStatut;
 use App\Enums\NeedStatut;
 use App\Models\Need;
 use App\StateMachine\InvalidTransitionException;
@@ -10,7 +9,6 @@ use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
-use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
@@ -19,6 +17,7 @@ use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 
 class NeedsTable
@@ -133,45 +132,18 @@ class NeedsTable
                             Notification::make()->danger()->title('Annulation refusée')->body($e->getMessage())->send();
                         }
                     }),
-                Action::make('trouverCandidats')
-                    ->label('Trouver des candidats')
+                // Formulaire « Proposer des candidats » : modale riche (composant Livewire dédié)
+                // — sélection multiple, score, canal, relance, message, tâche de relance.
+                Action::make('proposerCandidats')
+                    ->label('Proposer des candidats')
                     ->icon('heroicon-o-sparkles')
                     ->color('success')
-                    ->modalHeading(fn (Need $record): string => "Candidats compatibles — {$record->intitule_poste}")
-                    ->modalSubmitActionLabel('Proposer les candidats cochés')
-                    ->schema(fn (Need $record): array => [
-                        CheckboxList::make('candidates')
-                            ->label('Candidats compatibles (classés par score de compatibilité)')
-                            ->options(
-                                $record->candidatsCompatibles()
-                                    ->mapWithKeys(fn (array $row): array => [
-                                        $row['candidate']->id => "{$row['candidate']->nom_complet} — {$row['score']} pts · {$row['explication']}",
-                                    ])
-                                    ->all()
-                            )
-                            ->helperText('Aucune ligne = aucun candidat compatible (formation, disponibilité…). Coche ceux à proposer.')
-                            ->bulkToggleable()
-                            ->columns(1),
-                    ])
-                    ->action(function (Need $record, array $data): void {
-                        $created = 0;
-
-                        foreach ($data['candidates'] ?? [] as $candidateId) {
-                            if (! $record->matchings()->where('candidate_id', $candidateId)->exists()) {
-                                $record->matchings()->create([
-                                    'candidate_id' => $candidateId,
-                                    'statut' => MatchingStatut::EnRecherche,
-                                    'assigned_by' => auth()->id(),
-                                ]);
-                                $created++;
-                            }
-                        }
-
-                        Notification::make()
-                            ->success()
-                            ->title($created > 0 ? "{$created} candidat(s) proposé(s)" : 'Aucun candidat proposé')
-                            ->send();
-                    }),
+                    ->modalHeading('Proposer des candidats')
+                    ->modalDescription('Sélectionnez les profils à proposer à l\'entreprise et préparez le suivi commercial.')
+                    ->modalWidth('7xl')
+                    ->modalContent(fn (Need $record): View => view('filament.matching.proposer-host', ['need' => $record]))
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Fermer'),
                 // Pas de ViewAction : « Aperçu » ci-dessus remplit déjà ce rôle
                 // (panneau Focus offre), sans quitter la liste.
                 EditAction::make(),

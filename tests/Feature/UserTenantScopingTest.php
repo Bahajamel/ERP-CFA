@@ -60,7 +60,11 @@ it('rattache automatiquement au CFA courant un compte créé depuis le panneau',
         ->fillForm([
             'name' => 'Nouvelle Recrue',
             'email' => 'recrue@cfa-test.fr',
-            'password' => 'motdepasse-solide',
+            // Doit satisfaire la politique maison (AppServiceProvider) : 12
+            // caractères minimum, casse mixte, chiffre ET symbole. La règle
+            // `uncompromised()` interroge HaveIBeenPwned : on prend donc une
+            // chaîne quelconque, qui n'a aucune chance de figurer dans une fuite.
+            'password' => 'Kx7#vTqm-Zr42Ln',
             'roles' => [\Spatie\Permission\Models\Role::where('name', 'Administrateur')->value('id')],
             'is_active' => true,
         ])

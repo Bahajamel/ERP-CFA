@@ -3,6 +3,7 @@
 use App\Enums\EvaluationType;
 use App\Filament\Pages\Notes;
 use App\Models\Candidate;
+use App\Models\Document;
 use App\Models\Evaluation;
 use App\Models\Formation;
 use App\Models\Promotion;
@@ -10,6 +11,8 @@ use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
@@ -80,6 +83,115 @@ it('réinitialise la matière quand on change de classe', function () {
         ->assertSet('matiere', 'Développement web')
         ->set('promotionId', $autre->id)
         ->assertSet('matiere', null);
+});
+
+it('importe des examens comme preuve pour la matière (GED sur la classe)', function () {
+    Storage::fake('public');
+    Storage::fake(config('media-library.disk_name', 'public'));
+    [, $classe, $apprenants] = classeNotee(1);
+    $apprenant = $apprenants->first();
+
+    Livewire::test(Notes::class, ['promotionId' => $classe->id])
+        ->call('choisirMatiere', 'Développement web')
+        ->callAction(
+            'importerExamenApprenant',
+            data: [
+                'type_examen' => EvaluationType::Controle->value,
+                'fichier' => UploadedFile::fake()->create('copie-eleve.pdf', 120, 'application/pdf'),
+            ],
+            arguments: ['candidate' => $apprenant->id],
+        )
+        ->assertHasNoActionErrors();
+
+    // La copie est rattachée à l'APPRENANT, typée Examen, avec matière + classe + type d'épreuve.
+    $doc = Document::where('documentable_type', $apprenant->getMorphClass())
+        ->where('documentable_id', $apprenant->id)
+        ->where('type', 'examen')
+        ->first();
+
+    expect($doc)->not->toBeNull()
+        ->and($doc->getFirstMedia('fichier'))->not->toBeNull()
+        ->and($doc->getFirstMedia('fichier')->getCustomProperty('matiere'))->toBe('Développement web')
+        ->and((int) $doc->getFirstMedia('fichier')->getCustomProperty('promotion_id'))->toBe($classe->id)
+        ->and($doc->getFirstMedia('fichier')->getCustomProperty('type'))->toBe(EvaluationType::Controle->value);
+});
+
+it('n\'affiche la copie d\'un apprenant que pour la matière concernée', function () {
+    Storage::fake('public');
+    Storage::fake(config('media-library.disk_name', 'public'));
+    [, $classe, $apprenants] = classeNotee(1);
+    $apprenant = $apprenants->first();
+
+    // Copie importée pour « Développement web », type « Contrôle ».
+    Livewire::test(Notes::class, ['promotionId' => $classe->id])
+        ->call('choisirMatiere', 'Développement web')
+        ->callAction(
+            'importerExamenApprenant',
+            data: [
+                'type_examen' => EvaluationType::Controle->value,
+                'fichier' => UploadedFile::fake()->create('copie.pdf', 60, 'application/pdf'),
+            ],
+            arguments: ['candidate' => $apprenant->id],
+        );
+
+    // Sous « Développement web » : la copie est là, affichée avec son type.
+    Livewire::test(Notes::class, ['promotionId' => $classe->id])
+        ->call('choisirMatiere', 'Développement web')
+        ->assertSee(EvaluationType::Controle->getLabel());
+
+    // Sous « Cybersécurité » : pas de copie → bouton « Importer ».
+    Livewire::test(Notes::class, ['promotionId' => $classe->id])
+        ->call('choisirMatiere', 'Cybersécurité')
+        ->assertSee('Importer')
+        ->assertDontSee(EvaluationType::Controle->getLabel());
+});
+
+it('rend chaque note cliquable vers la copie d\'examen de son type', function () {
+    Storage::fake('public');
+    Storage::fake(config('media-library.disk_name', 'public'));
+    [, $classe, $apprenants] = classeNotee(1);
+    $apprenant = $apprenants->first();
+
+    // Une note de type « Contrôle » pour l'apprenant.
+    Evaluation::factory()->create([
+        'candidate_id' => $apprenant->id,
+        'promotion_id' => $classe->id,
+        'matiere' => 'Développement web',
+        'type' => EvaluationType::Controle->value,
+        'note' => 14,
+    ]);
+
+    // Import de la copie de « Contrôle ».
+    Livewire::test(Notes::class, ['promotionId' => $classe->id])
+        ->call('choisirMatiere', 'Développement web')
+        ->callAction('importerExamenApprenant', data: [
+            'type_examen' => EvaluationType::Controle->value,
+            'fichier' => UploadedFile::fake()->create('controle.pdf', 40, 'application/pdf'),
+        ], arguments: ['candidate' => $apprenant->id])
+        ->assertHasNoActionErrors();
+
+    // Rendu FRAIS : la note pointe désormais vers la copie de son type.
+    Livewire::test(Notes::class, ['promotionId' => $classe->id])
+        ->call('choisirMatiere', 'Développement web')
+        ->assertSee('nt-note--proof');
+});
+
+it('ouvre l\'édition d\'une note sans page « liste » (fil d\'Ariane vers le cahier)', function () {
+    [, $classe, $apprenants] = classeNotee(1);
+    $note = Evaluation::factory()->create([
+        'candidate_id' => $apprenants->first()->id,
+        'promotion_id' => $classe->id,
+        'matiere' => 'Développement web',
+        'note' => 12,
+    ]);
+
+    // La page d'édition se monte : son fil d'Ariane utilise getIndexUrl(),
+    // qui pointe désormais vers le cahier de notes (plus de route « index »).
+    Livewire::test(\App\Filament\Resources\Evaluations\Pages\EditEvaluation::class, ['record' => $note->getRouteKey()])
+        ->assertSuccessful();
+
+    expect(App\Filament\Resources\Evaluations\EvaluationResource::getIndexUrl())
+        ->toBe(App\Filament\Pages\Notes::getUrl());
 });
 
 it('saisit une épreuve pour toute la classe via l\'action', function () {

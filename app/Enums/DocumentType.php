@@ -20,6 +20,7 @@ enum DocumentType: string implements HasLabel
     case FeuilleEmargement = 'feuille_emargement';
     case Bulletin = 'bulletin';
     case DocumentPedagogique = 'document_pedagogique';
+    case Examen = 'examen';
     case Facture = 'facture';
     case DocumentQualite = 'document_qualite';
     case Autre = 'autre';
@@ -66,6 +67,7 @@ enum DocumentType: string implements HasLabel
             self::FeuilleEmargement => "Feuille d'émargement",
             self::Bulletin => 'Bulletin de notes',
             self::DocumentPedagogique => 'Document pédagogique (bulletin, notes…)',
+            self::Examen => 'Examen (copie / sujet)',
             self::Facture => 'Facture',
             self::DocumentQualite => 'Document qualité',
             self::Autre => 'Autre',

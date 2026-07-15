@@ -133,6 +133,7 @@ class AdmissionForm
                 // Actions de workflow en bas du dossier.
                 Actions::make([
                     AdmissionActions::valider(),
+                    AdmissionActions::affecterClasse(),
                     AdmissionActions::declarerRupture(),
                 ])
                     ->visibleOn('edit'),

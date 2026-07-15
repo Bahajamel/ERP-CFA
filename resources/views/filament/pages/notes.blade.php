@@ -45,13 +45,34 @@
         .dark .nt-name { color: #fff; }
 
         .nt-notes { display: flex; flex-wrap: wrap; gap: .35rem; }
-        .nt-note { text-decoration: none; font-size: .8rem; font-weight: 700; padding: .18rem .5rem; border-radius: .45rem; border: 1px solid transparent; }
+        .nt-note { display: inline-flex; align-items: center; gap: .2rem; text-decoration: none; font-size: .8rem; font-weight: 700; padding: .18rem .5rem; border-radius: .45rem; border: 1px solid transparent; }
+        .nt-note-clip { width: .72rem; height: .72rem; opacity: .75; }
         .nt-ok  { background: rgb(209 250 229); color: rgb(4 120 87); }
         .nt-mid { background: rgb(254 243 199); color: rgb(180 83 9); }
         .nt-low { background: rgb(254 226 226); color: rgb(185 28 28); }
         .nt-muted { color: rgb(148 163 184); font-style: italic; font-weight: 500; }
         a.nt-note:hover { border-color: currentColor; }
         .nt-moy { font-weight: 800; font-size: .95rem; }
+
+        .nt-head-actions { display: flex; align-items: center; gap: .5rem; flex-shrink: 0; }
+
+        /* Colonne « Examen (preuve) » — par apprenant */
+        .nt-ic-sm { width: .95rem; height: .95rem; }
+        .nt-proof-cell { display: inline-flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: .3rem; }
+        .nt-proof-item { display: inline-flex; align-items: center; gap: .15rem; }
+        /* Une note dont la copie d'examen existe = cliquable vers la copie (trombone + contour) */
+        .nt-note--proof { box-shadow: 0 0 0 1.5px currentColor inset; cursor: pointer; }
+        .nt-proof { display: inline-flex; align-items: center; gap: .35rem; font-size: .78rem; font-weight: 600; padding: .3rem .6rem; border-radius: .5rem; cursor: pointer; text-decoration: none; border: 1px solid transparent; }
+        .nt-proof--add { color: rgb(79 70 229); background: rgb(238 242 255); border-color: rgb(224 231 255); }
+        .nt-proof--add:hover { background: rgb(224 231 255); }
+        .dark .nt-proof--add { color: rgb(165 180 252); background: rgba(79,70,229,.15); border-color: rgba(129,140,248,.25); }
+        .nt-proof--ok { color: rgb(4 120 87); background: rgb(209 250 229); border-color: rgb(167 243 208); }
+        .nt-proof--ok:hover { background: rgb(167 243 208); }
+        .dark .nt-proof--ok { color: rgb(110 231 183); background: rgba(16,185,129,.15); border-color: rgba(52,211,153,.25); }
+        .nt-proof-mini { display: inline-flex; align-items: center; padding: .3rem .35rem; border: 1px solid rgb(226 232 240); background: #fff; color: rgb(100 116 139); border-radius: .45rem; cursor: pointer; }
+        .dark .nt-proof-mini { border-color: rgb(55 65 81); background: rgb(30 41 59); color: rgb(148 163 184); }
+        .nt-proof-mini:hover { background: rgb(238 242 255); color: rgb(67 56 202); }
+        .nt-proof-mini--del:hover { background: rgb(254 226 226); color: rgb(185 28 28); }
 
         .nt-empty { padding: 2.5rem 1rem; text-align: center; color: rgb(148 163 184); }
         .nt-hint { margin-top: 1.5rem; padding: 2rem; text-align: center; color: rgb(148 163 184); border: 1.5px dashed rgb(226 232 240); border-radius: .9rem; }
@@ -95,7 +116,9 @@
                             <div class="nt-head-t">{{ $matiere }}</div>
                             <div class="nt-head-s">{{ $classe->nom_complet }} · {{ $lignes->count() }} inscrit{{ $lignes->count() > 1 ? 's' : '' }}</div>
                         </div>
-                        {{ $this->nouvelleEpreuveAction }}
+                        <div class="nt-head-actions">
+                            {{ $this->nouvelleEpreuveAction }}
+                        </div>
                     </div>
 
                     @if ($lignes->isEmpty())
@@ -107,6 +130,7 @@
                                     <th>Apprenant</th>
                                     <th>Notes</th>
                                     <th style="text-align:right">Moyenne / 20</th>
+                                    <th style="text-align:right">Examen (preuve)</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -119,10 +143,13 @@
                                             @else
                                                 <div class="nt-notes">
                                                     @foreach ($ligne['notes'] as $note)
-                                                        <a class="nt-note {{ $couleur($note->noteSur20()) }}"
-                                                           href="{{ $urlEdition($note) }}"
-                                                           title="{{ $note->type?->getLabel() }} · coef {{ $nombre($note->coefficient) }} · {{ $note->date?->format('d/m/Y') }} (cliquer pour modifier)">
+                                                        @php $exUrl = $ligne['copiesParType'][$note->type?->value]['url'] ?? null; @endphp
+                                                        <a class="nt-note {{ $couleur($note->noteSur20()) }} {{ $exUrl ? 'nt-note--proof' : '' }}"
+                                                           href="{{ $exUrl ?? $urlEdition($note) }}"
+                                                           @if ($exUrl) target="_blank" @endif
+                                                           title="{{ $note->type?->getLabel() }} · coef {{ $nombre($note->coefficient) }} · {{ $note->date?->format('d/m/Y') }} · {{ $exUrl ? 'ouvrir la copie d\'examen' : 'aucune copie déposée — cliquer pour modifier' }}">
                                                             {{ $nombre($note->note) }}@if ((float) $note->bareme != 20)/{{ $nombre($note->bareme) }}@endif
+                                                            @if ($exUrl)<x-filament::icon icon="heroicon-m-paper-clip" class="nt-note-clip" />@endif
                                                         </a>
                                                     @endforeach
                                                 </div>
@@ -132,6 +159,26 @@
                                             <span class="nt-moy {{ $couleur($ligne['moyenne']) }}">
                                                 {{ $ligne['moyenne'] !== null ? $nombre($ligne['moyenne']) : '—' }}
                                             </span>
+                                        </td>
+                                        <td style="text-align:right">
+                                            @php $cid = $ligne['apprenant']->id; @endphp
+                                            <div class="nt-proof-cell">
+                                                @foreach ($ligne['copies'] as $cp)
+                                                    <span class="nt-proof-item">
+                                                        <a href="{{ $cp['url'] }}" target="_blank" class="nt-proof nt-proof--ok" title="{{ $cp['nom'] }}">
+                                                            <x-filament::icon icon="heroicon-o-paper-clip" class="nt-ic-sm" /> {{ $cp['type'] }}
+                                                        </a>
+                                                        <button type="button" class="nt-proof-mini nt-proof-mini--del" title="Retirer la copie"
+                                                            wire:click="mountAction('retirerExamenApprenant', { candidate: {{ $cid }}, type: @js($cp['type_value']) })">
+                                                            <x-filament::icon icon="heroicon-o-x-mark" class="nt-ic-sm" />
+                                                        </button>
+                                                    </span>
+                                                @endforeach
+                                                <button type="button" class="nt-proof nt-proof--add" title="Importer une copie d'examen"
+                                                    wire:click="mountAction('importerExamenApprenant', { candidate: {{ $cid }} })">
+                                                    <x-filament::icon icon="heroicon-o-arrow-up-tray" class="nt-ic-sm" /> {{ $ligne['copies']->isEmpty() ? 'Importer' : 'Ajouter' }}
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 @endforeach

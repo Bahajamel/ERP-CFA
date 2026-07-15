@@ -32,6 +32,63 @@ class ViewCandidate extends ViewRecord
 {
     protected static string $resource = CandidateResource::class;
 
+    /** Fiche candidat « premium » : mise en page custom (en-tête, KPI, 2 colonnes). */
+    protected string $view = 'filament.resources.candidates.pages.view-candidate';
+
+    /**
+     * Données réelles de la fiche (aucune donnée fictive) : KPI, pièces, matchings,
+     * contrat, tâches, notes, historique — le tout dérivé des relations existantes.
+     */
+    protected function getViewData(): array
+    {
+        $c = $this->getRecord();
+
+        $pieces = collect([
+            ['cle' => 'cv', 'label' => 'CV', 'requis' => true],
+            ['cle' => 'piece_identite', 'label' => "Pièce d'identité", 'requis' => true],
+            ['cle' => 'carte_vitale', 'label' => 'Carte Vitale', 'requis' => true],
+            ['cle' => 'attestation_projet', 'label' => 'Attestation de projet', 'requis' => $c->plusDe30Ans()],
+        ])->map(fn (array $p): array => array_merge($p, [
+            'present' => $c->getFirstMedia($p['cle']) !== null,
+            'url' => \App\Support\SecureMedia::pour($c, $p['cle']),
+        ]));
+
+        $requis = $pieces->where('requis', true);
+        $dossierPct = (int) round($requis->where('present', true)->count() / max(1, $requis->count()) * 100);
+
+        $scorer = new \App\Matching\CompatibilityScorer;
+        $matchings = $c->matchings()->with('need.company')->latest()->get()->map(fn (\App\Models\Matching $m): array => [
+            'entreprise' => $m->need?->company?->raison_sociale ?? '—',
+            'besoin' => $m->need?->intitule_poste ?? '—',
+            'statut' => $m->statut,
+            'score' => $m->need ? $scorer->score($c, $m->need) : null,
+            'date' => $m->created_at,
+        ]);
+
+        return [
+            'kpis' => [
+                'dossier' => $dossierPct,
+                'matchings' => $c->matchings()->count(),
+                'entretiens' => $c->entretiens()->count(),
+                'docsManquants' => $requis->where('present', false)->count(),
+            ],
+            'pieces' => $pieces,
+            'matchings' => $matchings,
+            'contrat' => $c->contracts()->with(['company', 'opcoFile'])->latest()->first(),
+            'taches' => \App\Models\Task::query()
+                ->where('taskable_type', $c->getMorphClass())->where('taskable_id', $c->getKey())
+                ->whereNotIn('statut', [\App\Enums\TaskStatut::Terminee->value, \App\Enums\TaskStatut::Annulee->value])
+                ->orderBy('due_date')->get(),
+            'notes' => $c->notes()->with('author')->latest()->get(),
+            'activites' => \Spatie\Activitylog\Models\Activity::query()
+                ->where('subject_type', $c->getMorphClass())->where('subject_id', $c->getKey())
+                ->with('causer')->latest()->limit(6)->get(),
+            'etapes' => app(CycleApprenant::class)->etapes($c),
+            'entretienActif' => $c->entretienActif(),
+            'statutFinal' => $c->statut->estFinal(),
+        ];
+    }
+
     protected function getHeaderActions(): array
     {
         return [
@@ -147,6 +204,15 @@ class ViewCandidate extends ViewRecord
                         ->label('Disponible à partir du')
                         ->date('d/m/Y')
                         ->placeholder('—'),
+                    TextEntry::make('cv_consentement')
+                        ->label('Consentement CV (RGPD)')
+                        ->state(fn (Candidate $record): string => $record->cv_consentement
+                            ? ($record->cv_consentement_at
+                                ? 'Autorisé le '.$record->cv_consentement_at->format('d/m/Y')
+                                : 'Autorisé')
+                            : 'Non autorisé')
+                        ->badge()
+                        ->color(fn (string $state): string => str_starts_with($state, 'Autorisé') ? 'success' : 'danger'),
                 ]),
 
             Section::make('Entretien de recrutement')

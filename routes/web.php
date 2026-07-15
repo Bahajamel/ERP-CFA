@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\CandidatureController;
 use App\Http\Controllers\EntrepriseFormController;
+use App\Http\Controllers\InscriptionController;
 use App\Http\Controllers\SecureMediaController;
 use App\Http\Controllers\SignatureWebhookController;
 use App\Models\User;
@@ -23,6 +24,14 @@ Route::get('/documents-securises/{media}', SecureMediaController::class)
 Route::get('/candidature', [CandidatureController::class, 'create'])->name('candidature.create');
 Route::post('/candidature', [CandidatureController::class, 'store'])->middleware('throttle:6,1')->name('candidature.store');
 Route::view('/candidature/merci', 'candidature.merci')->name('candidature.merci');
+
+// Formulaire public d'inscription en scolarité (sans accès ERP) : après validation
+// de son admission, l'apprenant choisit ses matières via un lien tokenisé personnel.
+// « merci » est déclaré AVANT « {token} » pour ne pas être capté comme un jeton.
+Route::view('/inscription/merci', 'inscription.merci')->name('inscription.merci');
+Route::get('/inscription/{token}', [InscriptionController::class, 'show'])->name('inscription.matieres');
+Route::post('/inscription/{token}', [InscriptionController::class, 'store'])
+    ->middleware('throttle:10,1')->name('inscription.matieres.store');
 
 // Formulaire public « entreprise partenaire » (sans accès ERP) : auto-rempli
 // depuis le SIRET (identité + OPCO), crée une entreprise « Prospect » + contact.

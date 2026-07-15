@@ -65,6 +65,8 @@ class CandidatureController extends Controller
                 'formation_visee_id' => $data['formation_visee_id'] ?? null,
                 'statut' => CandidateStatut::EntretienAPlanifier,
                 'source' => 'Candidature en ligne',
+                // Consentement RGPD à la transmission du CV aux entreprises (case cochée).
+                'cv_consentement' => $request->boolean('cv_consentement'),
             ]);
 
             $this->attacher($candidate, $request->file('cv'), 'cv');

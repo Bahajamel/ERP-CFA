@@ -34,8 +34,15 @@ class Matching extends Model implements HasMedia
             'cv_envoye' => 'boolean',
             'date_entretien' => 'date',
             'next_action_at' => 'date',
+            'date_proposition' => 'date',
             'statut' => MatchingStatut::class,
         ];
+    }
+
+    /** Responsable commercial du suivi de la proposition. */
+    public function responsableSuivi(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'responsable_suivi_id');
     }
 
     /**
