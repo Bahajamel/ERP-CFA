@@ -157,6 +157,36 @@
   color: #a5b4fc !important;
 }
 
+/* Sélecteur de CFA (multi-tenant), en tête de sidebar.
+   Filament le colore pour une sidebar CLAIRE : `text-gray-950` en thème clair,
+   `text-white` en sombre. Notre sidebar restant bleu nuit dans les deux thèmes,
+   le nom du CFA devenait quasi-noir sur bleu nuit — donc invisible en thème
+   clair. Même correction que pour les items de navigation ci-dessus. */
+.fi-tenant-menu-trigger {
+  border-radius: 9px;
+  transition: background-color 140ms ease, color 140ms ease;
+}
+.fi-tenant-menu-trigger-tenant-name {
+  color: #fff !important;
+  font-weight: 600;
+}
+.fi-tenant-menu-trigger-current-tenant-label {
+  color: var(--cfa-sidebar-muted) !important;
+}
+.fi-tenant-menu-trigger .fi-icon {
+  color: var(--cfa-sidebar-muted) !important;
+}
+/* Le survol par défaut (bg-gray-100) poserait un aplat gris clair sur le bleu
+   nuit : on reprend le voile indigo des items. */
+.fi-tenant-menu-trigger:hover,
+.fi-tenant-menu-trigger:focus-visible {
+  background-color: rgba(129, 140, 248, 0.14) !important;
+}
+.fi-tenant-menu-trigger:hover .fi-icon,
+.fi-tenant-menu-trigger:focus-visible .fi-icon {
+  color: #fff !important;
+}
+
 /* Badges de navigation (compteurs) lisibles sur fond nuit */
 .fi-sidebar .fi-badge {
   box-shadow: none;

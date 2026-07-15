@@ -37,18 +37,21 @@ it('garde l’accès au panneau CFA pour le personnel rattaché', function () {
     expect($membre->canAccessPanel(Filament::getPanel('admin')))->toBeTrue();
 });
 
-it('renvoie l’éditeur vers son panneau au lieu de le murer sur un 403', function () {
+it('dépose l’éditeur sur la connexion du CFA, sans le murer ni le détourner', function () {
     $this->seed(RolePermissionSeeder::class);
 
     $editeur = User::factory()->create(['is_active' => true]);
     $editeur->organisations()->detach();
     $editeur->syncRoles([RolePermissionSeeder::ROLE_EDITEUR]);
 
-    // Les deux panneaux partagent la session : connecté sur /editeur, l'éditeur
-    // qui clique sur /admin doit être ramené chez lui, pas bloqué sans issue.
+    // Les deux panneaux partagent la session. Qui demande /admin veut /admin :
+    // on le déconnecte et on lui rend l'écran de connexion du CFA — surtout pas
+    // un renvoi vers /editeur, qui l'enfermerait dans une boucle sans issue.
     $this->actingAs($editeur)
         ->get('/admin')
-        ->assertRedirect(Filament::getPanel('editeur')->getUrl());
+        ->assertRedirect(Filament::getPanel('admin')->getLoginUrl());
+
+    expect(auth()->check())->toBeFalse();
 });
 
 it('renvoie un compte sans CFA vers la connexion, avec une explication', function () {

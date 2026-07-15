@@ -47,28 +47,27 @@ class AuthenticateCfaPanel extends Authenticate
         throw new HttpResponseException($this->orienter($user));
     }
 
-    /** Renvoie l'utilisateur là où il a effectivement quelque chose à faire. */
+    /**
+     * Rend la main à l'écran de connexion du panneau CFA, en expliquant pourquoi.
+     *
+     * On NE détourne PAS vers /editeur : qui demande /admin veut /admin. Se
+     * retrouver ailleurs sans l'avoir demandé donne l'impression d'un lien cassé,
+     * et enferme l'éditeur dans une boucle dont il ne peut pas sortir. On le
+     * déconnecte donc et on le dépose sur la connexion du CFA, d'où il repart
+     * avec le bon compte.
+     */
     private function orienter(mixed $user): RedirectResponse
     {
-        // Cas courant : on est connecté en tant qu'éditeur. L'éditeur n'a pas de
-        // CFA (par nature), donc le panneau CFA n'a rien à lui montrer — on le
-        // ramène simplement chez lui.
-        if ($user instanceof User && $user->can(RolePermissionSeeder::PERMISSION_EDITEUR)) {
-            Notification::make()
-                ->title('Vous êtes connecté en tant qu\'éditeur')
-                ->body('Ce compte pilote les CFA clients ; il n\'est rattaché à aucun CFA et n\'a donc pas d\'espace de travail. Pour entrer dans un CFA, déconnectez-vous et utilisez un compte de ce CFA.')
-                ->info()
-                ->persistent()
-                ->send();
+        $estEditeur = $user instanceof User
+            && $user->can(RolePermissionSeeder::PERMISSION_EDITEUR);
 
-            return redirect()->to(Filament::getPanel('editeur')->getUrl());
-        }
-
-        // Compte actif mais rattaché à aucun CFA actif (jamais rattaché, ou CFA
-        // suspendu) : on l'explique et on rend la main à l'écran de connexion.
         Notification::make()
-            ->title('Aucun espace de travail')
-            ->body('Votre compte n\'est rattaché à aucun CFA actif. Contactez votre administrateur pour qu\'il vous rattache à votre centre.')
+            ->title($estEditeur
+                ? 'Vous étiez connecté en tant qu\'éditeur'
+                : 'Aucun espace de travail')
+            ->body($estEditeur
+                ? 'Le compte éditeur pilote les CFA clients : il n\'est rattaché à aucun CFA et n\'a donc pas d\'espace de travail. Connectez-vous avec un compte du CFA pour entrer.'
+                : 'Votre compte n\'est rattaché à aucun CFA actif. Contactez votre administrateur pour qu\'il vous rattache à votre centre.')
             ->warning()
             ->persistent()
             ->send();
