@@ -3,6 +3,7 @@
 use App\Enums\CandidateStatut;
 use App\Enums\MatchingStatut;
 use App\Enums\NeedStatut;
+use App\Filament\Resources\Needs\Tables\NeedsTable;
 use App\Models\Candidate;
 use App\Models\Matching;
 use App\Models\Need;
@@ -116,6 +117,32 @@ it('ne fait jamais reculer une offre ni ne rouvre une offre close', function () 
     $m->update(['statut' => MatchingStatut::Abandonne]);
 
     expect($offre->refresh()->statut)->toBe(NeedStatut::Pourvu);
+});
+
+it('retrouve les offres clôturées via le filtre rapide dédié', function () {
+    $pourvue = offreAuto(postes: 1);
+    $m = Matching::create([
+        'need_id' => $pourvue->id,
+        'candidate_id' => candidatPourOffre()->id,
+        'statut' => MatchingStatut::EnRecherche,
+    ]);
+    $m->update(['cv_envoye' => true, 'statut' => MatchingStatut::PropositionEnvoyee]);
+    $m->update(['statut' => MatchingStatut::Accepte]);
+
+    $annulee = offreAuto();
+    $annulee->transitionTo(NeedStatut::Annule, 'Recrutement gelé.');
+
+    $ouverte = offreAuto();
+
+    // Les trois autres filtres rapides ne montrent que des offres ouvertes :
+    // celui-ci est la seule porte vers l'historique.
+    $clos = Need::query()
+        ->tap(fn ($q) => NeedsTable::appliquerScopeRapide($q, 'cloturees'))
+        ->pluck('id');
+
+    expect($clos)->toContain($pourvue->id)
+        ->and($clos)->toContain($annulee->id)
+        ->and($clos)->not->toContain($ouverte->id);
 });
 
 it('laisse tranquille une offre annulée', function () {

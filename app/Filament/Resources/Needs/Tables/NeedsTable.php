@@ -11,7 +11,6 @@ use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\CheckboxList;
-use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
@@ -210,6 +209,14 @@ class NeedsTable
             'a_pourvoir' => $query->ouverts(),
             'sans_candidat' => $query->ouverts()->whereDoesntHave('matchings'),
             'en_matching' => $query->ouverts()->whereHas('matchings'),
+            // Les trois filtres ci-dessus ne montrent que des offres ouvertes :
+            // sans celui-ci, rien ne permettait de retrouver les offres terminées.
+            // Regroupe les vraies fins (pourvue, annulée) plutôt que le seul
+            // statut « Archivé », qui ne survient jamais (cf. NeedStatut::Archive).
+            'cloturees' => $query->whereIn(
+                'statut',
+                array_map(fn (NeedStatut $s): string => $s->value, Need::STATUTS_CLOS),
+            ),
             default => null,
         };
     }

@@ -72,9 +72,9 @@ class ListNeeds extends ListRecords
     }
 
     /**
-     * Compteurs des trois filtres rapides.
+     * Compteurs des filtres rapides.
      *
-     * @return array{a_pourvoir:int,sans_candidat:int,en_matching:int}
+     * @return array{a_pourvoir:int,sans_candidat:int,en_matching:int,cloturees:int}
      */
     public function getQuickCounts(): array
     {
@@ -82,6 +82,7 @@ class ListNeeds extends ListRecords
             'a_pourvoir' => Need::query()->tap(fn ($q) => NeedsTable::appliquerScopeRapide($q, 'a_pourvoir'))->count(),
             'sans_candidat' => Need::query()->tap(fn ($q) => NeedsTable::appliquerScopeRapide($q, 'sans_candidat'))->count(),
             'en_matching' => Need::query()->tap(fn ($q) => NeedsTable::appliquerScopeRapide($q, 'en_matching'))->count(),
+            'cloturees' => Need::query()->tap(fn ($q) => NeedsTable::appliquerScopeRapide($q, 'cloturees'))->count(),
         ];
     }
 
