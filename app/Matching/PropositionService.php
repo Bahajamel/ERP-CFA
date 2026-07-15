@@ -5,10 +5,14 @@ namespace App\Matching;
 use App\Enums\MatchingStatut;
 use App\Enums\TaskPriorite;
 use App\Enums\TaskStatut;
+use App\Mail\PropositionCandidats;
 use App\Models\Candidate;
+use App\Models\CompanyContact;
 use App\Models\Matching;
 use App\Models\Need;
 use App\Models\Task;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Mail;
 
 /**
  * Concrétise une proposition de candidats sur un besoin entreprise :
@@ -21,14 +25,14 @@ class PropositionService
     /**
      * @param  array<int, int>  $candidateIds
      * @param  array{canal?: string, responsableId?: int|null, dateRelance?: string|null, commentaire?: string|null, message?: string|null}  $data
-     * @param  bool  $envoi  true = proposition envoyée (statut + relance) ; false = brouillon (En recherche)
-     * @return int Nombre de candidats réellement proposés (doublons ignorés).
+     * @param  bool  $envoi  true = proposition envoyée (statut + relance + email) ; false = brouillon (En recherche)
+     * @return array{count: int, destinataire: ?string} Nombre proposé (doublons ignorés) et email du contact averti.
      */
-    public function proposer(Need $need, array $candidateIds, array $data, bool $envoi = true): int
+    public function proposer(Need $need, array $candidateIds, array $data, bool $envoi = true): array
     {
         $statut = $envoi ? MatchingStatut::PropositionEnvoyee : MatchingStatut::EnRecherche;
         $responsableId = $data['responsableId'] ?? auth()->id();
-        $proposes = 0;
+        $proposes = collect();
 
         foreach (array_unique($candidateIds) as $candidateId) {
             // Doublon candidat × besoin : on n'en recrée pas.
@@ -59,10 +63,58 @@ class PropositionService
                 $this->creerTacheRelance($need, $candidate, $matching, $responsableId, $data['dateRelance'] ?? null);
             }
 
-            $proposes++;
+            $proposes->push($candidate);
         }
 
-        return $proposes;
+        // Envoi réel de la proposition au contact (RH / responsable) de l'entreprise.
+        $destinataire = null;
+
+        if ($envoi && $proposes->isNotEmpty()) {
+            $destinataire = $this->envoyerAuContact($need, $proposes, $data);
+        }
+
+        return ['count' => $proposes->count(), 'destinataire' => $destinataire];
+    }
+
+    /**
+     * Envoie la proposition par email au contact de l'entreprise partenaire.
+     * Retourne l'adresse notifiée, ou null si aucun contact n'a d'email.
+     *
+     * @param  Collection<int, Candidate>  $candidats
+     */
+    private function envoyerAuContact(Need $need, Collection $candidats, array $data): ?string
+    {
+        $contact = $this->contactEntreprise($need);
+
+        if ($contact === null || blank($contact->email)) {
+            return null;
+        }
+
+        $responsable = optional(\App\Models\User::find($data['responsableId'] ?? null))->name;
+
+        Mail::to($contact->email)->send(new PropositionCandidats(
+            $need,
+            $candidats,
+            $data['message'] ?? '',
+            $responsable,
+        ));
+
+        return $contact->email;
+    }
+
+    /**
+     * Contact destinataire côté entreprise (CRM partenaires) : le contact du
+     * besoin en priorité, sinon le contact principal, sinon le premier contact
+     * disposant d'un email.
+     */
+    private function contactEntreprise(Need $need): ?CompanyContact
+    {
+        $need->loadMissing('contact', 'company.contacts');
+
+        return collect([$need->contact])
+            ->merge($need->company?->contacts->sortByDesc('is_principal') ?? collect())
+            ->filter(fn (?CompanyContact $c): bool => $c !== null && filled($c->email))
+            ->first();
     }
 
     /** Tâche de relance de la proposition, assignée au responsable du suivi. */

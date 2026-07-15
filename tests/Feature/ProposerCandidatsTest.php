@@ -2,9 +2,12 @@
 
 use App\Enums\CandidateStatut;
 use App\Enums\MatchingStatut;
+use App\Enums\NeedStatut;
 use App\Livewire\ProposerCandidatsModal;
+use App\Mail\PropositionCandidats;
 use App\Models\Candidate;
 use App\Models\Company;
+use App\Models\CompanyContact;
 use App\Models\Formation;
 use App\Models\Matching;
 use App\Models\Need;
@@ -13,6 +16,7 @@ use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
@@ -36,6 +40,9 @@ function besoinAvecCandidat(): array
         'formation_id' => $formation->id,
         'intitule_poste' => 'Employé Polyvalent en Restauration',
         'nb_postes' => 2,
+        // Besoin ouvert (déterministe) : la factory tire sinon un statut aléatoire
+        // qui peut être « clôturé » et bloquer légitimement la proposition.
+        'statut' => NeedStatut::ProfilsRecherches->value,
     ]);
     $candidate = Candidate::factory()->create([
         'formation_visee_id' => $formation->id,
@@ -81,6 +88,40 @@ it('valide la proposition : matching « Proposition envoyée » + tâche de rela
     expect($tache)->not->toBeNull()
         ->and($tache->assignee_id)->toBe($this->user->id)
         ->and($tache->due_date->format('Y-m-d'))->toBe(now()->addDays(7)->format('Y-m-d'));
+});
+
+it('envoie la proposition par email au contact (RH) de l\'entreprise', function () {
+    Mail::fake();
+    [$need, $candidate] = besoinAvecCandidat();
+
+    $contact = CompanyContact::create([
+        'company_id' => $need->company_id,
+        'nom' => 'Dupont',
+        'prenom' => 'Marie',
+        'email' => 'rh@restaurant-alpha.test',
+        'fonction' => 'Responsable RH',
+        'is_principal' => true,
+    ]);
+    $need->update(['contact_id' => $contact->id]);
+
+    Livewire::test(ProposerCandidatsModal::class, ['needId' => $need->id])
+        ->set('selection', [$candidate->id])
+        ->set('dateRelance', now()->addDays(5)->format('Y-m-d'))
+        ->set('responsableId', $this->user->id)
+        ->call('valider');
+
+    Mail::assertSent(PropositionCandidats::class, fn (PropositionCandidats $mail): bool => $mail->hasTo('rh@restaurant-alpha.test'));
+});
+
+it('n\'envoie pas d\'email pour un brouillon', function () {
+    Mail::fake();
+    [$need, $candidate] = besoinAvecCandidat();
+
+    Livewire::test(ProposerCandidatsModal::class, ['needId' => $need->id])
+        ->set('selection', [$candidate->id])
+        ->call('brouillon');
+
+    Mail::assertNothingSent();
 });
 
 it('enregistre un brouillon en « En recherche » sans tâche de relance', function () {

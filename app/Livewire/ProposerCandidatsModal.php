@@ -175,7 +175,7 @@ class ProposerCandidatsModal extends Component
             return null;
         }
 
-        $count = app(PropositionService::class)->proposer(
+        $resultat = app(PropositionService::class)->proposer(
             $need,
             $this->selection,
             [
@@ -188,12 +188,25 @@ class ProposerCandidatsModal extends Component
             envoi: $envoi,
         );
 
+        $count = $resultat['count'];
+
+        if (! $envoi) {
+            Notification::make()->success()
+                ->title($count.' candidat(s) enregistré(s) en brouillon')
+                ->send();
+
+            return $this->redirect(NeedResource::getUrl('index'));
+        }
+
+        // Proposition envoyée : email au contact entreprise (si renseigné) + relances.
+        $destinataire = $resultat['destinataire'];
+
         Notification::make()
             ->success()
-            ->title($envoi
-                ? $count.' candidat(s) proposé(s) à '.($need->company?->raison_sociale ?? 'l\'entreprise')
-                : $count.' candidat(s) enregistré(s) en brouillon')
-            ->body($envoi ? 'Les tâches de relance ont été créées.' : null)
+            ->title($count.' candidat(s) proposé(s) à '.($need->company?->raison_sociale ?? 'l\'entreprise'))
+            ->body($destinataire !== null
+                ? 'Proposition envoyée à '.$destinataire.'. Tâches de relance créées.'
+                : 'Aucun email de contact pour cette entreprise — proposition enregistrée, à transmettre manuellement.')
             ->send();
 
         return $this->redirect(NeedResource::getUrl('index'));
