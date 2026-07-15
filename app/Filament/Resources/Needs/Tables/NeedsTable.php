@@ -135,12 +135,18 @@ class NeedsTable
                     ->modalSubmitActionLabel('Proposer les candidats cochés')
                     ->schema(fn (Need $record): array => [
                         CheckboxList::make('candidates')
-                            ->label('Candidats compatibles (classés par score de compatibilité)')
+                            ->label('Candidats compatibles (les plus compatibles en premier)')
                             ->options(
                                 $record->candidatsCompatibles()
-                                    ->mapWithKeys(fn (array $row): array => [
-                                        $row['candidate']->id => "{$row['candidate']->nom_complet} — {$row['score']} pts · {$row['explication']}",
-                                    ])
+                                    ->mapWithKeys(function (array $row): array {
+                                        // Compatibilité en étoiles (0 à 5) dérivée du score /100.
+                                        $pleines = max(0, min(5, (int) floor($row['score'] / 20)));
+                                        $etoiles = str_repeat('★', $pleines).str_repeat('☆', 5 - $pleines);
+
+                                        return [
+                                            $row['candidate']->id => "{$row['candidate']->nom_complet}  {$etoiles} · {$row['explication']}",
+                                        ];
+                                    })
                                     ->all()
                             )
                             ->helperText('Aucune ligne = aucun candidat compatible (formation, disponibilité…). Coche ceux à proposer.')
