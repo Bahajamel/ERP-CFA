@@ -14,6 +14,7 @@ use App\Parcours\CycleApprenant;
 use App\StateMachine\HasStateTransitions;
 use App\StateMachine\ManagesState;
 use App\Support\SecureMedia;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -396,8 +397,17 @@ class Candidate extends Model implements HasMedia
 
         $etapes = [
             ['cle' => 'candidature', 'label' => 'Candidature', 'court' => 'Cand.', 'fait' => true],
+            // Un refus clôt la phase d'entretien au même titre qu'une acceptation :
+            // sans le compter ici, l'étape « Entretien » raflait l'état « en cours »
+            // et l'étape « Accepté » — la seule qui sache afficher un refus — n'était
+            // jamais atteinte. Un candidat refusé s'affichait alors comme s'il
+            // attendait un entretien.
             ['cle' => 'entretien', 'label' => 'Entretien', 'court' => 'Entr.',
-                'fait' => in_array($statut, [CandidateStatut::EntretienRealise, CandidateStatut::Accepte], true)],
+                'fait' => in_array($statut, [
+                    CandidateStatut::EntretienRealise,
+                    CandidateStatut::Accepte,
+                    CandidateStatut::Refuse,
+                ], true)],
             ['cle' => 'decision', 'label' => 'Accepté', 'court' => 'Décis.',
                 'fait' => $statut === CandidateStatut::Accepte],
             ['cle' => 'matching', 'label' => 'Matching', 'court' => 'Match.',
@@ -425,6 +435,62 @@ class Candidate extends Model implements HasMedia
         unset($e);
 
         return $etapes;
+    }
+
+    /**
+     * Libellés des étapes du filtre « Où en est le candidat ? ».
+     *
+     * @return array<string, string>
+     */
+    public static function etapesProgression(): array
+    {
+        return [
+            'entretien' => 'Entretien à passer',
+            'decision' => 'En attente de décision',
+            'matching' => 'Cherche une entreprise',
+            'admission' => 'En attente d\'admission',
+            'termine' => 'Parcours complet',
+            'refuse' => 'Refusé',
+        ];
+    }
+
+    /**
+     * Filtre les candidats sur leur étape COURANTE de progression.
+     *
+     * Miroir SQL de {@see progressionEtapes()} : l'étape courante est la première
+     * qui n'est pas franchie. Les deux doivent rester d'accord — un filtre qui
+     * contredirait les points affichés serait pire que pas de filtre du tout.
+     */
+    public function scopeAEtape(Builder $query, string $etape): Builder
+    {
+        $aUnMatching = fn (Builder $q): Builder => $q->whereHas('matchings');
+        $admissionValidee = fn (Builder $q): Builder => $q->whereHas(
+            'admissions',
+            fn (Builder $a) => $a->where('statut', AdmissionStatut::Valide->value),
+        );
+
+        return match ($etape) {
+            // Entretien pas encore passé (ni décision rendue).
+            'entretien' => $query->whereIn('statut', [
+                CandidateStatut::EntretienAPlanifier->value,
+                CandidateStatut::EntretienPrevu->value,
+            ]),
+            // Entretien réalisé, décision (accepté / refusé) pas encore rendue.
+            'decision' => $query->where('statut', CandidateStatut::EntretienRealise->value),
+            'refuse' => $query->where('statut', CandidateStatut::Refuse->value),
+            // Accepté, mais aucune piste entreprise ouverte : le gros du travail commercial.
+            'matching' => $query->where('statut', CandidateStatut::Accepte->value)
+                ->whereDoesntHave('matchings'),
+            // En piste chez une entreprise, admission pas encore validée (elle ne
+            // l'est qu'à l'acceptation du financement OPCO).
+            'admission' => $query->where('statut', CandidateStatut::Accepte->value)
+                ->tap($aUnMatching)
+                ->whereDoesntHave('admissions', fn (Builder $a) => $a->where('statut', AdmissionStatut::Valide->value)),
+            'termine' => $query->where('statut', CandidateStatut::Accepte->value)
+                ->tap($aUnMatching)
+                ->tap($admissionValidee),
+            default => $query,
+        };
     }
 
     /**
