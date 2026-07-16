@@ -29,6 +29,12 @@ class CockpitWidget extends Widget
     /** Fenêtre d'historique retenue (nombre de mois : « 3 », « 6 » ou « 12 »). */
     public string $periode = '6';
 
+    /** Service dont on affiche les KPI (« global » = tous). Filtre in-place. */
+    public string $service = 'global';
+
+    /** Services de filtrage acceptés (miroir des onglets départements). */
+    private const SERVICES = ['global', 'commercial', 'admissions', 'contrats', 'finance', 'pilotage'];
+
     public static function canView(): bool
     {
         return Auth::check();
@@ -38,6 +44,12 @@ class CockpitWidget extends Widget
     public function definirPeriode(string $mois): void
     {
         $this->periode = in_array($mois, ['3', '6', '12'], true) ? $mois : '6';
+    }
+
+    /** Filtre les KPI sur un service (onglets départements du cockpit). */
+    public function definirService(string $service): void
+    {
+        $this->service = in_array($service, self::SERVICES, true) ? $service : 'global';
     }
 
     /** « Demander à l'IA » : synthèse du jour calculée en direct sur les données. */
@@ -62,10 +74,22 @@ class CockpitWidget extends Widget
     {
         $data = app(CockpitData::class)->periode((int) $this->periode);
 
+        // Onglets départements avec l'actif calculé sur le service sélectionné.
+        $departements = array_map(
+            fn (array $t): array => ['actif' => $t['service'] === $this->service] + $t,
+            $data->departements(),
+        );
+
+        // KPI filtrés sur le service courant (« global » = tous).
+        $kpis = $data->kpis();
+        if ($this->service !== 'global') {
+            $kpis = array_values(array_filter($kpis, fn (array $k): bool => ($k['service'] ?? null) === $this->service));
+        }
+
         return [
-            'departements' => $data->departements(),
+            'departements' => $departements,
             'insights' => $data->insights(),
-            'kpis' => $data->kpis(),
+            'kpis' => $kpis,
             'pipeline' => $data->pipeline(),
             'evolution' => $data->evolution(),
             'distribution' => $data->contractDistribution(),

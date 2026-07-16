@@ -125,14 +125,17 @@
             </div>
         </div>
 
-        {{-- ============ ONGLETS DÉPARTEMENTS ============ --}}
-        <nav class="cfa-ck-tabs" aria-label="Départements">
+        {{-- ============ FILTRES PAR DÉPARTEMENT ============ --}}
+        {{-- Chaque onglet filtre les KPI sur son service (« Vue globale » = tous),
+             sans quitter le tableau de bord. --}}
+        <nav class="cfa-ck-tabs" aria-label="Filtrer les indicateurs par département">
             @foreach ($departements as $tab)
-                <a href="{{ $tab['url'] }}" class="cfa-ck-tab {{ $tab['actif'] ? 'actif' : '' }}"
-                   @if($tab['actif']) aria-current="page" @endif>
+                <button type="button" wire:click="definirService('{{ $tab['service'] }}')"
+                        class="cfa-ck-tab {{ $tab['actif'] ? 'actif' : '' }}"
+                        @if($tab['actif']) aria-current="true" @endif>
                     <span class="cfa-ck-tab-ico">{!! $icon($tab['icon']) !!}</span>
                     {{ $tab['label'] }}
-                </a>
+                </button>
             @endforeach
         </nav>
 

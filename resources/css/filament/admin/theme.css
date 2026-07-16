@@ -700,7 +700,9 @@ a.cfa-prio-card:hover {
 /* Cartes KPI */
 .cfa-ck-kpis {
   display: grid; gap: .85rem;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  /* auto-fit : les cartes remplissent la largeur quel que soit leur nombre
+     (6 en vue globale, 1-2 quand on filtre un service — sans trous). */
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
 }
 .cfa-kpi {
   position: relative; display: grid; gap: .1rem; padding: .95rem 1rem 1rem;
@@ -896,6 +898,8 @@ a.cfa-prio-card:hover {
   display: inline-flex; align-items: center; gap: .45rem;
   padding: .5rem .85rem; border-radius: 9px; font-size: .82rem; font-weight: 600;
   color: var(--cfa-ink-soft); transition: background .15s ease, color .15s ease;
+  /* Rendus comme des boutons de filtre (Livewire) : reset du style natif. */
+  background: none; border: 0; cursor: pointer; font-family: inherit; line-height: 1.1;
 }
 .cfa-ck-tab-ico svg { width: 1.05rem; height: 1.05rem; }
 .cfa-ck-tab:hover { background: var(--cfa-card-2); color: inherit; }

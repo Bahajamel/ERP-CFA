@@ -58,31 +58,29 @@ class CockpitData
      * ================================================================ */
 
     /**
-     * Onglets « départements » filtrés par les droits de l'utilisateur.
+     * Onglets « départements » filtrés par les droits de l'utilisateur. Servent
+     * de filtres KPI (chaque onglet = un `service`, « global » = tout).
      *
-     * @return list<array{label:string,icon:string,url:string,actif:bool}>
+     * @return list<array{label:string,icon:string,service:string,actif:bool}>
      */
     public function departements(): array
     {
         $u = auth()->user();
 
+        // `service` = clé de filtrage des KPI (cf. kpis()). « global » = tout.
+        // `voir` = droit d'accès : chaque service ne voit son onglet que s'il a
+        // la permission correspondante (« Vue globale » toujours visible).
         $tabs = [
-            ['label' => 'Vue globale', 'icon' => 'chart-bar', 'actif' => true, 'voir' => true,
-                'url' => route('filament.admin.pages.dashboard')],
-            ['label' => 'Commercial', 'icon' => 'user-group', 'actif' => false, 'voir' => (bool) $u?->can('access_candidates'),
-                'url' => route('filament.admin.resources.candidates.index')],
-            ['label' => 'Admissions', 'icon' => 'check-badge', 'actif' => false, 'voir' => (bool) $u?->can('access_admissions'),
-                'url' => route('filament.admin.resources.admissions.index')],
-            ['label' => 'Contrats', 'icon' => 'pencil', 'actif' => false, 'voir' => (bool) $u?->can('access_contracts'),
-                'url' => route('filament.admin.resources.contracts.index')],
-            ['label' => 'Finance', 'icon' => 'banknotes', 'actif' => false, 'voir' => (bool) $u?->can('access_finance'),
-                'url' => route('filament.admin.pages.finance')],
-            ['label' => 'Pilotage', 'icon' => 'folder-open', 'actif' => false, 'voir' => (bool) $u?->can('access_opco'),
-                'url' => route('filament.admin.resources.opco-files.index')],
+            ['label' => 'Vue globale', 'icon' => 'chart-bar', 'service' => 'global', 'actif' => true, 'voir' => true],
+            ['label' => 'Commercial', 'icon' => 'user-group', 'service' => 'commercial', 'actif' => false, 'voir' => (bool) $u?->can('access_candidates')],
+            ['label' => 'Admissions', 'icon' => 'check-badge', 'service' => 'admissions', 'actif' => false, 'voir' => (bool) $u?->can('access_admissions')],
+            ['label' => 'Contrats', 'icon' => 'pencil', 'service' => 'contrats', 'actif' => false, 'voir' => (bool) $u?->can('access_contracts')],
+            ['label' => 'Finance', 'icon' => 'banknotes', 'service' => 'finance', 'actif' => false, 'voir' => (bool) $u?->can('access_finance')],
+            ['label' => 'Pilotage', 'icon' => 'folder-open', 'service' => 'pilotage', 'actif' => false, 'voir' => (bool) $u?->can('access_opco')],
         ];
 
         return array_values(array_map(
-            fn (array $t): array => ['label' => $t['label'], 'icon' => $t['icon'], 'url' => $t['url'], 'actif' => $t['actif']],
+            fn (array $t): array => ['label' => $t['label'], 'icon' => $t['icon'], 'service' => $t['service'], 'actif' => $t['actif']],
             array_filter($tabs, fn (array $t): bool => $t['voir']),
         ));
     }
@@ -210,39 +208,41 @@ class CockpitData
         $versementsRetard = OpcoPayment::enRetard()->count();
         $sparkFinance = $this->serieMensuelle(OpcoPayment::query());
 
+        // Chaque KPI porte son `service` : c'est la clé du filtre par département
+        // du cockpit (voir CockpitWidget::definirService + departements()).
         return [
             [
-                'cle' => 'entretiens', 'label' => 'Entretiens à planifier', 'valeur' => (string) $entretiensAPlanifier,
+                'cle' => 'entretiens', 'service' => 'commercial', 'label' => 'Entretiens à planifier', 'valeur' => (string) $entretiensAPlanifier,
                 'sous' => 'Candidats sans créneau', 'tone' => 'info', 'icon' => 'calendar',
                 'trend' => $this->trendSerie($sparkCandidats), 'spark' => $sparkCandidats,
                 'url' => route('filament.admin.resources.candidates.index'),
             ],
             [
-                'cle' => 'offres', 'label' => 'Offres sans candidat', 'valeur' => (string) $offresSansCandidat,
+                'cle' => 'offres', 'service' => 'commercial', 'label' => 'Offres sans candidat', 'valeur' => (string) $offresSansCandidat,
                 'sous' => 'À proposer au matching', 'tone' => 'warning', 'icon' => 'briefcase',
                 'trend' => $this->trendSerie($sparkBesoins), 'spark' => $sparkBesoins,
                 'url' => route('filament.admin.resources.needs.index'),
             ],
             [
-                'cle' => 'admissions', 'label' => 'Admissions à valider', 'valeur' => (string) $admissionsAValider,
+                'cle' => 'admissions', 'service' => 'admissions', 'label' => 'Admissions à valider', 'valeur' => (string) $admissionsAValider,
                 'sous' => 'Dossiers à vérifier', 'tone' => 'turquoise', 'icon' => 'check-badge',
                 'trend' => $this->trendSerie($sparkAdmissions), 'spark' => $sparkAdmissions,
                 'url' => route('filament.admin.resources.admissions.index'),
             ],
             [
-                'cle' => 'contrats', 'label' => 'Contrats à faire signer', 'valeur' => (string) $contratsASigner,
+                'cle' => 'contrats', 'service' => 'contrats', 'label' => 'Contrats à faire signer', 'valeur' => (string) $contratsASigner,
                 'sous' => 'Signature incomplète', 'tone' => 'primary', 'icon' => 'pencil',
                 'trend' => $this->trendSerie($sparkContrats), 'spark' => $sparkContrats,
                 'url' => route('filament.admin.resources.contracts.index'),
             ],
             [
-                'cle' => 'opco', 'label' => 'Dossiers OPCO à débloquer', 'valeur' => (string) $opcoADebloquer,
+                'cle' => 'opco', 'service' => 'pilotage', 'label' => 'Dossiers OPCO à débloquer', 'valeur' => (string) $opcoADebloquer,
                 'sous' => 'Rejet ou correction', 'tone' => 'violet', 'icon' => 'folder-open',
                 'trend' => $this->trendSerie($sparkOpco), 'spark' => $sparkOpco,
                 'url' => route('filament.admin.resources.opco-files.index'),
             ],
             [
-                'cle' => 'versements', 'label' => 'Versements en retard', 'valeur' => (string) $versementsRetard,
+                'cle' => 'versements', 'service' => 'finance', 'label' => 'Versements en retard', 'valeur' => (string) $versementsRetard,
                 'sous' => 'Échéances à recouvrer', 'tone' => 'danger', 'icon' => 'banknotes',
                 'trend' => $this->trendSerie($sparkFinance), 'spark' => $sparkFinance,
                 'url' => route('filament.admin.pages.finance'),

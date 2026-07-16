@@ -29,7 +29,7 @@ it('renvoie les six cartes KPI avec une mini-courbe à six points', function () 
 
     expect($kpis)->toHaveCount(6);
     foreach ($kpis as $kpi) {
-        expect($kpi)->toHaveKeys(['cle', 'label', 'valeur', 'tone', 'icon', 'trend', 'spark', 'url'])
+        expect($kpi)->toHaveKeys(['cle', 'service', 'label', 'valeur', 'tone', 'icon', 'trend', 'spark', 'url'])
             ->and($kpi['spark'])->toHaveCount(6);
     }
 });
@@ -95,7 +95,37 @@ it('expose les onglets départements filtrés par les droits', function () {
     $tabs = collect(app(CockpitData::class)->departements());
 
     expect($tabs->pluck('label'))->toContain('Vue globale', 'Commercial', 'Admissions', 'Contrats', 'Finance', 'Pilotage')
-        ->and($tabs->firstWhere('label', 'Vue globale')['actif'])->toBeTrue();
+        ->and($tabs->firstWhere('label', 'Vue globale')['actif'])->toBeTrue()
+        // Chaque onglet porte son service (clé du filtre KPI).
+        ->and($tabs->pluck('service'))->toContain('global', 'commercial', 'finance');
+});
+
+it('rattache chaque KPI à un service filtrable', function () {
+    $this->seed(RolePermissionSeeder::class);
+
+    $services = collect(app(CockpitData::class)->kpis())->pluck('service');
+
+    expect($services)->toContain('commercial', 'admissions', 'contrats', 'finance', 'pilotage');
+});
+
+it('filtre les KPI par service via les onglets départements', function () {
+    $this->seed(RolePermissionSeeder::class);
+    $this->actingAs(cockpitUser());
+
+    Livewire::test(CockpitWidget::class)
+        ->assertSet('service', 'global')
+        // Vue globale : tous les KPI, tous services confondus.
+        ->assertSee('Entretiens à planifier')
+        ->assertSee('Versements en retard')
+        // Filtre « Finance » : ne reste que le KPI finance.
+        ->call('definirService', 'finance')
+        ->assertSet('service', 'finance')
+        ->assertSee('Versements en retard')
+        ->assertDontSee('Entretiens à planifier')
+        // Valeur inconnue → repli sur « global ».
+        ->call('definirService', 'nimportequoi')
+        ->assertSet('service', 'global')
+        ->assertSee('Entretiens à planifier');
 });
 
 it('change la fenêtre d\'historique via le filtre de période', function () {
