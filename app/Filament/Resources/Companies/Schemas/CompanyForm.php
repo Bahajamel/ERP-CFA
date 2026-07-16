@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Companies\Schemas;
 
 use App\Enums\CompanyStatut;
+use App\Models\Company;
 use App\Support\AdresseBan;
 use App\Support\EntrepriseAnnuaire;
 use App\Support\OpcoDetector;
@@ -15,9 +16,57 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
+use Illuminate\Database\Eloquent\Model;
 
 class CompanyForm
 {
+    /**
+     * Cherche une entreprise DÉJÀ enregistrée au même SIRET dans le CFA courant,
+     * corbeille comprise (withTrashed). Le OrganisationScope reste actif : la
+     * recherche est cloisonnée au CFA. `$ignorerId` exclut l'enregistrement en
+     * cours d'édition pour ne pas se détecter soi-même.
+     */
+    private static function entrepriseExistante(?string $siret, ?int $ignorerId = null): ?Company
+    {
+        $siret = OpcoDetector::normaliserSiret($siret);
+
+        if (! OpcoDetector::siretValide($siret)) {
+            return null;
+        }
+
+        return Company::withTrashed()
+            ->where('siret', $siret)
+            ->when($ignorerId !== null, fn ($query) => $query->whereKeyNot($ignorerId))
+            ->first();
+    }
+
+    /**
+     * Avertit (sans bloquer la saisie, mais avec un message ferme et persistant)
+     * qu'une entreprise au même SIRET existe déjà — active ou en corbeille. La
+     * création reste interdite au moment de l'enregistrement ({@see configure}) :
+     * ce message ne fait qu'anticiper le blocage dès la sélection/saisie.
+     */
+    private static function avertirSiEntrepriseExiste(?string $siret, ?Model $record): void
+    {
+        $existante = self::entrepriseExistante($siret, $record?->getKey());
+
+        if ($existante === null) {
+            return;
+        }
+
+        Notification::make()
+            ->danger()
+            ->persistent()
+            ->title('Cette entreprise existe déjà')
+            ->body(
+                "« {$existante->raison_sociale} » (SIRET {$existante->siret}) est déjà enregistrée"
+                .($existante->trashed()
+                    ? " dans la corbeille. Restaurez-la depuis la corbeille au lieu d'en créer une nouvelle."
+                    : ". Ouvrez sa fiche au lieu d'en créer une nouvelle.")
+            )
+            ->send();
+    }
+
     /**
      * Détecte l'OPCO depuis un SIRET (France Compétences), pré-remplit le
      * champ et notifie l'utilisateur. Partagé entre la recherche d'entreprise
@@ -107,7 +156,7 @@ class CompanyForm
                                 ->dehydrated(false)
                                 ->getSearchResultsUsing(fn (string $search): array => app(EntrepriseAnnuaire::class)->options($search))
                                 ->getOptionLabelUsing(fn ($value): ?string => EntrepriseAnnuaire::decode($value)['label'] ?? null)
-                                ->afterStateUpdated(function ($state, Set $set, Get $get): void {
+                                ->afterStateUpdated(function ($state, Set $set, Get $get, ?Model $record): void {
                                     $fiche = EntrepriseAnnuaire::decode($state);
 
                                     if ($fiche === null) {
@@ -124,8 +173,12 @@ class CompanyForm
                                     $set('latitude', $fiche['latitude']);
                                     $set('longitude', $fiche['longitude']);
 
-                                    // Enchaîne la détection de l'OPCO depuis le SIRET,
-                                    // puis l'alerte si l'établissement est fermé (F-09).
+                                    // Doublon d'abord : prévient dès la sélection qu'une fiche
+                                    // existe déjà pour ce SIRET (la création sera refusée).
+                                    self::avertirSiEntrepriseExiste($fiche['siret'], $record);
+
+                                    // Puis détection de l'OPCO depuis le SIRET, et alerte si
+                                    // l'établissement est fermé (F-09).
                                     self::detecterEtNotifierOpco($fiche['siret'], $set, $get);
                                     self::notifierSiEtablissementFerme([
                                         'ferme' => EntrepriseAnnuaire::ferme($fiche),
@@ -154,14 +207,33 @@ class CompanyForm
                                         $fail('Le SIRET doit comporter exactement 14 chiffres.');
                                     }
                                 })
-                                // Unicité du SIRET *au sein du CFA* : un même employeur
-                                // travaille couramment avec plusieurs centres, chacun tenant
-                                // sa propre fiche. scopedUnique() requête via le modèle, donc
-                                // le cloisonnement par CFA (OrganisationScope) s'y applique.
+                                // Interdiction du doublon *au sein du CFA*. Deux volets :
+                                //  1. scopedUnique() couvre les entreprises ACTIVES (requête via
+                                //     le modèle → cloisonnement CFA appliqué).
+                                //  2. la règle onlyTrashed() ci-dessous couvre la CORBEILLE, que
+                                //     scopedUnique ignore (le scope SoftDeletes l'exclut) — sans
+                                //     elle, recréer une entreprise archivée passe la validation
+                                //     puis heurte l'index SQL (organisation_id, siret) → erreur 500.
+                                //     onlyTrashed exclut naturellement l'enregistrement courant
+                                //     (non archivé), donc pas besoin d'ignorer le record en édition.
+                                // Un même employeur peut exister chez plusieurs CFA : le
+                                // cloisonnement garantit qu'on ne bloque que dans CE centre.
                                 ->scopedUnique(ignoreRecord: true)
-                                // Détection automatique de l'OPCO dès qu'un SIRET valide est
-                                // saisi, puis contrôle de l'état administratif (F-09).
-                                ->afterStateUpdated(function (?string $state, Set $set, Get $get): void {
+                                ->rule(fn (): \Closure => function (string $attribute, $value, \Closure $fail): void {
+                                    $siret = OpcoDetector::normaliserSiret($value);
+
+                                    if (OpcoDetector::siretValide($siret)
+                                        && Company::onlyTrashed()->where('siret', $siret)->exists()) {
+                                        $fail("Cette entreprise est déjà enregistrée dans la corbeille de ce CFA. Restaurez-la depuis la corbeille au lieu d'en créer une nouvelle.");
+                                    }
+                                })
+                                ->validationMessages([
+                                    'unique' => "Cette entreprise (SIRET) est déjà enregistrée pour ce CFA. Ouvrez la fiche existante au lieu d'en créer une nouvelle.",
+                                ])
+                                // Doublon signalé dès le blur, puis détection OPCO et contrôle
+                                // de l'état administratif (F-09).
+                                ->afterStateUpdated(function (?string $state, Set $set, Get $get, ?Model $record): void {
+                                    self::avertirSiEntrepriseExiste($state, $record);
                                     self::detecterEtNotifierOpco($state, $set, $get);
 
                                     if (OpcoDetector::siretValide($state)) {

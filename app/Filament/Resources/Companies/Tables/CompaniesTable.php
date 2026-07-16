@@ -59,13 +59,6 @@ class CompaniesTable
                     ->color(fn (Company $record): string => $record->besoinsOuvertsCount() > 0 ? 'warning' : 'gray')
                     ->state(fn (Company $record): string => $record->besoinsOuvertsCount().' poste'
                         .($record->besoinsOuvertsCount() > 1 ? 's' : '')),
-                TextColumn::make('derniere_activite')
-                    ->label('Dernière activité')
-                    ->state(fn (Company $record): ?string => $record->derniereActivite()['label'])
-                    ->description(fn (Company $record): ?string => $record->derniereActivite()['quand'])
-                    ->placeholder('—')
-                    ->wrap()
-                    ->toggleable(),
             ])
             // Clic sur une ligne = ouvre le panneau « Focus entreprise » (et non la
             // fiche : elle reste accessible via « Aperçu » ou le menu « Plus »).
