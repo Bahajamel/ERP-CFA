@@ -25,6 +25,7 @@
         .fc-header { display: flex; flex-wrap: wrap; gap: 1.3rem; align-items: flex-start; padding: 1.3rem; }
         .fc-avatar { width: 5rem; height: 5rem; border-radius: 1rem; display: grid; place-items: center; flex: none;
             background: linear-gradient(135deg,#4f46e5,#7c3aed); color: #fff; font-size: 1.5rem; font-weight: 800; }
+        .fc-avatar-img { object-fit: cover; background: none; }
         .fc-h-main { flex: 1; min-width: 260px; }
         .fc-h-name { display: flex; align-items: center; gap: .7rem; flex-wrap: wrap; }
         .fc-h-name .n { font-size: 1.6rem; font-weight: 800; color: #0f172a; } .dark .fc-h-name .n { color: #f8fafc; }
@@ -126,7 +127,11 @@
 
     {{-- En-tête --}}
     <div class="fc-card fc-header">
-        <span class="fc-avatar">{{ $record->initiales }}</span>
+        @if ($photo = $record->photoUrl())
+            <img src="{{ $photo }}" alt="Photo de {{ $record->nom_complet }}" class="fc-avatar fc-avatar-img">
+        @else
+            <span class="fc-avatar">{{ $record->initiales }}</span>
+        @endif
         <div class="fc-h-main">
             <div class="fc-h-name">
                 <span class="n">{{ $record->nom_complet }}</span>

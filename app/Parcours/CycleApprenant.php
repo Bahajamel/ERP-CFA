@@ -34,10 +34,13 @@ use Illuminate\Support\Facades\DB;
  *     → Admission officielle (« À vérifier ») → éventuellement Rupture.
  *
  * Chaque statut déclencheur crée automatiquement l'enregistrement de la
- * section suivante, à son statut par défaut : candidat accepté → matching
- * « En recherche » ; matching accepté → contrat ; contrat signé → dossier
- * OPCO ; OPCO créé/transmis → admission « À vérifier » ; admission en
- * rupture → dossier rupture « À traiter ».
+ * section suivante, à son statut par défaut : matching accepté → contrat ;
+ * contrat signé → dossier OPCO ; OPCO créé/transmis → admission
+ * « À vérifier » ; admission en rupture → dossier rupture « À traiter ».
+ *
+ * EXCEPTION (choix métier) : l'acceptation d'un candidat n'ouvre PAS
+ * automatiquement le Matching. L'équipe CFA l'y envoie explicitement via
+ * {@see self::envoyerVersMatching()} / {@see self::proposerSurOffre()}.
  *
  * Toute la logique de passage d'étape vit ici : prérequis, anti-doublons,
  * création automatique de l'étape suivante et messages métier. Les modèles
@@ -188,14 +191,19 @@ class CycleApprenant
     }
 
     /* ----------------------------------------------------------------
-     |  Candidat accepté → Matching (automatique)
+     |  Candidat accepté → Matching (ouverture d'une recherche)
      * ---------------------------------------------------------------- */
 
     /**
-     * Déclencheur automatique : dès qu'un candidat est accepté, une recherche
-     * d'entreprise est ouverte au Matching (statut par défaut « En
-     * recherche », sans entreprise rattachée pour l'instant). Anti-doublon :
-     * aucun nouveau dossier si un matching actif ou accepté existe déjà.
+     * Ouvre une recherche d'entreprise au Matching pour un candidat accepté
+     * (statut par défaut « En recherche », sans entreprise rattachée). Anti-
+     * doublon : aucun nouveau dossier si un matching actif ou accepté existe
+     * déjà — renvoie null dans ce cas.
+     *
+     * ⚠️ N'est PLUS déclenché automatiquement à l'acceptation (choix métier) :
+     * l'entrée au Matching est une décision explicite de l'équipe CFA. Voir
+     * {@see self::envoyerVersMatching()}, utilisé par l'action « Envoyer vers
+     * Matching » de la liste Candidats.
      */
     public function ouvrirRechercheEntreprise(Candidate $candidate): ?Matching
     {

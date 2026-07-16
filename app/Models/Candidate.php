@@ -207,14 +207,10 @@ class Candidate extends Model implements HasMedia
             ]);
         });
 
-        // Déclencheur automatique du cycle : dès l'acceptation, la recherche
-        // d'entreprise est ouverte au Matching (« En recherche »), sans
-        // double saisie. Idempotent (anti-doublon dans le service).
-        static::updated(function (self $candidate): void {
-            if ($candidate->wasChanged('statut') && $candidate->statut === CandidateStatut::Accepte) {
-                app(CycleApprenant::class)->ouvrirRechercheEntreprise($candidate);
-            }
-        });
+        // NB : l'acceptation d'un candidat n'ouvre PLUS automatiquement de
+        // dossier Matching (choix métier). L'équipe CFA envoie explicitement le
+        // candidat accepté vers le Matching via l'action « Envoyer vers
+        // Matching » (voir CandidatesTable), quand elle le décide.
     }
 
     /**
@@ -349,6 +345,14 @@ class Candidate extends Model implements HasMedia
     protected function nomComplet(): Attribute
     {
         return Attribute::get(fn () => trim("{$this->prenom} {$this->nom}"));
+    }
+
+    /** URL de la photo de profil de l'apprenant, ou null si aucune n'est déposée. */
+    public function photoUrl(): ?string
+    {
+        $url = $this->getFirstMediaUrl('photo');
+
+        return $url !== '' ? $url : null;
     }
 
     /** Initiales (avatar sans photo) — ex. « Raslen Saadi » → « RS ». */

@@ -102,6 +102,12 @@ class CandidatureController extends Controller
     private function tracerDansGed(Candidate $candidate, Media $media, DocumentType $type): void
     {
         $document = $candidate->documents()->create([
+            // Le formulaire public tourne hors contexte CFA : le trait
+            // BelongsToOrganisation ne peut pas déduire le tenant, donc on aligne
+            // explicitement le document sur le CFA du candidat (comme à sa création).
+            // Sans cela le document naît à organisation_id nul → invisible du panneau
+            // (le candidat paraît alors sans aucune pièce).
+            'organisation_id' => $candidate->organisation_id,
             'type' => $type->value,
             'statut' => DocumentStatut::Recu->value,
             'source' => DocumentSource::Candidature->value,
