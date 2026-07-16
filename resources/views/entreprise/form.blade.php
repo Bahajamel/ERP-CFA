@@ -73,7 +73,7 @@
                 @include('candidature.partials.field', ['name' => 'contact_nom', 'label' => 'Nom *', 'type' => 'text', 'required' => true])
                 @include('candidature.partials.field', ['name' => 'contact_prenom', 'label' => 'Prénom', 'type' => 'text'])
                 @include('candidature.partials.field', ['name' => 'contact_email', 'label' => 'Email', 'type' => 'email'])
-                @include('candidature.partials.field', ['name' => 'contact_telephone', 'label' => 'Téléphone', 'type' => 'tel'])
+                @include('candidature.partials.telephone', ['name' => 'contact_telephone', 'indicatif' => 'contact_indicatif', 'label' => 'Téléphone'])
                 @include('candidature.partials.field', ['name' => 'contact_fonction', 'label' => 'Fonction', 'type' => 'text'])
             </div>
             <p class="text-xs text-slate-500">Indiquez au moins un email <strong>ou</strong> un téléphone.</p>

@@ -8,10 +8,56 @@ use Filament\Actions\Action;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
+use Filament\Schemas\Schema;
 
 class EditCandidate extends EditRecord
 {
     protected static string $resource = CandidateResource::class;
+
+    /** Page « Modifier » premium : chrome custom (carte résumé + barre sticky) enveloppant le formulaire Filament. */
+    protected string $view = 'filament.resources.candidates.pages.edit-candidate';
+
+    /**
+     * Sur la page « Modifier », le formulaire occupe la colonne de droite (déjà
+     * étroite face à la carte résumé) : on l'affiche en colonne unique pour des
+     * sections pleine largeur et des champs confortables. Le schéma partagé
+     * (CandidateForm) reste intact — la page « Créer » garde ses 2 colonnes.
+     */
+    public function form(Schema $schema): Schema
+    {
+        return parent::form($schema)->columns(1);
+    }
+
+    /**
+     * Données réelles de la carte résumé (aucune donnée fictive) : identité,
+     * statut, formation, entreprise liée, dernière MAJ et progression du dossier
+     * — le formulaire lui-même reste 100 % Filament (champs + validation).
+     */
+    protected function getViewData(): array
+    {
+        $c = $this->getRecord();
+
+        // Progression du dossier : pièces requises présentes / total requis
+        // (même règle que la fiche 360°).
+        $requis = collect([
+            'cv' => true,
+            'piece_identite' => true,
+            'carte_vitale' => true,
+            'attestation_projet' => $c->plusDe30Ans(),
+        ])->filter();
+
+        $presentes = $requis->keys()->filter(fn (string $cle): bool => $c->getFirstMedia($cle) !== null)->count();
+        $dossierPct = (int) round($presentes / max(1, $requis->count()) * 100);
+
+        return [
+            'resume' => [
+                'entreprise' => $c->contracts()->with('company')->latest()->first()?->company?->raison_sociale,
+                'formation' => $c->formationVisee?->libelle,
+                'majLe' => $c->updated_at,
+                'dossierPct' => $dossierPct,
+            ],
+        ];
+    }
 
     protected function getHeaderActions(): array
     {

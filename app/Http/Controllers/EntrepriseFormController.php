@@ -6,7 +6,9 @@ use App\Enums\CompanyStatut;
 use App\Models\Company;
 use App\Models\Opco;
 use App\Models\Organisation;
+use App\Rules\TelephoneInternational;
 use App\Support\EntrepriseAnnuaire;
+use App\Support\Indicatifs;
 use App\Support\OpcoDetector;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -61,12 +63,21 @@ class EntrepriseFormController extends Controller
             return redirect()->route('entreprise.merci');
         }
 
+        // Indicatif pays choisi + numéro → numéro international complet (validé
+        // ensuite). Non assaini ci-dessous : la règle rejette d'éventuelles balises.
+        $request->merge([
+            'contact_telephone' => Indicatifs::combiner(
+                $request->input('contact_telephone'),
+                $request->input('contact_indicatif'),
+            ),
+        ]);
+
         // Assainissement des champs texte (défense en profondeur anti-XSS) :
         // balises HTML retirées, espaces normalisés, valeurs non-texte ignorées.
         $request->merge(
             collect($request->only([
                 'raison_sociale', 'secteur', 'adresse',
-                'contact_nom', 'contact_prenom', 'contact_email', 'contact_telephone', 'contact_fonction',
+                'contact_nom', 'contact_prenom', 'contact_email', 'contact_fonction',
             ]))
                 ->map(function ($valeur) {
                     if (! is_string($valeur)) {
@@ -92,14 +103,13 @@ class EntrepriseFormController extends Controller
             'contact_nom' => ['required', 'string', 'max:100', $nomHumain],
             'contact_prenom' => ['nullable', 'string', 'max:100', $nomHumain],
             'contact_email' => ['nullable', 'email', 'max:255', 'required_without:contact_telephone'],
-            'contact_telephone' => ['nullable', 'string', 'max:30', 'regex:/^[0-9+\s().\-]{6,30}$/', 'required_without:contact_email'],
+            'contact_telephone' => ['nullable', 'string', 'max:30', new TelephoneInternational, 'required_without:contact_email'],
             'contact_fonction' => ['nullable', 'string', 'max:100'],
         ], [
             'required_without' => 'Renseignez au moins un email ou un téléphone pour le contact.',
             'siret.unique' => 'Cette entreprise (SIRET) est déjà enregistrée.',
             'contact_nom.regex' => 'Le nom ne peut contenir que des lettres, espaces, apostrophes et tirets.',
             'contact_prenom.regex' => 'Le prénom ne peut contenir que des lettres, espaces, apostrophes et tirets.',
-            'contact_telephone.regex' => 'Le numéro de téléphone est invalide.',
         ]);
 
         DB::transaction(function () use ($data): void {
