@@ -192,7 +192,7 @@ it('ne propose depuis « Entretien réalisé » que les décisions Accepté ou R
     expect($transitions)->toEqualCanonicalizing([CandidateStatut::Accepte, CandidateStatut::Refuse]);
 });
 
-it('accepte le candidat depuis « Entretien réalisé » et ouvre le Matching', function () {
+it('accepte le candidat depuis « Entretien réalisé » sans l\'envoyer automatiquement au Matching', function () {
     $candidat = candidatAPlanifier();
     $entretien = Entretien::factory()->planifie()->create(['candidate_id' => $candidat->id]);
     $entretien->transitionTo(EntretienStatut::Realise);
@@ -202,10 +202,8 @@ it('accepte le candidat depuis « Entretien réalisé » et ouvre le Matching', 
     $candidat = cycleEntretiens()->deciderApresEntretien($entretien, accepte: true);
 
     expect($candidat->statut)->toBe(CandidateStatut::Accepte)
-        ->and(Matching::query()
-            ->where('candidate_id', $candidat->id)
-            ->where('statut', MatchingStatut::EnRecherche->value)
-            ->exists())->toBeTrue();
+        // Choix métier : l'acceptation n'ouvre PLUS de dossier Matching automatiquement.
+        ->and(Matching::query()->where('candidate_id', $candidat->id)->exists())->toBeFalse();
 });
 
 /*
@@ -214,18 +212,20 @@ it('accepte le candidat depuis « Entretien réalisé » et ouvre le Matching', 
 |--------------------------------------------------------------------------
 */
 
-it('accepte le candidat après entretien réalisé et ouvre AUTOMATIQUEMENT le Matching', function () {
+it('n\'ouvre pas le Matching à l\'acceptation, mais l\'équipe peut l\'y envoyer manuellement', function () {
     $entretien = Entretien::factory()->realise()->create();
 
     $candidat = cycleEntretiens()->deciderApresEntretien($entretien, accepte: true, compteRendu: 'Avis favorable.');
 
-    $matching = Matching::query()->where('candidate_id', $candidat->id)->first();
-
     expect($candidat->statut)->toBe(CandidateStatut::Accepte)
         ->and($entretien->fresh()->resultat)->toBe('accepte')
-        ->and($matching)->not->toBeNull()
-        // Premier statut par défaut de la section Matching, sans entreprise encore.
-        ->and($matching->statut)->toBe(MatchingStatut::EnRecherche)
+        // Aucun matching automatique à l'acceptation.
+        ->and(Matching::query()->where('candidate_id', $candidat->id)->exists())->toBeFalse();
+
+    // Envoi manuel vers le Matching (action « Envoyer vers Matching » de la liste Candidats).
+    $matching = cycleEntretiens()->envoyerVersMatching($candidat->fresh(), null);
+
+    expect($matching->statut)->toBe(MatchingStatut::EnRecherche)
         ->and($matching->need_id)->toBeNull();
 });
 
@@ -250,14 +250,20 @@ it('ne crée pas de second matching si une recherche est déjà en cours (anti-d
     $entretien = Entretien::factory()->realise()->create();
     $candidat = cycleEntretiens()->deciderApresEntretien($entretien, accepte: true);
 
-    // Rejoue le déclencheur : idempotent.
+    // Première ouverture manuelle de la recherche d'entreprise.
+    cycleEntretiens()->envoyerVersMatching($candidat->fresh(), null);
+
+    // Rejoue le déclencheur : idempotent (aucun second dossier).
     expect(cycleEntretiens()->ouvrirRechercheEntreprise($candidat->fresh()))->toBeNull()
         ->and(Matching::query()->where('candidate_id', $candidat->id)->count())->toBe(1);
 });
 
-it('rattache le besoin à la recherche automatique au lieu de créer un doublon', function () {
+it('rattache le besoin à la recherche déjà ouverte au lieu de créer un doublon', function () {
     $entretien = Entretien::factory()->realise()->create();
     $candidat = cycleEntretiens()->deciderApresEntretien($entretien, accepte: true);
+
+    // Recherche ouverte manuellement, puis rattachement d'un besoin : même dossier réutilisé.
+    cycleEntretiens()->envoyerVersMatching($candidat->fresh(), null);
 
     $besoin = besoinOuvertPourEntretiens();
     $matching = cycleEntretiens()->envoyerVersMatching($candidat->fresh(), $besoin);
@@ -270,7 +276,7 @@ it('bloque l\'avancement d\'un matching sans entreprise rattachée', function ()
     $entretien = Entretien::factory()->realise()->create();
     $candidat = cycleEntretiens()->deciderApresEntretien($entretien, accepte: true);
 
-    $matching = Matching::query()->where('candidate_id', $candidat->id)->firstOrFail();
+    $matching = cycleEntretiens()->envoyerVersMatching($candidat->fresh(), null);
     $matching->forceFill(['cv_envoye' => true])->save();
 
     expect($matching->transitionBlockReason(MatchingStatut::PropositionEnvoyee))

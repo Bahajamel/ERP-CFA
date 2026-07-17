@@ -59,9 +59,18 @@ it('applique la matrice des permissions par rôle', function () {
         ->and($finance->can('access_candidates'))->toBeFalse();
 });
 
-it("crée bien les 10 rôles et 16 permissions", function () {
-    expect(\Spatie\Permission\Models\Role::count())->toBe(10)
-        ->and(\Spatie\Permission\Models\Permission::count())->toBe(16);
+it("crée bien les 10 rôles métier et 16 permissions de module", function () {
+    // 10 rôles CFA (matrice CDC §20) + le rôle « Éditeur » (exploitant de la
+    // solution), hors matrice ; 16 permissions de module + « access_editeur ».
+    expect(\Spatie\Permission\Models\Role::count())->toBe(11)
+        ->and(\Spatie\Permission\Models\Permission::count())->toBe(17);
+});
+
+it("tient le rôle Éditeur hors de la matrice des rôles CFA", function () {
+    // Garde-fou du modèle SaaS : « Administrateur » => '*' ouvre tous les modules,
+    // mais jamais le pouvoir éditeur (créer/suspendre des CFA).
+    expect(makeUser(['Administrateur'])->can(RolePermissionSeeder::PERMISSION_EDITEUR))->toBeFalse()
+        ->and(makeUser([RolePermissionSeeder::ROLE_EDITEUR])->can(RolePermissionSeeder::PERMISSION_EDITEUR))->toBeTrue();
 });
 
 it('filtre les modules selon le rôle Commercial', function () {

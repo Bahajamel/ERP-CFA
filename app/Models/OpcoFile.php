@@ -8,6 +8,7 @@ use App\Enums\OpcoStatut;
 use App\Enums\PaymentStatut;
 use App\Enums\TaskPriorite;
 use App\Enums\TaskStatut;
+use App\Models\Concerns\BelongsToOrganisation;
 use App\Parcours\CycleApprenant;
 use App\Services\FinanceService;
 use App\StateMachine\ManagesState;
@@ -25,6 +26,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
 
 class OpcoFile extends Model
 {
+    use BelongsToOrganisation;
     use HasFactory;
     use LogsActivity;
     use ManagesState;
@@ -66,11 +68,23 @@ class OpcoFile extends Model
                 app(CycleApprenant::class)->ouvrirAdmission($dossier);
                 app(FinanceService::class)->synchroniserDepuisOpco($dossier);
             }
+
+            // Un dossier peut naître déjà accepté (import, reprise de données,
+            // seed) : il ne transite alors jamais, et l'échéancier du décret
+            // 2025-585 n'était jamais créé. L'onglet restait vide sur un dossier
+            // annonçant 8 000 € de financement.
+            $dossier->synchroniserEcheancier();
         });
 
         // Même déclencheur pour une mise à jour directe du statut (formulaire,
         // import…) hors machine à états : idempotent via firstOrCreate.
         static::updated(function (self $dossier): void {
+            // Le montant accepté révisé (proratisation, rupture) doit refaire le
+            // plan de versement, même sans changement de statut.
+            if ($dossier->wasChanged('montant_accepte')) {
+                $dossier->synchroniserEcheancier();
+            }
+
             if (! $dossier->wasChanged('statut')) {
                 return;
             }
@@ -85,6 +99,8 @@ class OpcoFile extends Model
             if ($dossier->statut === OpcoStatut::Rejete) {
                 $dossier->retournerContratPourCorrection();
             }
+
+            $dossier->synchroniserEcheancier();
         });
     }
 
@@ -206,6 +222,61 @@ class OpcoFile extends Model
                 'statut' => PaymentStatut::Attendu->value,
             ]);
         }
+    }
+
+    /**
+     * L'échéancier a-t-il lieu d'être ? Un montant « accepté » saisi sur un
+     * dossier encore en attente ne vaut pas acceptation : on ne planifie pas un
+     * financement que l'OPCO n'a pas accordé.
+     */
+    public function echeancierEstDu(): bool
+    {
+        return in_array($this->statut, [OpcoStatut::Accepte, OpcoStatut::Cloture], true)
+            && (float) $this->montant_accepte > 0;
+    }
+
+    /**
+     * L'échéancier annonce-t-il un total différent du montant accepté ?
+     *
+     * Arrive quand l'OPCO révise sa prise en charge après un premier versement :
+     * le plan ne peut pas être refait (on ne réécrit pas l'argent reçu), il faut
+     * donc le dire au lieu d'afficher un financement qui n'existe plus.
+     */
+    public function echeancierEstPerime(): bool
+    {
+        if ($this->payments()->doesntExist()) {
+            return false;
+        }
+
+        return round((float) $this->payments()->sum('montant_prevu'), 2)
+            !== round((float) $this->montant_accepte, 2);
+    }
+
+    /** Un versement a-t-il déjà été encaissé sur ce dossier ? */
+    public function aDesVersementsEncaisses(): bool
+    {
+        return $this->payments()->where('statut', PaymentStatut::Verse->value)->exists();
+    }
+
+    /**
+     * Aligne l'échéancier sur le montant accepté, quel que soit le chemin
+     * emprunté (transition, formulaire, import, seed).
+     *
+     * Tant que rien n'est encaissé, l'échéancier n'est qu'une prévision : on la
+     * refait librement. Dès qu'un versement est arrivé, on ne touche plus à
+     * rien — echeancierEstPerime() prend le relais pour signaler l'écart.
+     */
+    public function synchroniserEcheancier(): void
+    {
+        if (! $this->echeancierEstDu() || $this->aDesVersementsEncaisses()) {
+            return;
+        }
+
+        if ($this->echeancierEstPerime()) {
+            $this->payments()->delete();
+        }
+
+        $this->genererEcheancier();
     }
 
     public function montantVerse(): float

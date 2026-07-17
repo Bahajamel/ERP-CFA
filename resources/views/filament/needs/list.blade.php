@@ -32,6 +32,18 @@
                 <small>Candidats en sélection</small>
             </span>
         </button>
+
+        {{-- Les trois filtres ci-dessus ne montrent que des offres ouvertes :
+             celui-ci est la seule porte vers l'historique (pourvues + annulées). --}}
+        <button type="button" wire:click="setQuickScope('cloturees')"
+            class="cfa-quick {{ $quickScope === 'cloturees' ? 'actif' : '' }}" style="--q:#64748b"
+            aria-pressed="{{ $quickScope === 'cloturees' ? 'true' : 'false' }}">
+            <span class="cfa-quick-ico">@svg('heroicon-o-archive-box', 'w-5 h-5')</span>
+            <span class="cfa-quick-txt">
+                <b>{{ $qc['cloturees'] }} offres clôturées</b>
+                <small>Pourvues ou annulées</small>
+            </span>
+        </button>
     </div>
 
     {{-- Tableau des offres + panneau Focus (affiché seulement à la sélection) --}}

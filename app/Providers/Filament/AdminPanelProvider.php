@@ -5,12 +5,15 @@ namespace App\Providers\Filament;
 use App\Filament\Auth\Login;
 use App\Filament\Pages\Auth\EditProfile;
 use App\Filament\Pages\Dashboard;
+use App\Filament\Pages\Tenancy\ProfilCfa;
 use App\Filament\Resources\Candidates\Pages\CreateCandidate;
 use App\Filament\Resources\Candidates\Pages\EditCandidate;
 use App\Filament\Resources\Candidates\Pages\ViewCandidate;
 use App\Filament\Resources\Companies\Pages\CreateCompany;
 use App\Filament\Resources\Companies\Pages\EditCompany;
 use App\Filament\Resources\Companies\Pages\ViewCompany;
+use App\Http\Middleware\AuthenticateCfaPanel;
+use App\Models\Organisation;
 use Filament\Auth\MultiFactor\App\AppAuthentication;
 use Filament\Enums\ThemeMode;
 use Filament\Http\Middleware\Authenticate;
@@ -39,6 +42,15 @@ class AdminPanelProvider extends PanelProvider
             ->default()
             ->id('admin')
             ->path('admin')
+            // Multi-tenant : chaque CFA (Organisation) est un tenant. Les données
+            // rattachées (organisation_id, relation `organisation`) sont cloisonnées
+            // automatiquement ; les resources de référence sont exclues via
+            // $isScopedToTenant = false.
+            ->tenant(Organisation::class, slugAttribute: 'slug', ownershipRelationship: 'organisation')
+            // Fiche du CFA courant (nom). Pas de ->tenantRegistration() ici :
+            // l'ouverture d'un CFA est un acte commercial, réservé au panneau
+            // /editeur — on ne s'inscrit pas soi-même comme CFA client.
+            ->tenantProfile(ProfilCfa::class)
             ->viteTheme('resources/css/filament/admin/theme.css')
             ->brandName('ERP CFA')
             ->brandLogo(fn () => view('filament.brand'))
@@ -156,8 +168,11 @@ class AdminPanelProvider extends PanelProvider
                 DisableBladeIconComponents::class,
                 DispatchServingFilamentEvent::class,
             ])
+            // Authenticate maison : oriente au lieu de murer (403) un compte qui
+            // n'a rien à faire ici — typiquement l'éditeur, connecté via la même
+            // session et sans CFA rattaché. Voir AuthenticateCfaPanel.
             ->authMiddleware([
-                Authenticate::class,
+                AuthenticateCfaPanel::class,
             ]);
     }
 }

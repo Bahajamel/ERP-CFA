@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\CandidateStatut;
 use App\Enums\MatchingStatut;
+use App\Models\Concerns\BelongsToOrganisation;
 use App\Parcours\CycleApprenant;
 use App\Parcours\CycleBloqueException;
 use App\StateMachine\ManagesState;
@@ -19,6 +20,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
 
 class Matching extends Model implements HasMedia
 {
+    use BelongsToOrganisation;
     use HasFactory;
     use InteractsWithMedia;
     use LogsActivity;
@@ -63,6 +65,7 @@ class Matching extends Model implements HasMedia
 
     /** Statut terminal de refus (motif obligatoire à la transition). */
     private const REFUS = [MatchingStatut::Refuse];
+
 
     /**
      * Journalise les évolutions du matching (activity log) — traçabilité commerciale
@@ -172,6 +175,14 @@ class Matching extends Model implements HasMedia
                 );
             }
         });
+
+        // Le besoin suit l'activité de ses candidats (proposition envoyée,
+        // entretien entreprise, candidat accepté, tous postes pourvus) : son
+        // statut n'est plus saisi à la main. `saved` couvre création et
+        // changement de statut ; un matching « en recherche d'entreprise » n'a
+        // pas encore de besoin (need_id nul), il n'y a alors rien à aligner.
+        static::saved(fn (self $matching) => $matching->need?->synchroniserDepuisMatchings());
+        static::deleted(fn (self $matching) => $matching->need?->synchroniserDepuisMatchings());
     }
 
     /**

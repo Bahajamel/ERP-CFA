@@ -2,8 +2,8 @@
 
 namespace App\Documents;
 
-use App\Models\CfaProfile;
 use App\Models\Contract;
+use App\Models\Organisation;
 use App\Support\RemunerationApprenti;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
@@ -47,13 +47,13 @@ class ConventionFormation
         $co = $contract->company;
         $tuteur = $contract->tuteur;
         $formation = $contract->formation ?? $cand?->formationVisee;
-        $cfa = CfaProfile::current();
+        $cfa = Organisation::courante();
         $principal = $co?->contactPrincipal()->first();
         $opco = $contract->opcoFile?->opco ?? $co?->opco;
 
         return [
             // ---- CFA / organisme de formation ----
-            'cfa_designation' => $cfa->raison_sociale ?: $cfa->nom,
+            'cfa_designation' => $cfa->designation(),
             'cfa_adresse' => $this->adresse($cfa->adresse, $cfa->code_postal, $cfa->ville),
             'cfa_siret' => $this->siret($cfa->siret),
             'cfa_uai' => $cfa->numero_uai,
@@ -105,10 +105,35 @@ class ConventionFormation
             'annees_financement' => $this->anneesFinancement($contract, $cand?->date_naissance),
 
             // ---- Signatures ----
+            // La convention lie le CFA et l'entreprise (l'apprenti n'en est pas
+            // signataire). Le CFA signe la sienne d'avance : sa signature et son
+            // cachet sont dans la Fiche du CFA. Ne reste alors que l'entreprise.
             'fait_a' => $cfa->ville,
             'fait_le' => now()->translatedFormat('d F Y'),
             'tribunal' => $cfa->ville,
+            'cfa_signature_image' => $this->image($cfa, 'signature'),
+            'cfa_cachet_image' => $this->image($cfa, 'cachet'),
         ];
+    }
+
+    /**
+     * Pièce graphique du CFA en data-URI, pour dompdf.
+     *
+     * Le fichier doit exister RÉELLEMENT sur le disque : une balise <img> sur un
+     * média fantôme laisserait un cadre vide au bas d'une convention présentée
+     * comme signée. Absent = on retombe sur la mention « à signer », jamais sur
+     * une signature muette.
+     */
+    private function image(Organisation $cfa, string $collection): ?string
+    {
+        $media = $cfa->getFirstMedia($collection);
+
+        if ($media === null || ! is_file($media->getPath())) {
+            return null;
+        }
+
+        return 'data:'.$media->mime_type.';base64,'
+            .base64_encode((string) file_get_contents($media->getPath()));
     }
 
     /** Nombre d'années d'exécution du contrat (pour le tableau financier). */

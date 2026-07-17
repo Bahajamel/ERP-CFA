@@ -14,6 +14,7 @@ use Filament\Actions\ForceDeleteBulkAction;
 use Filament\Actions\RestoreBulkAction;
 use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
@@ -60,12 +61,23 @@ class ContractsTable
                     ->options(ContractStatut::class),
                 TrashedFilter::make(),
             ])
+            // Listes déroulantes toujours visibles en barre au-dessus du tableau
+            // (au lieu du menu déroulant « Filtres »), comme Candidats, Entreprises
+            // et Entretiens. Filtres instantanés, sans bouton « Appliquer ».
+            ->filtersLayout(FiltersLayout::AboveContent)
+            ->deferFilters(false)
+            ->filtersFormColumns([
+                'sm' => 2,
+                'lg' => 2,
+            ])
             ->recordActions([
                 // Actions principales visibles ; le reste dans un menu « ⋮ »
                 // pour garder la ligne lisible (plus de débordement horizontal).
                 ViewAction::make(),
                 EditAction::make(),
                 ActionGroup::make([
+                    ContractActions::envoyerDocumentsASigner(),
+                    ContractActions::deposerDocumentsSignes(),
                     ContractActions::signer(),
                     ContractActions::envoyerSignature(),
                     ContractActions::simulerSignature(),

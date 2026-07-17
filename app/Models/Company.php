@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\CompanyStatut;
 use App\Enums\NoteType;
+use App\Models\Concerns\BelongsToOrganisation;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -16,6 +17,7 @@ use Illuminate\Support\Collection;
 
 class Company extends Model
 {
+    use BelongsToOrganisation;
     use HasFactory;
     use SoftDeletes;
 

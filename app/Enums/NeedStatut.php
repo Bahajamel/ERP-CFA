@@ -19,6 +19,17 @@ enum NeedStatut: string implements HasLabel, HasColor, HasStateTransitions
     case CandidatRetenu = 'candidat_retenu';
     case Pourvu = 'pourvu';
     case Annule = 'annule';
+
+    /**
+     * ⚠️ Statut actuellement INATTEIGNABLE, et c'est assumé.
+     *
+     * Le sélecteur « Changer le statut » était le seul chemin vers « Archivé » ;
+     * il a été retiré (le statut suit désormais les candidats, cf.
+     * Need::synchroniserDepuisMatchings). Personne ne s'en servait — aucune offre
+     * archivée en base — et « Pourvu » / « Annulé » closent déjà une offre.
+     * Conservé pour ne pas toucher aux données existantes. Le filtre « Statut »
+     * le propose donc sans jamais rien renvoyer.
+     */
     case Archive = 'archive';
 
     public function getLabel(): string

@@ -6,6 +6,7 @@ use App\Enums\ContractSignatureStatut;
 use App\Enums\ContractStatut;
 use App\Enums\DocumentType;
 use App\Enums\OpcoStatut;
+use App\Models\Concerns\BelongsToOrganisation;
 use App\Parcours\CycleApprenant;
 use App\StateMachine\ManagesState;
 use BackedEnum;
@@ -24,6 +25,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
 
 class Contract extends Model implements HasMedia
 {
+    use BelongsToOrganisation;
     use HasFactory;
     use InteractsWithMedia;
     use LogsActivity;

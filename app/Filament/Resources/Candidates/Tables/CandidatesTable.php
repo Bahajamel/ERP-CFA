@@ -99,6 +99,19 @@ class CandidatesTable
             ->recordAction('focus')
             ->recordUrl(null)
             ->filters([
+                // Filtre sur la colonne « Progression » : c'est la question que
+                // l'on se pose devant cet écran (« qui est bloqué où ? »), et rien
+                // ne permettait d'y répondre — le statut seul ne dit pas si un
+                // candidat accepté cherche encore une entreprise ou attend son
+                // admission.
+                SelectFilter::make('etape')
+                    // Même nom que la colonne qu'il filtre : on cherche « Progression »
+                    // dans la barre parce qu'on la voit dans le tableau.
+                    ->label('Progression')
+                    ->options(Candidate::etapesProgression())
+                    ->query(fn (Builder $query, array $data): Builder => filled($data['value'] ?? null)
+                        ? $query->aEtape($data['value'])
+                        : $query),
                 SelectFilter::make('statut')
                     ->label('Statut')
                     ->options(CandidateStatut::class),

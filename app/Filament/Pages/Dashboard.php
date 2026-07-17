@@ -10,6 +10,7 @@ use App\Filament\Widgets\RelancesCommercialesTable;
 use App\Filament\Widgets\TachesPrioritairesTable;
 use App\Services\CockpitData;
 use Filament\Pages\Dashboard as BaseDashboard;
+use Filament\Support\Enums\Width;
 
 /**
  * Tableau de bord « cockpit de supervision ».
@@ -39,5 +40,11 @@ class Dashboard extends BaseDashboard
     public function getColumns(): int|array
     {
         return 1;
+    }
+
+    /** Cockpit pleine largeur : on occupe tout l'espace (fini les grandes marges). */
+    public function getMaxContentWidth(): Width|string|null
+    {
+        return Width::Full;
     }
 }

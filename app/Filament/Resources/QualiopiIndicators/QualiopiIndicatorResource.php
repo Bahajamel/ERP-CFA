@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\QualiopiIndicators;
 
+use App\Enums\QualiopiStatut;
 use App\Filament\Resources\QualiopiIndicators\Pages\EditQualiopiIndicator;
 use App\Filament\Resources\QualiopiIndicators\Pages\ListQualiopiIndicators;
 use App\Filament\Resources\QualiopiIndicators\RelationManagers\PreuvesRelationManager;
@@ -17,6 +18,9 @@ use Filament\Tables\Table;
 class QualiopiIndicatorResource extends Resource
 {
     protected static ?string $model = QualiopiIndicator::class;
+
+    // Référentiel national partagé (32 indicateurs Qualiopi) : non cloisonné par CFA.
+    protected static bool $isScopedToTenant = false;
 
     public static function canAccess(): bool
     {
@@ -58,7 +62,7 @@ class QualiopiIndicatorResource extends Resource
     public static function getNavigationBadge(): ?string
     {
         $n = QualiopiIndicator::query()
-            ->where('statut', \App\Enums\QualiopiStatut::NonConforme->value)
+            ->where('statut', QualiopiStatut::NonConforme->value)
             ->count();
 
         return $n > 0 ? (string) $n : null;
@@ -73,7 +77,7 @@ class QualiopiIndicatorResource extends Resource
     public static function getNavigationBadgeTooltip(): ?string
     {
         $n = QualiopiIndicator::query()
-            ->where('statut', \App\Enums\QualiopiStatut::NonConforme->value)
+            ->where('statut', QualiopiStatut::NonConforme->value)
             ->count();
 
         return $n > 0

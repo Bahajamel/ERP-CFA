@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\InvoiceStatut;
 use App\Enums\TaskStatut;
+use App\Models\Concerns\BelongsToOrganisation;
 use App\StateMachine\ManagesState;
 use BackedEnum;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -26,6 +27,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
  */
 class Invoice extends Model
 {
+    use BelongsToOrganisation;
     use HasFactory;
     use LogsActivity;
     use ManagesState;

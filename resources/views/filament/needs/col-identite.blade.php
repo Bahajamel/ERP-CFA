@@ -1,6 +1,7 @@
 @php $r = $getRecord(); @endphp
+{{-- Pas de pastille d'initiales ici : l'entreprise est déjà nommée sous
+     l'intitulé du poste, la pastille n'ajoutait aucune information. --}}
 <div class="cfa-cand-identite">
-    <span class="cfa-cand-avatar cfa-avatar-alt">{{ $r->company?->initiales ?? '?' }}</span>
     <span class="cfa-cand-identite-txt">
         <span class="cfa-cand-name">{{ $r->intitule_poste }}</span>
         @if ($r->company)

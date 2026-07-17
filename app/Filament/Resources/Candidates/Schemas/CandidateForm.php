@@ -32,6 +32,15 @@ class CandidateForm
                         ->icon('heroicon-o-identification')
                         ->columns(2)
                         ->schema([
+                            SpatieMediaLibraryFileUpload::make('photo')
+                                ->label('Photo de profil')
+                                ->collection('photo')
+                                ->avatar()
+                                ->imageEditor()
+                                ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
+                                ->maxSize(5120)
+                                ->helperText('JPG, PNG ou WebP — 5 Mo max. Affichée sur la fiche du candidat.')
+                                ->columnSpanFull(),
                             TextInput::make('nom')
                                 ->label('Nom')
                                 ->placeholder('ex : Dupont')

@@ -2,8 +2,8 @@
 
 namespace App\Cerfa;
 
-use App\Models\CfaProfile;
 use App\Models\Contract;
+use App\Models\Organisation;
 use App\Support\RemunerationApprenti;
 use Carbon\Carbon;
 use setasign\Fpdi\Fpdi;
@@ -22,6 +22,20 @@ class CerfaApprentissage
 {
     /** Chemin du modèle officiel embarqué dans le dépôt. */
     private const TEMPLATE = 'cerfa/cerfa_10103-14.pdf';
+
+    /**
+     * Valeurs portées par le CERFA, avant impression.
+     *
+     * Exposées pour que le contenu du document soit vérifiable au niveau des
+     * valeurs — assurer qu'un CERFA porte le SIRET du bon CFA en fouillant les
+     * octets du PDF serait illisible et fragile.
+     *
+     * @return array<string, string|bool|null>
+     */
+    public function champs(Contract $contract): array
+    {
+        return $this->donnees($contract);
+    }
 
     /**
      * Génère le CERFA pré-rempli et retourne le PDF (octets bruts).
@@ -110,7 +124,7 @@ class CerfaApprentissage
         $co = $contract->company;
         $tuteur = $contract->tuteur;
         $formation = $contract->formation ?? $cand?->formationVisee;
-        $cfa = CfaProfile::current();
+        $cfa = Organisation::courante();
         $principal = $co?->contactPrincipal()->first();
 
         $naiss = $this->partsDate($cand?->date_naissance);
@@ -169,7 +183,7 @@ class CerfaApprentissage
             'cfa_entreprise_non' => true,
             'formation_intitule' => $formation?->libelle,
             'code_rncp' => $contract->code_rncp ?? $formation?->code_rncp,
-            'cfa_denomination' => $cfa->raison_sociale ?: $cfa->nom,
+            'cfa_denomination' => $cfa->designation(),
             'cfa_uai' => $cfa->numero_uai,
             'cfa_siret' => $this->siret($cfa->siret),
             'cfa_adr_num' => $adrCfa['num'],
@@ -270,10 +284,10 @@ class CerfaApprentissage
         // Numéro en tête (+ éventuel B / bis / ter / quater), suivi d'un
         // séparateur (espace ou virgule) puis du nom de voie.
         if (preg_match('/^\s*(\d+[a-dA-D]?(?:\s*(?:bis|ter|quater))?)[\s,]+(.+)$/iu', trim($voie), $m)) {
-            return ['num' => trim($m[1]), 'voie' => trim($m[2], " ,")];
+            return ['num' => trim($m[1]), 'voie' => trim($m[2], ' ,')];
         }
 
-        return ['num' => null, 'voie' => trim($voie, " ,")];
+        return ['num' => null, 'voie' => trim($voie, ' ,')];
     }
 
     /** Découpe une date en jj / mm / aaaa (chaînes vides si absente). */

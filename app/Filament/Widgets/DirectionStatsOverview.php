@@ -55,7 +55,10 @@ class DirectionStatsOverview extends StatsOverviewWidget
         $contratsSignes = Contract::whereIn('statut_contrat', ContractStatut::signes())->count();
         $opcoBloques = OpcoFile::whereIn('statut', OpcoStatut::bloques())->count();
         $montantAttendu = (float) OpcoFile::sum('montant_prevu');
-        $montantVerse = (float) OpcoPayment::where('statut', PaymentStatut::Verse->value)->sum('montant_prevu');
+        // Le montant réellement tombé, pas celui qui était prévu : l'OPCO verse
+        // couramment moins (proratisation, rupture en cours d'année). La fiche du
+        // dossier disait 3 200 €, ce tableau de bord 5 000 € — même versement.
+        $montantVerse = (float) OpcoPayment::where('statut', PaymentStatut::Verse->value)->sum('montant_verse');
         $tachesOuvertes = Task::whereIn('statut', [
             TaskStatut::AFaire->value,
             TaskStatut::EnCours->value,

@@ -1,10 +1,9 @@
 <?php
 
-namespace App\Filament\Pages;
+namespace App\Filament\Pages\Tenancy;
 
 use App\Livret\LivretRsClient;
 use App\Livret\LivretRsException;
-use App\Models\CfaProfile;
 use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Placeholder;
@@ -13,55 +12,51 @@ use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
-use Filament\Pages\Page;
+use Filament\Pages\Tenancy\EditTenantProfile;
 use Filament\Schemas\Components\Section;
-use Filament\Schemas\Concerns\InteractsWithSchemas;
-use Filament\Schemas\Contracts\HasSchemas;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 
 /**
- * Paramètres du CFA (singleton) — étapes 1 à 3 & préférences de génération de
- * LivretRS : identité, référents, logo, signature, cachet et défauts de
- * génération. Ces données alimentent les livrables (brandés et signés).
+ * Fiche du CFA courant — son identité complète, éditable depuis le panneau CFA
+ * (menu du sélecteur).
  *
- * @property-read Schema $form
+ * Ces données ne sont pas des « réglages de génération » : ce sont l'identité du
+ * CFA. Elles impriment les CERFA, les conventions, les bulletins et les
+ * livrables. Elles vivaient dans une page « Paramètres CFA » classée sous la
+ * génération de livrables, adossée à un singleton partagé par tous les CFA —
+ * d'où un second CFA qui déposait ses CERFA avec le SIRET et la signature du
+ * premier. Un CFA = une fiche (migration 2026_07_25_000005).
+ *
+ * Restent du ressort de l'éditeur (panneau /editeur) : l'identifiant d'URL
+ * (slug) et l'état actif/suspendu — un CFA ne peut ni se réactiver lui-même ni
+ * casser ses propres adresses.
  */
-class ParametresCfa extends Page implements HasSchemas
+class ProfilCfa extends EditTenantProfile
 {
-    use InteractsWithSchemas;
+    public static function getLabel(): string
+    {
+        return 'Fiche du CFA';
+    }
 
-    /** @var array<string, mixed>|null */
-    public ?array $data = [];
-
-    protected string $view = 'filament.pages.parametres-cfa';
-
-    protected static string|\UnitEnum|null $navigationGroup = 'Administration';
-
-    protected static ?int $navigationSort = 90;
-
-    protected static ?string $navigationLabel = 'Paramètres CFA';
-
-    protected static string|\BackedEnum|null $navigationIcon = Heroicon::OutlinedBuildingLibrary;
-
-    protected static ?string $title = 'Paramètres du CFA';
-
-    public static function canAccess(): bool
+    /**
+     * Réservée à la direction et à l'administrateur, comme l'était la page
+     * « Paramètres CFA » qu'elle remplace : ces champs impriment le SIRET et le
+     * représentant légal sur des documents déposés à l'OPCO et à l'État. Sans
+     * cette garde, tout utilisateur rattaché au CFA pourrait les modifier —
+     * EditTenantProfile autorise par défaut via la policy `update` du tenant,
+     * qui n'existe pas ici.
+     */
+    public static function canView(Model $tenant): bool
     {
         $user = Auth::user();
 
         return $user instanceof User && $user->hasAnyRole(['Administrateur', 'Direction']);
     }
 
-    public function mount(): void
-    {
-        // On ne préremplit pas les uploads (logo/signature/cachet) : ils servent
-        // à REMPLACER l'existant ; l'état actuel est affiché en dessous.
-        $this->form->fill(CfaProfile::current()->attributesToArray());
-    }
-
-    /** Recherche intelligente (étape 1 LivretRS) : pré-remplit depuis les sources officielles. */
+    /** Recherche intelligente : pré-remplit depuis les sources officielles. */
     protected function getHeaderActions(): array
     {
         return [
@@ -111,8 +106,7 @@ class ParametresCfa extends Page implements HasSchemas
                         'email' => $c['email'] ?? null,
                     ], fn ($v) => filled($v));
 
-                    $this->data = array_merge($this->data ?? [], $maj);
-                    $this->form->fill($this->data);
+                    $this->form->fill(array_merge($this->form->getRawState(), $maj));
 
                     Notification::make()
                         ->title('Champs pré-remplis — vérifiez puis enregistrez.')
@@ -125,15 +119,19 @@ class ParametresCfa extends Page implements HasSchemas
     public function form(Schema $schema): Schema
     {
         return $schema
-            ->model(CfaProfile::current())
-            ->statePath('data')
             ->components([
                 Section::make('Identité du CFA')
-                    ->description('Recherchée automatiquement à l\'étape suivante, ou saisie ici.')
+                    ->description('Figure sur vos CERFA, conventions, bulletins et livrables.')
                     ->columns(2)
                     ->schema([
-                        TextInput::make('nom')->label('Nom du CFA')->required()->columnSpanFull(),
-                        TextInput::make('raison_sociale')->label('Raison sociale'),
+                        TextInput::make('nom')
+                            ->label('Nom du CFA')
+                            ->required()
+                            ->maxLength(255)
+                            ->columnSpanFull()
+                            ->helperText('Apparaît dans le sélecteur de CFA et, à défaut de raison sociale, sur vos documents.'),
+                        TextInput::make('raison_sociale')->label('Raison sociale')
+                            ->helperText('Prioritaire sur le nom pour la désignation légale.'),
                         TextInput::make('nda')->label('NDA (déclaration d\'activité)')->placeholder('ex : 11 75 12345 75'),
                         TextInput::make('siren')->label('SIREN')->placeholder('ex : 123456789'),
                         TextInput::make('siret')->label('SIRET')->placeholder('ex : 12345678900012'),
@@ -168,7 +166,7 @@ class ParametresCfa extends Page implements HasSchemas
                     ]),
 
                 Section::make('Logo, signature et cachet')
-                    ->description('Appliqués aux livrables générés. L\'image enregistrée reste affichée ici.')
+                    ->description('Appliqués aux documents et livrables générés.')
                     ->columns(3)
                     ->schema([
                         SpatieMediaLibraryFileUpload::make('logo')
@@ -192,6 +190,7 @@ class ParametresCfa extends Page implements HasSchemas
                     ]),
 
                 Section::make('Préférences de génération')
+                    ->description('Valeurs proposées par défaut à la génération des livrables.')
                     ->columns(3)
                     ->schema([
                         Select::make('theme_defaut')->label('Thème par défaut')
@@ -211,20 +210,5 @@ class ParametresCfa extends Page implements HasSchemas
                             ->helperText('France Compétences'),
                     ]),
             ]);
-    }
-
-    public function save(): void
-    {
-        $data = $this->form->getState();
-
-        // Le logo/signature/cachet sont gérés par la media library (composants
-        // SpatieMediaLibraryFileUpload) : on les exclut de la mise à jour des
-        // colonnes, puis on persiste les médias via saveRelationships().
-        unset($data['logo'], $data['signature'], $data['cachet']);
-
-        CfaProfile::current()->update($data);
-        $this->form->saveRelationships();
-
-        Notification::make()->title('Paramètres du CFA enregistrés')->success()->send();
     }
 }

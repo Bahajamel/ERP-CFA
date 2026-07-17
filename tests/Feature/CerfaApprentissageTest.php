@@ -3,11 +3,11 @@
 use App\Cerfa\CerfaApprentissage;
 use App\Enums\ContractSignatureStatut;
 use App\Enums\ContractStatut;
-use App\Models\CfaProfile;
 use App\Models\Company;
 use App\Models\CompanyContact;
 use App\Models\Contract;
 use App\Models\Formation;
+use App\Models\Organisation;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -40,7 +40,7 @@ function contratPourCerfa(): Contract
 }
 
 it('génère un PDF CERFA valide et non vide', function () {
-    CfaProfile::current()->update(['raison_sociale' => 'CFA V2S', 'ville' => 'Paris', 'siret' => '11111111100011']);
+    Organisation::courante()->update(['raison_sociale' => 'CFA V2S', 'ville' => 'Paris', 'siret' => '11111111100011']);
 
     $pdf = app(CerfaApprentissage::class)->pour(contratPourCerfa());
 

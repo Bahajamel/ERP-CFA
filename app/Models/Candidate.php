@@ -9,10 +9,12 @@ use App\Enums\EntretienStatut;
 use App\Enums\PresenceStatut;
 use App\Http\Controllers\CandidatureController;
 use App\Matching\CompatibilityScorer;
+use App\Models\Concerns\BelongsToOrganisation;
 use App\Parcours\CycleApprenant;
 use App\StateMachine\HasStateTransitions;
 use App\StateMachine\ManagesState;
 use App\Support\SecureMedia;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -34,6 +36,7 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class Candidate extends Model implements HasMedia
 {
+    use BelongsToOrganisation;
     use HasFactory;
     use InteractsWithMedia;
     use LogsActivity;
@@ -204,14 +207,10 @@ class Candidate extends Model implements HasMedia
             ]);
         });
 
-        // Déclencheur automatique du cycle : dès l'acceptation, la recherche
-        // d'entreprise est ouverte au Matching (« En recherche »), sans
-        // double saisie. Idempotent (anti-doublon dans le service).
-        static::updated(function (self $candidate): void {
-            if ($candidate->wasChanged('statut') && $candidate->statut === CandidateStatut::Accepte) {
-                app(CycleApprenant::class)->ouvrirRechercheEntreprise($candidate);
-            }
-        });
+        // NB : l'acceptation d'un candidat n'ouvre PLUS automatiquement de
+        // dossier Matching (choix métier). L'équipe CFA envoie explicitement le
+        // candidat accepté vers le Matching via l'action « Envoyer vers
+        // Matching » (voir CandidatesTable), quand elle le décide.
     }
 
     /**
@@ -348,6 +347,14 @@ class Candidate extends Model implements HasMedia
         return Attribute::get(fn () => trim("{$this->prenom} {$this->nom}"));
     }
 
+    /** URL de la photo de profil de l'apprenant, ou null si aucune n'est déposée. */
+    public function photoUrl(): ?string
+    {
+        $url = $this->getFirstMediaUrl('photo');
+
+        return $url !== '' ? $url : null;
+    }
+
     /** Initiales (avatar sans photo) — ex. « Raslen Saadi » → « RS ». */
     protected function initiales(): Attribute
     {
@@ -389,10 +396,19 @@ class Candidate extends Model implements HasMedia
     }
 
     /**
-     * Étapes de progression du candidat dans le cycle apprenant, chacune avec
-     * son état (done / current / todo / refuse). Alimente la timeline de la
-     * liste et le panneau Focus. Reflète le cycle réel (Candidature → Entretien
-     * → Accepté → Matching → Admission), pas un parcours théorique.
+     * Étapes de progression du candidat, chacune avec son état
+     * (done / current / todo / refuse). Alimente la colonne « Progression » de la
+     * liste et le filtre « Progression » ({@see scopeAEtape}).
+     *
+     * ⚠️ LIMITE CONNUE (constatée le 2026-07-15, non corrigée — décision
+     * utilisateur) : ces 5 étapes ne connaissent NI le contrat, NI l'OPCO, NI la
+     * rupture. L'application porte donc deux définitions concurrentes du
+     * parcours — celle-ci, et la timeline à 7 étapes de
+     * {@see \App\Parcours\CycleApprenant::etapes()} (qui, elle, couvre contrat,
+     * OPCO et rupture). Les deux peuvent se contredire sur un même candidat :
+     * un apprenti dont le contrat a été rompu s'affiche ici « Matching », comme
+     * s'il cherchait encore une entreprise, faute d'étape le concernant.
+     * Correction envisagée : aligner cette colonne sur CycleApprenant::etapes().
      *
      * @return list<array{cle:string,label:string,court:string,etat:string}>
      */
@@ -403,8 +419,17 @@ class Candidate extends Model implements HasMedia
 
         $etapes = [
             ['cle' => 'candidature', 'label' => 'Candidature', 'court' => 'Cand.', 'fait' => true],
+            // Un refus clôt la phase d'entretien au même titre qu'une acceptation :
+            // sans le compter ici, l'étape « Entretien » raflait l'état « en cours »
+            // et l'étape « Accepté » — la seule qui sache afficher un refus — n'était
+            // jamais atteinte. Un candidat refusé s'affichait alors comme s'il
+            // attendait un entretien.
             ['cle' => 'entretien', 'label' => 'Entretien', 'court' => 'Entr.',
-                'fait' => in_array($statut, [CandidateStatut::EntretienRealise, CandidateStatut::Accepte], true)],
+                'fait' => in_array($statut, [
+                    CandidateStatut::EntretienRealise,
+                    CandidateStatut::Accepte,
+                    CandidateStatut::Refuse,
+                ], true)],
             ['cle' => 'decision', 'label' => 'Accepté', 'court' => 'Décis.',
                 'fait' => $statut === CandidateStatut::Accepte],
             ['cle' => 'matching', 'label' => 'Matching', 'court' => 'Match.',
@@ -432,6 +457,62 @@ class Candidate extends Model implements HasMedia
         unset($e);
 
         return $etapes;
+    }
+
+    /**
+     * Libellés des étapes du filtre « Progression ».
+     *
+     * @return array<string, string>
+     */
+    public static function etapesProgression(): array
+    {
+        return [
+            'entretien' => 'Entretien à passer',
+            'decision' => 'En attente de décision',
+            'matching' => 'Cherche une entreprise',
+            'admission' => 'En attente d\'admission',
+            'termine' => 'Parcours complet',
+            'refuse' => 'Refusé',
+        ];
+    }
+
+    /**
+     * Filtre les candidats sur leur étape COURANTE de progression.
+     *
+     * Miroir SQL de {@see progressionEtapes()} : l'étape courante est la première
+     * qui n'est pas franchie. Les deux doivent rester d'accord — un filtre qui
+     * contredirait les points affichés serait pire que pas de filtre du tout.
+     */
+    public function scopeAEtape(Builder $query, string $etape): Builder
+    {
+        $aUnMatching = fn (Builder $q): Builder => $q->whereHas('matchings');
+        $admissionValidee = fn (Builder $q): Builder => $q->whereHas(
+            'admissions',
+            fn (Builder $a) => $a->where('statut', AdmissionStatut::Valide->value),
+        );
+
+        return match ($etape) {
+            // Entretien pas encore passé (ni décision rendue).
+            'entretien' => $query->whereIn('statut', [
+                CandidateStatut::EntretienAPlanifier->value,
+                CandidateStatut::EntretienPrevu->value,
+            ]),
+            // Entretien réalisé, décision (accepté / refusé) pas encore rendue.
+            'decision' => $query->where('statut', CandidateStatut::EntretienRealise->value),
+            'refuse' => $query->where('statut', CandidateStatut::Refuse->value),
+            // Accepté, mais aucune piste entreprise ouverte : le gros du travail commercial.
+            'matching' => $query->where('statut', CandidateStatut::Accepte->value)
+                ->whereDoesntHave('matchings'),
+            // En piste chez une entreprise, admission pas encore validée (elle ne
+            // l'est qu'à l'acceptation du financement OPCO).
+            'admission' => $query->where('statut', CandidateStatut::Accepte->value)
+                ->tap($aUnMatching)
+                ->whereDoesntHave('admissions', fn (Builder $a) => $a->where('statut', AdmissionStatut::Valide->value)),
+            'termine' => $query->where('statut', CandidateStatut::Accepte->value)
+                ->tap($aUnMatching)
+                ->tap($admissionValidee),
+            default => $query,
+        };
     }
 
     /**

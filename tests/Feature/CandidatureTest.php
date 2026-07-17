@@ -71,6 +71,43 @@ it('trace les pièces déposées comme documents GED du candidat (section Docume
         ->and($candidate->hasCv())->toBeTrue();
 });
 
+it('rattache les documents au CFA du candidat (visibles sous contexte tenant)', function () {
+    // Régression : le formulaire public tourne hors contexte CFA. Le candidat
+    // reçoit son organisation_id explicitement, mais les documents, créés via la
+    // relation, dépendaient du trait BelongsToOrganisation — qui, sans tenant
+    // actif, les laissait à organisation_id nul. Résultat : invisibles dès que le
+    // panneau applique le scope CFA, et le candidat paraissait sans aucune pièce.
+    // Le payload (donc son Formation::factory) est construit AVANT de vider le
+    // tenant, sinon la formation naîtrait à organisation_id nul.
+    $payload = candidaturePayload();
+
+    // Reproduit la condition réelle : le formulaire public tourne SANS tenant
+    // Filament actif. Sans ça, le TestCase de base garde un CFA courant qui
+    // masque le bug (le trait rattache alors les documents automatiquement).
+    \Filament\Facades\Filament::setTenant(null, isQuiet: true);
+
+    $this->post(route('candidature.store'), $payload)
+        ->assertRedirect(route('candidature.merci'));
+
+    $candidate = Candidate::withoutGlobalScopes()->where('email', 'lea.martin@example.test')->first();
+
+    // Le candidat public est bien rattaché à un CFA (via Organisation::defaut()).
+    expect($candidate->organisation_id)->not->toBeNull();
+
+    // Chaque document porte le même CFA que le candidat — aucun à nul, sinon il
+    // disparaît sous le scope du panneau.
+    $candidate->documents()->withoutGlobalScopes()->get()->each(
+        fn ($document) => expect($document->organisation_id)->toBe($candidate->organisation_id),
+    );
+
+    // Sous le contexte CFA du candidat (comme le panneau), les 3 pièces restent
+    // visibles et aucune n'est signalée manquante.
+    \Filament\Facades\Filament::setCurrentPanel('admin');
+    \Filament\Facades\Filament::setTenant($candidate->organisation, isQuiet: true);
+
+    expect($candidate->fresh()->piecesManquantes())->toBe([]);
+});
+
 it('refuse une candidature sans CV', function () {
     $payload = candidaturePayload();
     unset($payload['cv']);

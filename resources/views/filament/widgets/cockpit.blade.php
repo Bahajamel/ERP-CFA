@@ -125,14 +125,17 @@
             </div>
         </div>
 
-        {{-- ============ ONGLETS DÉPARTEMENTS ============ --}}
-        <nav class="cfa-ck-tabs" aria-label="Départements">
+        {{-- ============ FILTRES PAR DÉPARTEMENT ============ --}}
+        {{-- Chaque onglet filtre les KPI sur son service (« Vue globale » = tous),
+             sans quitter le tableau de bord. --}}
+        <nav class="cfa-ck-tabs" aria-label="Filtrer les indicateurs par département">
             @foreach ($departements as $tab)
-                <a href="{{ $tab['url'] }}" class="cfa-ck-tab {{ $tab['actif'] ? 'actif' : '' }}"
-                   @if($tab['actif']) aria-current="page" @endif>
+                <button type="button" wire:click="definirService('{{ $tab['service'] }}')"
+                        class="cfa-ck-tab {{ $tab['actif'] ? 'actif' : '' }}"
+                        @if($tab['actif']) aria-current="true" @endif>
                     <span class="cfa-ck-tab-ico">{!! $icon($tab['icon']) !!}</span>
                     {{ $tab['label'] }}
-                </a>
+                </button>
             @endforeach
         </nav>
 
@@ -208,7 +211,7 @@
             <div class="cfa-panel">
                 <div class="cfa-panel-h">
                     <span>Pipeline commercial</span>
-                    <a href="{{ route('filament.admin.resources.candidates.index') }}" class="cfa-panel-link">Voir le pipeline →</a>
+                    <a href="{{ \App\Filament\Resources\Candidates\CandidateResource::getUrl('index') }}" class="cfa-panel-link">Voir le pipeline →</a>
                 </div>
                 <div class="cfa-funnel">
                     @foreach ($pipeline['etapes'] as $i => $e)
@@ -252,7 +255,7 @@
             <div class="cfa-panel">
                 <div class="cfa-panel-h">
                     <span>Répartition des contrats</span>
-                    <a href="{{ route('filament.admin.resources.contracts.index') }}" class="cfa-panel-link">Voir le détail →</a>
+                    <a href="{{ \App\Filament\Resources\Contracts\ContractResource::getUrl('index') }}" class="cfa-panel-link">Voir le détail →</a>
                 </div>
                 <div class="cfa-donut-wrap">
                     <div class="cfa-donut-chart">
@@ -318,7 +321,7 @@
             <div class="cfa-panel">
                 <div class="cfa-panel-h">
                     <span>Agenda du jour</span>
-                    <a href="{{ route('filament.admin.resources.entretiens.index') }}" class="cfa-panel-link">Voir le planning →</a>
+                    <a href="{{ \App\Filament\Resources\Entretiens\EntretienResource::getUrl('index') }}" class="cfa-panel-link">Voir le planning →</a>
                 </div>
                 @forelse ($agenda as $ev)
                     @php $col = $tones[$ev['tone']] ?? $tones['info']; @endphp

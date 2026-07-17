@@ -31,6 +31,17 @@ class NotesRelationManager extends RelationManager
 
     protected static string|\BackedEnum|null $icon = 'heroicon-o-chat-bubble-left-right';
 
+    /**
+     * Filament passe les RelationManagers en lecture seule sur une page de
+     * consultation (ViewRecord), ce qui masque les actions Créer / Modifier /
+     * Supprimer. On les réactive pour pouvoir ajouter notes et comptes rendus
+     * directement depuis la fiche (entreprise, candidat, besoin…).
+     */
+    public function isReadOnly(): bool
+    {
+        return false;
+    }
+
     /** Le type sélectionné est-il « Satisfaction » ? (tolère enum ou string). */
     protected static function isSatisfaction(mixed $type): bool
     {

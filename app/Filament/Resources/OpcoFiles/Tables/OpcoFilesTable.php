@@ -11,6 +11,7 @@ use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -46,6 +47,12 @@ class OpcoFilesTable
                     ->label('Montant accepté')
                     ->money('EUR')
                     ->placeholder('—')
+                    // Visible depuis la liste : sans cela, un plan de versement
+                    // périmé ne se découvre qu'en ouvrant la fiche.
+                    ->description(fn ($record): ?string => $record->echeancierEstPerime()
+                        ? 'Échéancier périmé'
+                        : null)
+                    ->color(fn ($record): ?string => $record->echeancierEstPerime() ? 'danger' : null)
                     ->sortable(),
                 TextColumn::make('montant_verse')
                     ->label('Versé')
@@ -75,6 +82,15 @@ class OpcoFilesTable
                 Filter::make('bloques')
                     ->label('Dossiers bloqués')
                     ->query(fn (Builder $query) => $query->whereIn('statut', OpcoStatut::bloques())),
+            ])
+            // Listes déroulantes toujours visibles en barre au-dessus du tableau
+            // (au lieu du menu déroulant « Filtres »), comme Candidats, Entreprises
+            // et Entretiens. Filtres instantanés, sans bouton « Appliquer ».
+            ->filtersLayout(FiltersLayout::AboveContent)
+            ->deferFilters(false)
+            ->filtersFormColumns([
+                'sm' => 2,
+                'lg' => 2,
             ])
             ->recordActions([
                 OpcoFileActions::preparerDepot(),

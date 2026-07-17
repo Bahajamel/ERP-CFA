@@ -1,5 +1,6 @@
 <?php
 
+use App\Filament\Pages\Dashboard;
 use App\Filament\Resources\Candidates\CandidateResource;
 use App\Filament\Resources\Companies\CompanyResource;
 use App\Models\Candidate;
@@ -40,5 +41,7 @@ it('affiche « Retour à la liste » sur Créer / Modifier / Voir une entreprise
 it('ne montre PAS la flèche sur les listes ni le tableau de bord', function () {
     $this->get(CandidateResource::getUrl('index'))->assertOk()->assertDontSee('cfa-back-btn', false);
     $this->get(CompanyResource::getUrl('index'))->assertOk()->assertDontSee('cfa-back-btn', false);
-    $this->get('/admin')->assertOk()->assertDontSee('cfa-back-btn', false);
+    // Tableau de bord tenant-aware : sous le multi-tenant, « /admin » nu redirige
+    // vers le tableau de bord du CFA courant (/admin/{slug}).
+    $this->get(Dashboard::getUrl())->assertOk()->assertDontSee('cfa-back-btn', false);
 });

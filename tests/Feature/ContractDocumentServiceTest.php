@@ -1,12 +1,13 @@
 <?php
 
+use App\Documents\ConventionFormation;
 use App\Enums\DocumentType;
 use App\Filament\Resources\Contracts\Pages\EditContract;
-use App\Models\CfaProfile;
 use App\Models\Company;
 use App\Models\CompanyContact;
 use App\Models\Contract;
 use App\Models\Formation;
+use App\Models\Organisation;
 use App\Models\User;
 use App\Services\ContractDocumentService;
 use Database\Seeders\RolePermissionSeeder;
@@ -22,7 +23,7 @@ beforeEach(function () {
 
 function cfaComplet(): void
 {
-    CfaProfile::current()->update([
+    Organisation::courante()->update([
         'raison_sociale' => 'CFA V2S',
         'nom' => 'CFA V2S',
         'siret' => '11111111100011',
@@ -80,7 +81,7 @@ function service(): ContractDocumentService
 it('génère une convention de formation PDF valide et non vide', function () {
     cfaComplet();
 
-    $pdf = app(App\Documents\ConventionFormation::class)->pour(contratComplet());
+    $pdf = app(ConventionFormation::class)->pour(contratComplet());
 
     expect($pdf)->toBeString()
         ->and(substr($pdf, 0, 5))->toBe('%PDF-')

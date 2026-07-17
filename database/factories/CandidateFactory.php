@@ -10,6 +10,7 @@ use App\Models\Formation;
 use App\Models\Promotion;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Support\Str;
 
 /**
  * @extends Factory<Candidate>
@@ -60,7 +61,7 @@ class CandidateFactory extends Factory
     {
         return $this->afterCreating(function (Candidate $candidate): void {
             foreach (Candidate::piecesAttendues() as $type) {
-                $candidate->documents()->firstOrCreate(
+                $document = $candidate->documents()->firstOrCreate(
                     ['type' => $type->value],
                     [
                         'statut' => DocumentStatut::Recu->value,
@@ -68,7 +69,25 @@ class CandidateFactory extends Factory
                         'nom_fichier' => $type->getLabel(),
                     ],
                 );
+
+                // Un fichier réel, sinon la pièce ment : elle s'annonce « reçue »
+                // et ne s'ouvre pas. Panne silencieuse — rien ne casse, on clique
+                // dans le vide.
+                if ($document->getFirstMedia('fichier') === null) {
+                    $document->addMediaFromString(self::pdfDemo())
+                        ->usingFileName(Str::slug($type->getLabel()).'_'.$candidate->id.'.pdf')
+                        ->toMediaCollection('fichier');
+                }
             }
         });
+    }
+
+    /** PDF minimal valide (détecté application/pdf, accepté par les collections). */
+    public static function pdfDemo(): string
+    {
+        return "%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n"
+            ."2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n"
+            ."3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 300 200]>>endobj\n"
+            ."trailer<</Root 1 0 R>>\n%%EOF";
     }
 }

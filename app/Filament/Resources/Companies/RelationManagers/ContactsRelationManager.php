@@ -27,6 +27,17 @@ class ContactsRelationManager extends RelationManager
 
     protected static ?string $title = 'Contacts & tuteurs';
 
+    /**
+     * Filament passe les RelationManagers en lecture seule sur une page de
+     * consultation (ViewRecord) : les actions Créer / Modifier / Supprimer sont
+     * alors masquées. On les réactive ici pour pouvoir gérer les contacts
+     * directement depuis la fiche entreprise (P0-03-4), sans passer par Modifier.
+     */
+    public function isReadOnly(): bool
+    {
+        return false;
+    }
+
     public function form(Schema $schema): Schema
     {
         return $schema
@@ -76,6 +87,12 @@ class ContactsRelationManager extends RelationManager
     {
         return $table
             ->recordTitleAttribute('nom')
+            // Sans ces libellés, Filament fabrique le nom depuis la classe
+            // (« company contact ») → l'état vide s'affichait en anglais.
+            ->modelLabel('contact')
+            ->pluralModelLabel('contacts')
+            ->emptyStateHeading('Aucun contact')
+            ->emptyStateDescription("Ajoutez un contact ou un tuteur de l'entreprise pour commencer.")
             ->columns([
                 TextColumn::make('nom_complet')
                     ->label('Contact')

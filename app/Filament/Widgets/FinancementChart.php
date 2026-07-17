@@ -33,9 +33,24 @@ class FinancementChart extends ChartWidget
 
     protected function getData(): array
     {
-        $verse = (float) OpcoPayment::where('statut', PaymentStatut::Verse->value)->sum('montant_prevu');
-        $enRetard = (float) OpcoPayment::where('statut', PaymentStatut::EnRetard->value)->sum('montant_prevu');
-        $attendu = (float) OpcoPayment::where('statut', PaymentStatut::Attendu->value)->sum('montant_prevu');
+        // « Encaissé » additionne ce qui est RÉELLEMENT tombé (montant_verse) :
+        // l'OPCO verse couramment moins que prévu (proratisation, rupture), et
+        // sommer montant_prevu affichait un encaissement fantôme.
+        $verse = (float) OpcoPayment::query()
+            ->where('statut', PaymentStatut::Verse->value)
+            ->sum('montant_verse');
+
+        // Retard = échu et non versé (scope unique), et non « statut = En retard » :
+        // sinon une échéance dépassée comptait parmi « À venir » tant que la
+        // commande quotidienne ne l'avait pas requalifiée.
+        $enRetard = (float) OpcoPayment::enRetard()->sum('montant_prevu');
+
+        $attendu = (float) OpcoPayment::query()
+            ->where('statut', '!=', PaymentStatut::Verse->value)
+            ->where(fn ($q) => $q
+                ->whereNull('date_prevue')
+                ->orWhereDate('date_prevue', '>=', now()->toDateString()))
+            ->sum('montant_prevu');
 
         return [
             'datasets' => [

@@ -13,6 +13,7 @@ use App\Enums\DocumentStatut;
 use App\Enums\DocumentType;
 use App\Enums\EntretienMode;
 use App\Enums\EntretienStatut;
+use App\Enums\InvoiceStatut;
 use App\Enums\MatchingStatut;
 use App\Enums\NeedStatut;
 use App\Enums\OpcoStatut;
@@ -28,7 +29,9 @@ use App\Models\Company;
 use App\Models\CompanyContact;
 use App\Models\Contract;
 use App\Models\FinanceLine;
+use App\Models\FinancePayment;
 use App\Models\Formation;
+use App\Models\Invoice;
 use App\Models\Matching;
 use App\Models\Need;
 use App\Models\Opco;
@@ -41,6 +44,7 @@ use App\Models\User;
 use App\Services\SignatureService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 class DemoSeeder extends Seeder
 {
@@ -294,7 +298,7 @@ class DemoSeeder extends Seeder
 
         // -------- Dossiers OPCO --------
         // Bloqué : rejeté puis en correction
-        OpcoFile::create([
+        $opcoBloque = OpcoFile::create([
             'contract_id' => $contrat0->id, 'opco_id' => $opcoAtlas->id, 'date_depot' => now()->subDays(12),
             'statut' => OpcoStatut::EnCorrection, 'montant_prevu' => 9200, 'motif_rejet' => 'NIR du salarié erroné sur le CERFA.',
             'responsable_correction_id' => $administratif->id, 'date_relance' => now()->addDays(3),
@@ -347,13 +351,17 @@ class DemoSeeder extends Seeder
         $qualite = $this->user('Awa Diallo', 'qualite@cfa-v2s.fr', 'Qualité');
 
         // ---- Finance : lignes financières par contrat ----
-        FinanceLine::create([
-            'contract_id' => $contrat1->id,
-            'libelle' => 'Financement OPCO — année 1',
-            'montant_attendu' => 8000, 'montant_accepte' => 8000,
-        ]);
+        // NB : les contrats dont l'OPCO est accepté génèrent DÉJÀ leur ligne
+        // financière automatiquement (FinanceService, à l'acceptation). On ne
+        // crée donc à la main que le cas non couvert : le dossier bloqué, dont
+        // l'OPCO n'est pas accepté. En créer une pour $contrat1 ferait doublon
+        // avec la ligne auto et gonflerait le « Montant attendu » de 8 000 €.
         FinanceLine::create([
             'contract_id' => $contrat0->id,
+            // Rattachée au dossier OPCO qui la bloque : sans ce lien, le cockpit
+            // annonçait « 9 200 € bloqués » et « 0 dossier OPCO bloqué » — le
+            // montant sans le dossier à aller débloquer.
+            'opco_file_id' => $opcoBloque->id,
             'libelle' => 'Financement OPCO — année 1',
             'montant_attendu' => 9200, 'montant_bloque' => 9200,
             'motif_blocage' => 'Dossier OPCO en correction (NIR erroné sur le CERFA).',
@@ -423,6 +431,136 @@ class DemoSeeder extends Seeder
             'contract_id' => $contratRisque->id, 'opco_id' => $opco2i->id, 'date_depot' => now()->subMonths(2),
             'statut' => OpcoStatut::Rejete, 'montant_prevu' => 8600, 'motif_rejet' => 'Pièces justificatives incomplètes.',
         ]);
+
+        $this->facturer($admin);
+        $this->doterContratsSignes($admin);
+    }
+
+    /**
+     * Dote chaque contrat marqué « signé » de son contrat signé en GED.
+     *
+     * Sans cela, la démo affirmait qu'un contrat était signé sans la moindre
+     * pièce au dossier — Yanis Moreau, contrat « complet / signé », zéro
+     * document. L'application interdit d'ailleurs de marquer un contrat signé
+     * sans preuve (« un document contractuel est requis ») : le seeder écrivait
+     * le statut directement et contournait la règle.
+     */
+    private function doterContratsSignes(User $admin): void
+    {
+        Contract::query()
+            ->where('statut_signature', ContractSignatureStatut::Signe->value)
+            ->each(function (Contract $contract) use ($admin): void {
+                $document = $contract->documents()->firstOrCreate(
+                    ['type' => DocumentType::Contrat->value],
+                    [
+                        'statut' => DocumentStatut::Recu->value,
+                        'source' => DocumentSource::Manuel->value,
+                        'nom_fichier' => 'Contrat signé — '.($contract->candidate?->nom_complet ?? "contrat {$contract->id}"),
+                        'uploaded_by' => $admin->id,
+                    ],
+                );
+
+                if ($document->getFirstMedia('fichier') === null) {
+                    $document->addMediaFromString(self::pdfDemo())
+                        ->usingFileName('contrat-signe-'.$contract->id.'.pdf')
+                        ->toMediaCollection('fichier');
+                }
+            });
+    }
+
+    /**
+     * Facturation de démonstration : factures + encaissements adossés aux lignes
+     * financières réelles (donc aux vrais contrats/entreprises/OPCO).
+     *
+     * Sans ces données, le dashboard Finance se contredisait : les cartes
+     * affichaient « 0 € facturé / 0 € encaissé » tandis que le repli de
+     * démonstration de FinanceDashboardData listait juste en dessous cinq
+     * factures fictives (« Restaurant Alpha »…), émises à des sociétés
+     * introuvables partout ailleurs dans l'outil.
+     *
+     * L'histoire racontée à l'écran : un acompte encaissé, un solde échu à
+     * relancer, une facture partiellement réglée, et rien sur le dossier bloqué
+     * (on ne facture pas un financement en correction).
+     */
+    private function facturer(User $admin): void
+    {
+        $lignes = FinanceLine::query()
+            ->where('montant_bloque', '<=', 0)
+            ->whereNotNull('opco_file_id')
+            ->with('opcoFile.opco')
+            ->orderBy('id')
+            ->get();
+
+        if ($lignes->isEmpty()) {
+            return;
+        }
+
+        $destinataire = fn (FinanceLine $l): string => $l->opcoFile?->opco?->nom ?? 'OPCO';
+
+        // 1) Ligne principale : acompte encaissé + solde échu impayé (à relancer).
+        $principale = $lignes->first();
+        $attendu = (float) $principale->montant_attendu;
+
+        $acompte = Invoice::create([
+            'finance_line_id' => $principale->id,
+            'numero' => 'FAC-2026-001',
+            'statut' => InvoiceStatut::Payee->value,
+            'destinataire' => $destinataire($principale),
+            'montant' => round($attendu * 0.3, 2),
+            'date_emission' => now()->subMonths(2)->toDateString(),
+            'date_echeance' => now()->subMonths(1)->toDateString(),
+            'commentaire' => 'Acompte de 30 % à l\'entrée en formation.',
+            'created_by' => $admin->id,
+        ]);
+        FinancePayment::create([
+            'finance_line_id' => $principale->id,
+            'invoice_id' => $acompte->id,
+            'montant' => $acompte->montant,
+            'date_paiement' => now()->subMonths(1)->subDays(3)->toDateString(),
+            'moyen' => 'Virement',
+            'reference' => 'VIR-2026-0412',
+            'created_by' => $admin->id,
+        ]);
+
+        // Échéance dépassée et rien d'encaissé : alimente « Montant en retard »
+        // et le tour de contrôle des relances.
+        Invoice::create([
+            'finance_line_id' => $principale->id,
+            'numero' => 'FAC-2026-002',
+            'statut' => InvoiceStatut::Emise->value,
+            'destinataire' => $destinataire($principale),
+            'montant' => round($attendu * 0.7, 2),
+            'date_emission' => now()->subMonths(1)->toDateString(),
+            'date_echeance' => now()->subDays(12)->toDateString(),
+            'commentaire' => 'Solde du financement — échéance dépassée.',
+            'created_by' => $admin->id,
+        ]);
+
+        // 2) Autre ligne : facture réglée à moitié (statut « Partiel »).
+        if ($autre = $lignes->skip(1)->first()) {
+            $moitie = round((float) $autre->montant_attendu * 0.5, 2);
+
+            $partielle = Invoice::create([
+                'finance_line_id' => $autre->id,
+                'numero' => 'FAC-2026-003',
+                'statut' => InvoiceStatut::Emise->value,
+                'destinataire' => $destinataire($autre),
+                'montant' => $moitie,
+                'date_emission' => now()->subDays(20)->toDateString(),
+                'date_echeance' => now()->addDays(10)->toDateString(),
+                'commentaire' => 'Premier appel de fonds.',
+                'created_by' => $admin->id,
+            ]);
+            FinancePayment::create([
+                'finance_line_id' => $autre->id,
+                'invoice_id' => $partielle->id,
+                'montant' => round($moitie * 0.4, 2),
+                'date_paiement' => now()->subDays(5)->toDateString(),
+                'moyen' => 'Virement',
+                'reference' => 'VIR-2026-0587',
+                'created_by' => $admin->id,
+            ]);
+        }
     }
 
     private function user(string $name, string $email, string $role): User
@@ -442,7 +580,7 @@ class DemoSeeder extends Seeder
     private function doterPiecesCandidature(Candidate $candidate): void
     {
         foreach (Candidate::piecesAttendues() as $type) {
-            $candidate->documents()->firstOrCreate(
+            $document = $candidate->documents()->firstOrCreate(
                 ['type' => $type->value],
                 [
                     'statut' => DocumentStatut::Recu->value,
@@ -450,7 +588,22 @@ class DemoSeeder extends Seeder
                     'nom_fichier' => $type->getLabel(),
                 ],
             );
+
+            // Un fichier réel, sinon la pièce ment : elle s'annonce « reçue » et
+            // ne s'ouvre pas. La GED entière était creuse — 183 documents, aucun
+            // fichier — et l'utilisateur cliquait dans le vide.
+            if ($document->getFirstMedia('fichier') === null) {
+                $document->addMediaFromString(self::pdfDemo())
+                    ->usingFileName(Str::slug($type->getLabel()).'_'.$candidate->id.'.pdf')
+                    ->toMediaCollection('fichier');
+            }
         }
+    }
+
+    /** PDF minimal valide — défini une seule fois, dans la factory. */
+    private static function pdfDemo(): string
+    {
+        return \Database\Factories\CandidateFactory::pdfDemo();
     }
 
     /** Attache un CV de démonstration (PDF minimal valide) au candidat. */

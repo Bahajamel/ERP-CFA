@@ -3,9 +3,11 @@
 namespace App\Filament\Resources\Needs\Schemas;
 
 use App\Enums\NeedStatut;
+use App\Models\CompanyContact;
 use App\Support\AdresseBan;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -18,6 +20,96 @@ use Illuminate\Contracts\View\View;
 
 class NeedForm
 {
+    /**
+     * Contacts de l'entreprise choisie (id → nom complet), pour les listes
+     * « Contact responsable » / « Tuteur prévu ». Vide tant qu'aucune
+     * entreprise n'est sélectionnée : on ne propose jamais les contacts d'un
+     * autre employeur.
+     *
+     * @return array<int, string>
+     */
+    private static function contactsDeLEntreprise(mixed $companyId): array
+    {
+        if (blank($companyId)) {
+            return [];
+        }
+
+        return CompanyContact::query()
+            ->where('company_id', $companyId)
+            ->get()
+            ->mapWithKeys(fn (CompanyContact $c): array => [$c->id => $c->nom_complet])
+            ->all();
+    }
+
+    /**
+     * Champs d'un contact créé à la volée depuis le formulaire d'offre
+     * (Filament createOptionForm). Tous obligatoires, avec contrôles : e-mail
+     * valide (avec @), téléphone en chiffres uniquement, et choix explicite du
+     * rôle (contact responsable OU tuteur). Le rôle est mappé sur les colonnes
+     * is_principal / is_tuteur dans {@see self::creerContact()}.
+     *
+     * @return array<int, \Filament\Forms\Components\Component>
+     */
+    private static function champsContactRapide(): array
+    {
+        return [
+            TextInput::make('nom')
+                ->label('Nom')
+                ->required(),
+            TextInput::make('prenom')
+                ->label('Prénom')
+                ->required(),
+            TextInput::make('fonction')
+                ->label('Fonction')
+                ->placeholder('ex : DRH, chef d\'atelier')
+                ->required(),
+            Radio::make('role')
+                ->label('Rôle dans l\'entreprise')
+                ->options([
+                    'responsable' => 'Contact responsable',
+                    'tuteur' => 'Tuteur / maître d\'apprentissage',
+                ])
+                ->required()
+                ->validationMessages(['required' => 'Indiquez s\'il s\'agit d\'un contact responsable ou d\'un tuteur.']),
+            TextInput::make('email')
+                ->label('Adresse e-mail')
+                ->email()
+                ->required()
+                ->validationMessages([
+                    'required' => 'L\'adresse e-mail est obligatoire.',
+                    'email' => 'Saisissez une adresse e-mail valide (avec @).',
+                ]),
+            TextInput::make('telephone')
+                ->label('Téléphone')
+                ->tel()
+                ->required()
+                // Chiffres uniquement (ni lettres, ni espaces, ni symboles).
+                ->rule('regex:/^[0-9]+$/')
+                ->validationMessages([
+                    'required' => 'Le téléphone est obligatoire.',
+                    'regex' => 'Le téléphone ne doit contenir que des chiffres.',
+                ]),
+        ];
+    }
+
+    /**
+     * Crée le contact rattaché à l'entreprise sélectionnée et renvoie sa clé
+     * (attendue par createOptionUsing). Le rôle choisi (obligatoire) est traduit
+     * en indicateurs is_principal / is_tuteur ; la clé « role » n'étant pas une
+     * colonne, elle est retirée avant l'écriture.
+     */
+    private static function creerContact(array $data, mixed $companyId): int
+    {
+        $role = $data['role'] ?? null;
+        unset($data['role']);
+
+        $data['company_id'] = $companyId;
+        $data['is_principal'] = $role === 'responsable';
+        $data['is_tuteur'] = $role === 'tuteur';
+
+        return CompanyContact::create($data)->getKey();
+    }
+
     public static function configure(Schema $schema): Schema
     {
         return $schema
@@ -33,6 +125,9 @@ class NeedForm
                             ->label('Entreprise')
                             ->relationship('company', 'raison_sociale')
                             ->searchable()
+                            ->preload()
+                            // Réactif : filtre les interlocuteurs sur l'entreprise choisie.
+                            ->live()
                             ->required(),
                         TextInput::make('intitule_poste')
                             ->label('Intitulé du poste')
@@ -54,11 +149,15 @@ class NeedForm
                         TextInput::make('rythme')
                             ->label("Rythme d'alternance")
                             ->placeholder('ex : 2 j CFA / 3 j entreprise'),
+                        // Le statut n'est pas demandé à la création : une nouvelle offre
+                        // démarre en « Besoin créé » (défaut SQL de la colonne statut). Il
+                        // se gère ensuite en édition (ou via le Kanban des offres).
                         Select::make('statut')
                             ->label('Statut')
                             ->options(NeedStatut::class)
                             ->default(NeedStatut::Cree->value)
-                            ->required(),
+                            ->required()
+                            ->visibleOn('edit'),
                         Textarea::make('prerequis')
                             ->label('Prérequis')
                             ->placeholder('ex : Niveau CAP, permis B, expérience en vente appréciée')
@@ -66,16 +165,33 @@ class NeedForm
                     ]),
                 Section::make('Interlocuteurs entreprise')
                     ->icon('heroicon-o-user-circle')
+                    ->description('Facultatif. Les contacts proposés sont ceux de l\'entreprise choisie — vous pouvez en créer un ici sans quitter le formulaire.')
                     ->columns(2)
                     ->schema([
                         Select::make('contact_id')
                             ->label('Contact responsable')
-                            ->relationship('contact', 'nom')
-                            ->searchable(),
-                        Select::make('tuteur_id')
+                            ->options(fn (Get $get): array => self::contactsDeLEntreprise($get('company_id')))
+                            ->getOptionLabelUsing(fn ($value): ?string => optional(CompanyContact::find($value))->nom_complet)
+                            ->searchable()
+                            ->preload()
+                            ->placeholder(fn (Get $get): string => blank($get('company_id'))
+                                ? 'Choisissez d\'abord une entreprise'
+                                : 'Sélectionnez ou ajoutez un contact')
+                            ->disabled(fn (Get $get): bool => blank($get('company_id')))
+                            ->createOptionForm(fn (): array => self::champsContactRapide())
+                            ->createOptionUsing(fn (array $data, Get $get): int => self::creerContact($data, $get('company_id'))),
+                        Select::make('tuteur_id')  // @creerContact mappe le rôle choisi
                             ->label('Tuteur prévu')
-                            ->relationship('tuteur', 'nom')
-                            ->searchable(),
+                            ->options(fn (Get $get): array => self::contactsDeLEntreprise($get('company_id')))
+                            ->getOptionLabelUsing(fn ($value): ?string => optional(CompanyContact::find($value))->nom_complet)
+                            ->searchable()
+                            ->preload()
+                            ->placeholder(fn (Get $get): string => blank($get('company_id'))
+                                ? 'Choisissez d\'abord une entreprise'
+                                : 'Sélectionnez ou ajoutez un tuteur')
+                            ->disabled(fn (Get $get): bool => blank($get('company_id')))
+                            ->createOptionForm(fn (): array => self::champsContactRapide())
+                            ->createOptionUsing(fn (array $data, Get $get): int => self::creerContact($data, $get('company_id'))),
                     ]),
                 ])->columnSpan(1),
                 Group::make([
