@@ -6,6 +6,7 @@ use App\Filament\Exports\CandidateExporter;
 use App\Filament\Resources\Candidates\CandidateResource;
 use App\Filament\Resources\Candidates\Tables\CandidatesTable;
 use App\Models\Candidate;
+use App\Support\CustomFields;
 use Filament\Actions\Action;
 use Filament\Actions\CreateAction;
 use Filament\Actions\ExportAction;
@@ -93,6 +94,9 @@ class ListCandidates extends ListRecords
                 ->url(CandidateResource::getUrl('kanban')),
             CreateAction::make()
                 ->label('Créer un candidat'),
+            // Bouton « Colonnes personnalisées » : modal pour ajouter ses propres
+            // colonnes au tableau/fiches candidats (réservé Administrateur/Direction).
+            CustomFields::gererAction('candidate', 'Candidats'),
             Action::make('lienCandidature')
                 ->label('Lien de candidature')
                 ->icon('heroicon-o-link')

@@ -16,6 +16,7 @@ use App\Models\Need;
 use App\Parcours\CycleApprenant;
 use App\Parcours\CycleBloqueException;
 use App\StateMachine\InvalidTransitionException;
+use App\Support\CustomFields;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkAction;
@@ -93,6 +94,8 @@ class CandidatesTable
                     ->date('d/m/Y')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
+                // Colonnes personnalisées du CFA (masquables), s'il en a défini.
+                ...CustomFields::tableColumns('candidate'),
             ])
             // Clic sur une ligne = ouvre le panneau Focus (et non la fiche : elle
             // reste accessible via « Aperçu » → « Ouvrir la fiche » ou le menu Plus).

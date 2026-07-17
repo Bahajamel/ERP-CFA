@@ -58,6 +58,8 @@ class Candidate extends Model implements HasMedia
             'cv_consentement' => 'boolean',
             'cv_consentement_at' => 'datetime',
             'statut' => CandidateStatut::class,
+            // Valeurs des colonnes personnalisées du CFA (couche « façon Monday »).
+            'custom_fields' => 'array',
         ];
     }
 
