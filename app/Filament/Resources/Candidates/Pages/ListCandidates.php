@@ -5,12 +5,15 @@ namespace App\Filament\Resources\Candidates\Pages;
 use App\Filament\Exports\CandidateExporter;
 use App\Filament\Resources\Candidates\CandidateResource;
 use App\Filament\Resources\Candidates\Tables\CandidatesTable;
+use App\Filament\Resources\CustomTables\CustomTableResource;
 use App\Models\Candidate;
+use App\Models\CustomTable;
 use App\Support\CustomFields;
 use Filament\Actions\Action;
 use Filament\Actions\CreateAction;
 use Filament\Actions\ExportAction;
 use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\TextInput;
 use Filament\Resources\Pages\ListRecords;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Facades\Auth;
@@ -104,6 +107,32 @@ class ListCandidates extends ListRecords
             CustomFields::gererAction('candidate', 'Candidats')
                 ->label('Ajouter une colonne')
                 ->icon('heroicon-o-plus'),
+            // Bouton « Nouveau tableau » : crée un tableau personnalisé (nom +
+            // colonnes) directement depuis la page Candidats, puis l'ouvre pour
+            // saisir les lignes (réservé Administrateur/Direction).
+            Action::make('nouveauTableau')
+                ->label('Nouveau tableau')
+                ->icon('heroicon-o-table-cells')
+                ->color('gray')
+                ->visible(fn (): bool => CustomFields::peutGerer())
+                ->modalHeading('Créer un tableau personnalisé')
+                ->modalDescription('Donnez-lui un nom et définissez ses colonnes. Vous saisirez les lignes juste après.')
+                ->modalSubmitActionLabel('Créer le tableau')
+                ->modalWidth('3xl')
+                ->schema([
+                    TextInput::make('name')
+                        ->label('Nom du tableau')
+                        ->placeholder('ex : Suivi partenariats, Événements…')
+                        ->required()
+                        ->maxLength(255),
+                    CustomFields::repeaterColonnes(),
+                ])
+                ->action(function (array $data) {
+                    $tableau = CustomTable::create(['name' => $data['name']]);
+                    CustomFields::synchroniserTableau($tableau->id, $data['colonnes'] ?? []);
+
+                    return redirect(CustomTableResource::getUrl('edit', ['record' => $tableau]));
+                }),
             Action::make('lienCandidature')
                 ->label('Lien de candidature')
                 ->icon('heroicon-o-link')

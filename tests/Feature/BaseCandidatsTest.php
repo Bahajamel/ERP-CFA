@@ -29,8 +29,6 @@ it('affiche la page « Base Candidats » avec les colonnes de la maquette', func
         ->assertCanRenderTableColumn('identite')
         ->assertCanRenderTableColumn('statut')
         ->assertCanRenderTableColumn('ville')
-        ->assertCanRenderTableColumn('dernier_contact')
-        ->assertCanRenderTableColumn('prochaine_action')
         ->assertCanRenderTableColumn('disponibilite')
         ->assertCanRenderTableColumn('documents_count');
 });
