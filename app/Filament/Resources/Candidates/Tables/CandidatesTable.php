@@ -35,10 +35,12 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\ViewColumn;
 use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Grouping\Group;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class CandidatesTable
@@ -50,45 +52,89 @@ class CandidatesTable
                 $query->with(['formationVisee', 'commercial', 'interactions', 'matchings', 'admissions']);
                 self::appliquerScopeRapide($query, self::scopeDe($livewire));
             })
+            // Colonnes « Base Candidats » (maquette) : nom, statut, référent,
+            // formation, ville, dernier contact, prochaine action, disponibilité,
+            // documents. Colonnes secondaires masquables via le menu « Colonnes ».
             ->columns([
                 ViewColumn::make('identite')
-                    ->label('Candidat')
+                    ->label('Nom candidat')
                     ->view('filament.candidates.col-identite')
                     ->searchable(['nom', 'prenom'])
                     ->sortable(['nom']),
+                TextColumn::make('statut')
+                    ->label('Statut')
+                    ->badge()
+                    ->sortable(),
+                TextColumn::make('commercial.name')
+                    ->label('Référent')
+                    ->placeholder('—')
+                    ->toggleable(),
+                TextColumn::make('formationVisee.libelle')
+                    ->label('Formation')
+                    ->badge()
+                    ->color('info')
+                    ->placeholder('—')
+                    ->toggleable(),
+                TextColumn::make('ville')
+                    ->label('Ville')
+                    ->searchable()
+                    ->sortable()
+                    ->placeholder('—')
+                    ->toggleable(),
+                TextColumn::make('dernier_contact')
+                    ->label('Dernier contact')
+                    ->state(fn (Candidate $record) => $record->interactions->max('date_interaction'))
+                    ->date('d/m/Y')
+                    ->placeholder('—')
+                    ->toggleable(),
+                TextColumn::make('prochaine_action')
+                    ->label('Prochaine action')
+                    ->state(function (Candidate $record): ?string {
+                        $i = $record->interactions->first(fn ($x): bool => $x->prochaine_action_le !== null);
+
+                        return $i ? ($i->resume ?: $i->type?->getLabel()) : null;
+                    })
+                    ->description(function (Candidate $record): ?string {
+                        $i = $record->interactions->first(fn ($x): bool => $x->prochaine_action_le !== null);
+
+                        return $i?->prochaine_action_le?->format('d/m/Y');
+                    })
+                    ->icon('heroicon-o-bell-alert')
+                    ->placeholder('—')
+                    ->wrap()
+                    ->toggleable(),
+                TextColumn::make('disponibilite')
+                    ->label('Disponibilité')
+                    ->badge()
+                    ->color(fn (?string $state): string => match (true) {
+                        blank($state) => 'gray',
+                        str_contains(Str::lower($state), 'immédiat'), str_contains(Str::lower($state), 'immediat') => 'success',
+                        str_contains(Str::lower($state), 'semaine') => 'info',
+                        str_contains(Str::lower($state), 'mois') => 'warning',
+                        str_contains(Str::lower($state), 'confirm') => 'warning',
+                        str_contains(Str::lower($state), 'non') => 'danger',
+                        default => 'gray',
+                    })
+                    ->placeholder('—')
+                    ->toggleable(),
+                TextColumn::make('documents_count')
+                    ->label('Documents')
+                    ->counts('documents')
+                    ->badge()
+                    ->icon('heroicon-o-paper-clip')
+                    ->color('gray')
+                    ->toggleable(),
+                ViewColumn::make('progression')
+                    ->label('Progression')
+                    ->view('filament.candidates.progression')
+                    ->toggleable(),
+                // Colonnes secondaires, masquées par défaut (réactivables).
                 TextColumn::make('email')
                     ->label('Contact')
                     ->description(fn ($record) => $record->telephone)
                     ->searchable()
                     ->placeholder('—')
-                    ->toggleable(),
-                // Formation : déjà affichée sous le nom (colonne « Candidat »),
-                // masquée par défaut ici pour alléger le tableau (réactivable).
-                TextColumn::make('formationVisee.libelle')
-                    ->label('Formation visée')
-                    ->badge()
-                    ->color('gray')
-                    ->placeholder('—')
                     ->toggleable(isToggledHiddenByDefault: true),
-                // Commercial : visible dans le panneau Focus, masqué par défaut
-                // dans le tableau pour gagner de la largeur (réactivable).
-                TextColumn::make('commercial.name')
-                    ->label('Commercial')
-                    ->placeholder('—')
-                    ->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('statut')
-                    ->label('Statut')
-                    ->badge(),
-                ViewColumn::make('progression')
-                    ->label('Progression')
-                    ->view('filament.candidates.progression'),
-                TextColumn::make('derniere_activite')
-                    ->label('Dernière activité')
-                    ->state(fn ($record): ?string => $record->derniereActivite()['label'])
-                    ->description(fn ($record): ?string => $record->derniereActivite()['quand'])
-                    ->placeholder('—')
-                    ->wrap()
-                    ->toggleable(),
                 TextColumn::make('created_at')
                     ->label('Créé le')
                     ->date('d/m/Y')
@@ -96,6 +142,17 @@ class CandidatesTable
                     ->toggleable(isToggledHiddenByDefault: true),
                 // Colonnes personnalisées du CFA (masquables), s'il en a défini.
                 ...CustomFields::tableColumns('candidate'),
+            ])
+            // « Grouper » (maquette) : regroupe les candidats par statut, référent,
+            // formation, ville ou disponibilité — sections repliables avec compteur.
+            ->groups([
+                Group::make('statut')
+                    ->label('Statut')
+                    ->getTitleFromRecordUsing(fn (Candidate $record): string => $record->statut?->getLabel() ?? '—'),
+                Group::make('commercial.name')->label('Référent'),
+                Group::make('formationVisee.libelle')->label('Formation'),
+                Group::make('ville')->label('Ville'),
+                Group::make('disponibilite')->label('Disponibilité'),
             ])
             // Clic sur une ligne = ouvre le panneau Focus (et non la fiche : elle
             // reste accessible via « Aperçu » → « Ouvrir la fiche » ou le menu Plus).

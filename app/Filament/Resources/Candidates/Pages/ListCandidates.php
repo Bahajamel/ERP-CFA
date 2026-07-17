@@ -36,9 +36,14 @@ class ListCandidates extends ListRecords
     /** Filtre rapide actif (null = aucun). */
     public ?string $quickScope = null;
 
+    public function getTitle(): string
+    {
+        return 'Base Candidats';
+    }
+
     public function getSubheading(): ?string
     {
-        return 'Gérez le cycle de vie des candidats : suivez chaque étape, relancez au bon moment et optimisez vos admissions.';
+        return 'Suivi des candidats et de leur avancement';
     }
 
     /** Active/désactive un filtre rapide (bascule si déjà actif). */
@@ -94,9 +99,11 @@ class ListCandidates extends ListRecords
                 ->url(CandidateResource::getUrl('kanban')),
             CreateAction::make()
                 ->label('Créer un candidat'),
-            // Bouton « Colonnes personnalisées » : modal pour ajouter ses propres
-            // colonnes au tableau/fiches candidats (réservé Administrateur/Direction).
-            CustomFields::gererAction('candidate', 'Candidats'),
+            // Bouton « Ajouter une colonne » (maquette) : modal pour gérer ses
+            // colonnes personnalisées (réservé Administrateur/Direction).
+            CustomFields::gererAction('candidate', 'Candidats')
+                ->label('Ajouter une colonne')
+                ->icon('heroicon-o-plus'),
             Action::make('lienCandidature')
                 ->label('Lien de candidature')
                 ->icon('heroicon-o-link')
