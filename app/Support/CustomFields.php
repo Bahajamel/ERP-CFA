@@ -22,38 +22,46 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
 /**
- * Colonnes personnalisées d'un CFA (couche « façon Monday ») : le CFA choisit,
- * depuis un bouton « Colonnes personnalisées » ouvrant un modal, les colonnes
- * qu'il ajoute à une table métier existante (Candidats…). Elles apparaissent
- * ensuite automatiquement dans les formulaires et tableaux de l'entité.
+ * Colonnes personnalisées d'un CFA (couche « façon Monday ») :
+ *  - sur une entité métier existante (ex. Candidats), via un bouton + modal ;
+ *  - sur un tableau personnalisé entièrement créé par le CFA (Phase 3).
  *
- * Valeurs stockées dans la colonne JSONB `custom_fields` de l'entité, adressées
- * via `custom_fields.{clé}`. Cloisonnement par CFA assuré par le global scope de
- * {@see CustomFieldDefinition} — aucune fuite entre organisations.
+ * Les définitions vivent dans custom_field_definitions ; les valeurs dans une
+ * colonne JSONB (`custom_fields` pour une entité, `data` pour une ligne de
+ * tableau), adressées via « {préfixe}.{clé} ». Cloisonné par CFA via le global
+ * scope de {@see CustomFieldDefinition}.
  */
 class CustomFields
 {
-    /** @return Collection<int, CustomFieldDefinition> */
+    /** Colonnes d'une entité métier (hors tableaux personnalisés). */
     public static function definitions(string $entity): Collection
     {
         return CustomFieldDefinition::query()
             ->where('entity', $entity)
-            ->orderBy('sort')
-            ->orderBy('id')
+            ->whereNull('custom_table_id')
+            ->orderBy('sort')->orderBy('id')
             ->get();
     }
 
-    /** Rôles autorisés à gérer les colonnes personnalisées. */
+    /** Colonnes d'un tableau personnalisé. */
+    public static function definitionsTableau(int $customTableId): Collection
+    {
+        return CustomFieldDefinition::query()
+            ->where('custom_table_id', $customTableId)
+            ->orderBy('sort')->orderBy('id')
+            ->get();
+    }
+
+    /** Rôles autorisés à gérer les colonnes / tableaux personnalisés. */
     public static function peutGerer(): bool
     {
         return auth()->user()?->hasAnyRole(['Administrateur', 'Direction']) ?? false;
     }
 
-    /**
-     * Bouton « Colonnes personnalisées » (à placer dans l'en-tête d'une liste) :
-     * ouvre un modal listant les colonnes de l'entité, où on les ajoute / édite /
-     * réordonne / supprime. Réservé aux Administrateurs et à la Direction.
-     */
+    /* ============================================================
+     |  Bouton + modal de gestion des colonnes (entité métier)
+     * ============================================================ */
+
     public static function gererAction(string $entity, string $labelEntite): Action
     {
         return Action::make('colonnesPersonnalisees_'.$entity)
@@ -65,54 +73,11 @@ class CustomFields
             ->modalDescription('Ajoutez vos propres colonnes à cette table : elles apparaîtront dans les fiches et le tableau, pour votre CFA uniquement.')
             ->modalSubmitActionLabel('Enregistrer les colonnes')
             ->modalWidth('3xl')
-            ->fillForm(fn (): array => [
-                'colonnes' => self::definitions($entity)->map(fn (CustomFieldDefinition $d): array => [
-                    'id' => $d->id,
-                    'label' => $d->label,
-                    'type' => $d->type->value,
-                    'options' => $d->config['options'] ?? [],
-                    'visible_table' => $d->visible_table,
-                ])->all(),
-            ])
-            ->schema([
-                Repeater::make('colonnes')
-                    ->hiddenLabel()
-                    ->addActionLabel('Ajouter une colonne')
-                    ->reorderable()
-                    ->cloneable()
-                    ->itemLabel(fn (array $state): string => filled($state['label'] ?? null) ? $state['label'] : 'Nouvelle colonne')
-                    ->columns(2)
-                    ->schema([
-                        Hidden::make('id'),
-                        TextInput::make('label')
-                            ->label('Nom de la colonne')
-                            ->placeholder('ex : Référence interne, Priorité…')
-                            ->required()
-                            ->maxLength(255),
-                        Select::make('type')
-                            ->label('Type')
-                            ->options(CustomFieldType::options())
-                            ->default(CustomFieldType::Text->value)
-                            ->required()
-                            ->live(),
-                        TagsInput::make('options')
-                            ->label('Options de la liste')
-                            ->placeholder('Ajouter une option…')
-                            ->visible(fn (Get $get): bool => $get('type') === CustomFieldType::Select->value)
-                            ->required(fn (Get $get): bool => $get('type') === CustomFieldType::Select->value)
-                            ->columnSpanFull(),
-                        Toggle::make('visible_table')
-                            ->label('Afficher dans le tableau')
-                            ->default(true),
-                    ]),
-            ])
-            ->action(function (array $data, $livewire): void {
+            ->fillForm(fn (): array => ['colonnes' => self::lignesDepuis(self::definitions($entity))])
+            ->schema([self::repeaterColonnes()])
+            ->action(function (array $data, $livewire) use ($entity): void {
                 self::synchroniser($entity, $data['colonnes'] ?? []);
-
-                Notification::make()->success()
-                    ->title('Colonnes mises à jour')
-                    ->body('Vos colonnes personnalisées ont été enregistrées.')
-                    ->send();
+                Notification::make()->success()->title('Colonnes mises à jour')->send();
 
                 if (is_object($livewire) && method_exists($livewire, 'resetTable')) {
                     $livewire->resetTable();
@@ -120,19 +85,86 @@ class CustomFields
             });
     }
 
-    /**
-     * Réconcilie les définitions d'une entité avec les lignes du modal :
-     * création des nouvelles, mise à jour des existantes (avec l'ordre), et
-     * suppression de celles retirées. La clé technique reste stable une fois créée.
-     */
+    /** Repeater réutilisable décrivant des colonnes (nom + type + options + visibilité). */
+    public static function repeaterColonnes(): Repeater
+    {
+        return Repeater::make('colonnes')
+            ->hiddenLabel()
+            ->addActionLabel('Ajouter une colonne')
+            ->reorderable()
+            ->cloneable()
+            ->itemLabel(fn (array $state): string => filled($state['label'] ?? null) ? $state['label'] : 'Nouvelle colonne')
+            ->columns(2)
+            ->schema([
+                Hidden::make('id'),
+                TextInput::make('label')
+                    ->label('Nom de la colonne')
+                    ->placeholder('ex : Référence, Priorité…')
+                    ->required()->maxLength(255),
+                Select::make('type')
+                    ->label('Type')
+                    ->options(CustomFieldType::options())
+                    ->default(CustomFieldType::Text->value)
+                    ->required()->live(),
+                TagsInput::make('options')
+                    ->label('Options de la liste')
+                    ->placeholder('Ajouter une option…')
+                    ->visible(fn (Get $get): bool => $get('type') === CustomFieldType::Select->value)
+                    ->required(fn (Get $get): bool => $get('type') === CustomFieldType::Select->value)
+                    ->columnSpanFull(),
+                Toggle::make('visible_table')
+                    ->label('Afficher dans le tableau')
+                    ->default(true),
+            ]);
+    }
+
+    /** Transforme des définitions en lignes de repeater (pour préremplir un modal). */
+    public static function lignesDepuis(Collection $definitions): array
+    {
+        return $definitions->map(fn (CustomFieldDefinition $d): array => [
+            'id' => $d->id,
+            'label' => $d->label,
+            'type' => $d->type->value,
+            'options' => $d->config['options'] ?? [],
+            'visible_table' => $d->visible_table,
+        ])->all();
+    }
+
+    /* ============================================================
+     |  Synchronisation des colonnes
+     * ============================================================ */
+
+    /** Colonnes d'une entité métier (custom_table_id null). */
     public static function synchroniser(string $entity, array $lignes): void
     {
-        $existantes = self::definitions($entity)->keyBy('id');
+        self::reconcilier(
+            existantes: self::definitions($entity),
+            lignes: $lignes,
+            match: ['entity' => $entity, 'custom_table_id' => null],
+        );
+    }
+
+    /** Colonnes d'un tableau personnalisé. */
+    public static function synchroniserTableau(int $customTableId, array $lignes): void
+    {
+        self::reconcilier(
+            existantes: self::definitionsTableau($customTableId),
+            lignes: $lignes,
+            match: ['entity' => 'record', 'custom_table_id' => $customTableId],
+        );
+    }
+
+    /**
+     * Réconcilie un jeu de définitions avec les lignes soumises : crée les
+     * nouvelles, met à jour les existantes (avec l'ordre), supprime les retirées.
+     */
+    private static function reconcilier(Collection $existantes, array $lignes, array $match): void
+    {
+        $existantes = $existantes->keyBy('id');
         $gardees = [];
 
         foreach (array_values($lignes) as $index => $ligne) {
             $label = trim((string) ($ligne['label'] ?? ''));
-
             if ($label === '') {
                 continue;
             }
@@ -156,30 +188,35 @@ class CustomFields
                 $existantes[$id]->update($attributs);
                 $gardees[] = $id;
             } else {
-                $def = CustomFieldDefinition::create($attributs + [
-                    'entity' => $entity,
-                    'key' => self::cleUnique($entity, $label),
+                $def = CustomFieldDefinition::create($attributs + $match + [
+                    'key' => self::cleUnique($match, $label),
                 ]);
                 $gardees[] = $def->id;
             }
         }
 
-        // Colonnes retirées du modal → supprimées (leurs valeurs orphelines
-        // restent dans custom_fields mais ne sont plus affichées).
-        CustomFieldDefinition::query()
-            ->where('entity', $entity)
-            ->whereNotIn('id', $gardees ?: [0])
-            ->delete();
+        $requete = CustomFieldDefinition::query()->whereNotIn('id', $gardees ?: [0]);
+
+        isset($match['custom_table_id']) && $match['custom_table_id'] !== null
+            ? $requete->where('custom_table_id', $match['custom_table_id'])
+            : $requete->where('entity', $match['entity'])->whereNull('custom_table_id');
+
+        $requete->delete();
     }
 
-    /** Clé technique unique (par CFA et entité) dérivée du libellé. */
-    private static function cleUnique(string $entity, string $label): string
+    /** Clé technique unique dans son périmètre (CFA + entité/tableau). */
+    private static function cleUnique(array $match, string $label): string
     {
         $base = Str::slug($label, '_') ?: 'colonne';
         $cle = $base;
         $i = 2;
 
-        while (CustomFieldDefinition::query()->where('entity', $entity)->where('key', $cle)->exists()) {
+        $portee = fn () => CustomFieldDefinition::query()
+            ->when(($match['custom_table_id'] ?? null) !== null,
+                fn ($q) => $q->where('custom_table_id', $match['custom_table_id']),
+                fn ($q) => $q->where('entity', $match['entity'])->whereNull('custom_table_id'));
+
+        while ($portee()->where('key', $cle)->exists()) {
             $cle = $base.'_'.$i;
             $i++;
         }
@@ -187,12 +224,11 @@ class CustomFields
         return $cle;
     }
 
-    /**
-     * Section « Champs personnalisés » à ajouter au formulaire d'une entité.
-     * Tableau vide si le CFA n'a défini aucune colonne (aucun encombrement).
-     *
-     * @return array<int, Section>
-     */
+    /* ============================================================
+     |  Construction des champs / colonnes (formulaires & tableaux)
+     * ============================================================ */
+
+    /** Section « Champs personnalisés » d'une entité métier (préfixe custom_fields). */
     public static function formSchema(string $entity): array
     {
         $definitions = self::definitions($entity);
@@ -205,38 +241,46 @@ class CustomFields
             Section::make('Champs personnalisés')
                 ->icon('heroicon-o-adjustments-horizontal')
                 ->description('Colonnes propres à votre CFA.')
-                ->columns(2)
-                ->columnSpanFull()
-                ->schema($definitions->map(fn (CustomFieldDefinition $d) => self::champ($d))->all()),
+                ->columns(2)->columnSpanFull()
+                ->schema(self::champs($definitions, 'custom_fields')),
         ];
     }
 
-    /** Colonnes personnalisées (masquables) à ajouter au tableau d'une entité. */
+    /** Colonnes de tableau d'une entité métier (masquables). */
     public static function tableColumns(string $entity): array
     {
-        return self::definitions($entity)
-            ->map(function (CustomFieldDefinition $def) {
-                $chemin = "custom_fields.{$def->key}";
-
-                $colonne = match ($def->type) {
-                    CustomFieldType::Boolean => IconColumn::make($chemin)->label($def->label)->boolean(),
-                    CustomFieldType::Date => TextColumn::make($chemin)->label($def->label)->date('d/m/Y'),
-                    CustomFieldType::Select => TextColumn::make($chemin)->label($def->label)->badge()->color('gray'),
-                    CustomFieldType::Number => TextColumn::make($chemin)->label($def->label)->numeric(),
-                    default => TextColumn::make($chemin)->label($def->label),
-                };
-
-                return $colonne
-                    ->toggleable(isToggledHiddenByDefault: ! $def->visible_table)
-                    ->placeholder('—');
-            })
-            ->all();
+        return self::colonnes(self::definitions($entity), 'custom_fields');
     }
 
-    /** Construit le composant de formulaire correspondant au type d'une définition. */
-    private static function champ(CustomFieldDefinition $def)
+    /** Champs de formulaire pour un jeu de définitions, préfixés (custom_fields|data). */
+    public static function champs(Collection $definitions, string $prefixe): array
     {
-        $chemin = "custom_fields.{$def->key}";
+        return $definitions->map(fn (CustomFieldDefinition $d) => self::champ($d, $prefixe))->all();
+    }
+
+    /** Colonnes de tableau pour un jeu de définitions, préfixées. */
+    public static function colonnes(Collection $definitions, string $prefixe): array
+    {
+        return $definitions->map(function (CustomFieldDefinition $def) use ($prefixe) {
+            $chemin = "{$prefixe}.{$def->key}";
+
+            $colonne = match ($def->type) {
+                CustomFieldType::Boolean => IconColumn::make($chemin)->label($def->label)->boolean(),
+                CustomFieldType::Date => TextColumn::make($chemin)->label($def->label)->date('d/m/Y'),
+                CustomFieldType::Select => TextColumn::make($chemin)->label($def->label)->badge()->color('gray'),
+                CustomFieldType::Number => TextColumn::make($chemin)->label($def->label)->numeric(),
+                default => TextColumn::make($chemin)->label($def->label),
+            };
+
+            return $colonne
+                ->toggleable(isToggledHiddenByDefault: ! $def->visible_table)
+                ->placeholder('—');
+        })->all();
+    }
+
+    private static function champ(CustomFieldDefinition $def, string $prefixe)
+    {
+        $chemin = "{$prefixe}.{$def->key}";
 
         return match ($def->type) {
             CustomFieldType::Text => TextInput::make($chemin)->label($def->label)->maxLength(255),
@@ -248,13 +292,12 @@ class CustomFields
         };
     }
 
-    /** @return array<string, string> options d'une liste déroulante personnalisée. */
+    /** @return array<string, string> */
     private static function optionsListe(CustomFieldDefinition $def): array
     {
         return collect($def->config['options'] ?? [])
             ->map(fn ($o): string => trim((string) $o))
-            ->filter()
-            ->unique()
+            ->filter()->unique()
             ->mapWithKeys(fn (string $o): array => [$o => $o])
             ->all();
     }
