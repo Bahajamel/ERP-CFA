@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ $table->name }} — Candidature</title>
+    <title>{{ $table->name }}</title>
     <style>
         :root { --p: #4f46e5; --ink: #1e293b; --line: #e2e8f0; --muted: #64748b; }
         * { box-sizing: border-box; }
@@ -38,7 +38,7 @@
         <div class="card">
             <h1>{{ $table->name }}</h1>
             <p class="desc">
-                {{ $table->description ?: 'Remplissez ce formulaire, votre candidature sera transmise directement.' }}
+                {{ $table->description ?: 'Remplissez ce formulaire, vos informations seront transmises directement.' }}
             </p>
 
             @if ($errors->any())
@@ -97,7 +97,7 @@
                 @if ($colonnes->isEmpty())
                     <p class="desc">Ce formulaire n'a pas encore de champ. Revenez plus tard.</p>
                 @else
-                    <button type="submit">Envoyer ma candidature</button>
+                    <button type="submit">{{ \App\Support\BoardNavigation::boutonEnvoi($table->context) }}</button>
                 @endif
             </form>
         </div>

@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Candidature envoyée</title>
+    <title>Formulaire envoyé</title>
     <style>
         body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
                background: #f1f5f9; color: #1e293b; display: grid; place-items: center; min-height: 100vh; }
@@ -18,8 +18,8 @@
 <body>
     <div class="card">
         <div class="ok">✓</div>
-        <h1>Merci, votre candidature est envoyée !</h1>
-        <p>Elle a bien été transmise à l'organisme. Vous pouvez fermer cette page.</p>
+        <h1>Merci, c'est bien envoyé !</h1>
+        <p>Vos informations ont été transmises à l'organisme. Vous pouvez fermer cette page.</p>
     </div>
 </body>
 </html>

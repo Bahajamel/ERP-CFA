@@ -46,6 +46,31 @@ class BoardNavigation
         return collect(self::contextes())->map(fn (array $c): string => $c['label'])->all();
     }
 
+    /**
+     * Libellé du lien public selon le module : « candidature » pour un tableau
+     * Candidats, « entreprise » pour un tableau Entreprises, etc.
+     */
+    public static function libelleLien(?string $context): string
+    {
+        return match ($context) {
+            'candidate' => 'Lien de candidature',
+            'company' => 'Lien entreprise',
+            'need' => 'Lien offre',
+            default => 'Lien du formulaire',
+        };
+    }
+
+    /** Texte du bouton d'envoi du formulaire public, selon le module. */
+    public static function boutonEnvoi(?string $context): string
+    {
+        return match ($context) {
+            'candidate' => 'Envoyer ma candidature',
+            'company' => 'Envoyer les informations',
+            'need' => 'Envoyer',
+            default => 'Envoyer',
+        };
+    }
+
     /** La barre s'affiche-t-elle sur la page courante ? (uniquement si un contexte est identifié) */
     public static function doitAfficher(): bool
     {

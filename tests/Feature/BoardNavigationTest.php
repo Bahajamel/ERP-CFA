@@ -83,6 +83,13 @@ it('exclut les tableaux archivés du sélecteur', function () {
     expect($labels)->toContain('Actif')->not->toContain('Archivé');
 });
 
+it('adapte le libellé du lien public au module du tableau', function () {
+    expect(BoardNavigation::libelleLien('candidate'))->toBe('Lien de candidature')
+        ->and(BoardNavigation::libelleLien('company'))->toBe('Lien entreprise')
+        ->and(BoardNavigation::libelleLien('need'))->toBe('Lien offre')
+        ->and(BoardNavigation::libelleLien(null))->toBe('Lien du formulaire');
+});
+
 it('réserve « Nouveau tableau » à qui a la permission de créer une table', function () {
     expect(BoardNavigation::peutCreer())->toBeTrue(); // Administrateur
 

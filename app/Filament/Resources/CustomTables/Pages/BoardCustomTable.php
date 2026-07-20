@@ -75,14 +75,14 @@ class BoardCustomTable extends Page implements HasTable
                 ->url(fn (): string => CustomTableResource::getUrl('kanban', ['record' => $record]))
                 ->visible(fn (): bool => $this->colonneStatut() !== null),
 
-            // Lien de candidature PROPRE à ce tableau : le formulaire public crée
-            // une ligne dans CE tableau.
+            // Lien public PROPRE à ce tableau : le formulaire crée une ligne dans CE
+            // tableau. Le libellé s'adapte au module (candidature, entreprise, offre).
             Action::make('lienCandidature')
-                ->label('Lien de candidature')
+                ->label(BoardNavigation::libelleLien($record->context))
                 ->icon('heroicon-o-link')
                 ->color('gray')
                 ->visible(fn (): bool => Auth::user()?->can('update', $record) ?? false)
-                ->modalHeading('Lien de candidature de ce tableau')
+                ->modalHeading(BoardNavigation::libelleLien($record->context).' de ce tableau')
                 ->modalDescription('Partagez ce lien : la personne remplit le formulaire et une ligne est créée dans ce tableau, sans accès à l\'ERP.')
                 ->modalSubmitAction(false)
                 ->modalCancelActionLabel('Fermer')
