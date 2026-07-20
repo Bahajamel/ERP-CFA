@@ -58,6 +58,8 @@ class Candidate extends Model implements HasMedia
             'cv_consentement' => 'boolean',
             'cv_consentement_at' => 'datetime',
             'statut' => CandidateStatut::class,
+            // Valeurs des colonnes personnalisées du CFA (couche « façon Monday »).
+            'custom_fields' => 'array',
         ];
     }
 
@@ -169,6 +171,16 @@ class Candidate extends Model implements HasMedia
      */
     protected static function booted(): void
     {
+        // Nouveau candidat ajouté en fin de « Base Candidats » (ordre manuel
+        // façon Monday) — max de la position dans le même CFA + 1.
+        static::creating(function (self $candidate): void {
+            if (blank($candidate->position)) {
+                $candidate->position = (int) static::withoutGlobalScopes()
+                    ->when(filled($candidate->organisation_id), fn ($q) => $q->where('organisation_id', $candidate->organisation_id))
+                    ->max('position') + 1;
+            }
+        });
+
         static::saving(function (self $candidate): void {
             if (blank($candidate->email) && blank($candidate->telephone)) {
                 throw ValidationException::withMessages([
@@ -404,7 +416,7 @@ class Candidate extends Model implements HasMedia
      * utilisateur) : ces 5 étapes ne connaissent NI le contrat, NI l'OPCO, NI la
      * rupture. L'application porte donc deux définitions concurrentes du
      * parcours — celle-ci, et la timeline à 7 étapes de
-     * {@see \App\Parcours\CycleApprenant::etapes()} (qui, elle, couvre contrat,
+     * {@see CycleApprenant::etapes()} (qui, elle, couvre contrat,
      * OPCO et rupture). Les deux peuvent se contredire sur un même candidat :
      * un apprenti dont le contrat a été rompu s'affiche ici « Matching », comme
      * s'il cherchait encore une entreprise, faute d'étape le concernant.

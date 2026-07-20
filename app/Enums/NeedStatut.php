@@ -7,7 +7,7 @@ use App\StateMachine\HasStateTransitions;
 use Filament\Support\Contracts\HasColor;
 use Filament\Support\Contracts\HasLabel;
 
-enum NeedStatut: string implements HasLabel, HasColor, HasStateTransitions
+enum NeedStatut: string implements HasColor, HasLabel, HasStateTransitions
 {
     use DefinesTransitions;
 

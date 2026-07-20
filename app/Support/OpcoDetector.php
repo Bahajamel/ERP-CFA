@@ -17,7 +17,6 @@ use Throwable;
  */
 class OpcoDetector
 {
-
     /** Supprime tout ce qui n'est pas un chiffre (espaces, points…). */
     public static function normaliserSiret(?string $siret): string
     {

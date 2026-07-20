@@ -5,8 +5,10 @@ namespace App\Filament\Resources\Companies\Schemas;
 use App\Enums\CompanyStatut;
 use App\Models\Company;
 use App\Support\AdresseBan;
+use App\Support\CustomFields;
 use App\Support\EntrepriseAnnuaire;
 use App\Support\OpcoDetector;
+use Carbon\Carbon;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -125,7 +127,7 @@ class CompanyForm
         }
 
         $depuis = filled($etat['date_fermeture'] ?? null)
-            ? ' depuis le '.\Carbon\Carbon::parse($etat['date_fermeture'])->format('d/m/Y')
+            ? ' depuis le '.Carbon::parse($etat['date_fermeture'])->format('d/m/Y')
             : '';
 
         Notification::make()
@@ -308,6 +310,8 @@ class CompanyForm
                             Hidden::make('longitude'),
                         ]),
                 ])->columnSpan(1),
+                // Colonnes personnalisées du CFA (section pleine largeur).
+                ...CustomFields::formSchema('company'),
             ]);
     }
 }

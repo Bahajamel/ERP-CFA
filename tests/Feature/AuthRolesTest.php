@@ -59,11 +59,12 @@ it('applique la matrice des permissions par rôle', function () {
         ->and($finance->can('access_candidates'))->toBeFalse();
 });
 
-it("crée bien les 10 rôles métier et 16 permissions de module", function () {
+it("crée bien les 10 rôles métier et les permissions attendues", function () {
     // 10 rôles CFA (matrice CDC §20) + le rôle « Éditeur » (exploitant de la
-    // solution), hors matrice ; 16 permissions de module + « access_editeur ».
+    // solution), hors matrice ; 16 permissions de module + « access_editeur »
+    // + 8 permissions granulaires « tables personnalisées » (façon Monday) = 25.
     expect(\Spatie\Permission\Models\Role::count())->toBe(11)
-        ->and(\Spatie\Permission\Models\Permission::count())->toBe(17);
+        ->and(\Spatie\Permission\Models\Permission::count())->toBe(25);
 });
 
 it("tient le rôle Éditeur hors de la matrice des rôles CFA", function () {

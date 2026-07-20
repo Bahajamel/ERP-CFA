@@ -6,7 +6,7 @@ use Filament\Support\Contracts\HasColor;
 use Filament\Support\Contracts\HasLabel;
 
 /** Nature d'une période de disponibilité du candidat. */
-enum AvailabilityType: string implements HasLabel, HasColor
+enum AvailabilityType: string implements HasColor, HasLabel
 {
     case Disponible = 'disponible';
     case Indisponible = 'indisponible';

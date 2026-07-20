@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\OpcoFiles;
 
+use App\Enums\OpcoStatut;
 use App\Filament\Resources\OpcoFiles\Pages\CreateOpcoFile;
 use App\Filament\Resources\OpcoFiles\Pages\EditOpcoFile;
 use App\Filament\Resources\OpcoFiles\Pages\ListOpcoFiles;
@@ -38,7 +39,7 @@ class OpcoFileResource extends Resource
     /** Badge de navigation : dossiers bloqués (rejetés / en correction). */
     public static function getNavigationBadge(): ?string
     {
-        $n = OpcoFile::query()->whereIn('statut', \App\Enums\OpcoStatut::bloques())->count();
+        $n = OpcoFile::query()->whereIn('statut', OpcoStatut::bloques())->count();
 
         return $n > 0 ? (string) $n : null;
     }

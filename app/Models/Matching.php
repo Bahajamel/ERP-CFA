@@ -66,7 +66,6 @@ class Matching extends Model implements HasMedia
     /** Statut terminal de refus (motif obligatoire à la transition). */
     private const REFUS = [MatchingStatut::Refuse];
 
-
     /**
      * Journalise les évolutions du matching (activity log) — traçabilité commerciale
      * et audit. Seuls les champs métier significatifs sont suivis.

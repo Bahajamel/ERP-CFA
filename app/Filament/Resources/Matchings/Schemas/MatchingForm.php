@@ -10,6 +10,7 @@ use App\Models\Need;
 use App\Parcours\CycleApprenant;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Section;
@@ -71,7 +72,7 @@ class MatchingForm
                             ->live(),
                         Toggle::make('cv_envoye')
                             ->label('CV envoyé'),
-                        \Filament\Forms\Components\SpatieMediaLibraryFileUpload::make('cv')
+                        SpatieMediaLibraryFileUpload::make('cv')
                             ->label('CV transmis à l\'entreprise')
                             ->collection('cv')
                             ->downloadable()

@@ -3,6 +3,7 @@
 namespace App\Mail;
 
 use App\Models\CandidatePromotion;
+use App\Scolarite\InscriptionService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
@@ -42,7 +43,7 @@ class InvitationInscription extends Mailable
                 'classe' => $promotion?->nom_complet ?? '',
                 'formation' => $promotion?->formation?->libelle ?? '',
                 'lien' => $this->lien,
-                'jours' => \App\Scolarite\InscriptionService::EXPIRATION_JOURS,
+                'jours' => InscriptionService::EXPIRATION_JOURS,
             ],
         );
     }

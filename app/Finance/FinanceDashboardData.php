@@ -23,7 +23,7 @@ use App\Models\Invoice;
 class FinanceDashboardData
 {
     /* ===================================================================== */
-    /*  RÉEL — agrégats base de données                                       */
+    /*  RÉEL — agrégats base de données */
     /* ===================================================================== */
 
     /** Les 6 cartes KPI (valeurs réelles + variations de démonstration). */
@@ -171,7 +171,7 @@ class FinanceDashboardData
     }
 
     /* ===================================================================== */
-    /*  DÉMO — à brancher plus tard (données d'illustration)                  */
+    /*  DÉMO — à brancher plus tard (données d'illustration) */
     /* ===================================================================== */
 
     /**

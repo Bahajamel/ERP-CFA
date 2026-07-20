@@ -14,7 +14,7 @@ use Filament\Support\Contracts\HasLabel;
  * dossier OPCO créé ou transmis pour validation. Elle démarre toujours
  * « À vérifier » ; « Rupture » alimente le module Rupture (livrables).
  */
-enum AdmissionStatut: string implements HasLabel, HasColor, HasStateTransitions
+enum AdmissionStatut: string implements HasColor, HasLabel, HasStateTransitions
 {
     use DefinesTransitions;
 

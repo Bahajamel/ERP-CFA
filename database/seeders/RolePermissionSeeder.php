@@ -19,6 +19,18 @@ class RolePermissionSeeder extends Seeder
 
     public const PERMISSION_EDITEUR = 'access_editeur';
 
+    /** Permissions granulaires de la couche « tables personnalisées » (façon Monday). */
+    public const PERMISSIONS_PERSONNALISATION = [
+        'custom_tables.view',
+        'custom_tables.create',
+        'custom_tables.update',
+        'custom_tables.delete',
+        'custom_records.view',
+        'custom_records.create',
+        'custom_records.update',
+        'custom_records.delete',
+    ];
+
     public function run(): void
     {
         app(PermissionRegistrar::class)->forgetCachedPermissions();
@@ -34,15 +46,15 @@ class RolePermissionSeeder extends Seeder
         // 2) Matrice rôle => modules accessibles ('*' = tous les modules)
         $matrix = [
             'Administrateur' => '*',
-            'Direction'      => $allButUsers,
-            'Commercial'     => ['candidates', 'companies', 'needs', 'matching', 'formations', 'tasks', 'reports'],
-            'Admission'      => ['candidates', 'admissions', 'documents', 'formations', 'tasks', 'reports'],
-            'Administratif'  => ['contracts', 'opco', 'documents', 'finance', 'ruptures', 'tasks', 'reports'],
-            'Scolarité'      => ['attendance', 'formations', 'tasks', 'reports'],
-            'Pédagogie'      => ['candidates', 'admissions', 'attendance', 'quality', 'ruptures', 'formations', 'tasks', 'reports'],
-            'Finance'        => ['finance', 'contracts', 'opco', 'tasks', 'reports'],
-            'Qualité'        => ['quality', 'documents', 'tasks'],
-            'Formateur'      => ['attendance', 'formations', 'tasks'],
+            'Direction' => $allButUsers,
+            'Commercial' => ['candidates', 'companies', 'needs', 'matching', 'formations', 'tasks', 'reports'],
+            'Admission' => ['candidates', 'admissions', 'documents', 'formations', 'tasks', 'reports'],
+            'Administratif' => ['contracts', 'opco', 'documents', 'finance', 'ruptures', 'tasks', 'reports'],
+            'Scolarité' => ['attendance', 'formations', 'tasks', 'reports'],
+            'Pédagogie' => ['candidates', 'admissions', 'attendance', 'quality', 'ruptures', 'formations', 'tasks', 'reports'],
+            'Finance' => ['finance', 'contracts', 'opco', 'tasks', 'reports'],
+            'Qualité' => ['quality', 'documents', 'tasks'],
+            'Formateur' => ['attendance', 'formations', 'tasks'],
         ];
 
         // 3) Création des rôles + affectation des permissions
@@ -50,6 +62,27 @@ class RolePermissionSeeder extends Seeder
             $role = Role::firstOrCreate(['name' => $roleName]);
             $slugs = $modules === '*' ? $all : $modules;
             $role->syncPermissions(array_map(fn ($s) => Modules::permission($s), $slugs));
+        }
+
+        // 3 bis) Personnalisation « façon Monday » : permissions granulaires sur les
+        // tables et lignes personnalisées, indépendantes des modules métier. Elles
+        // ne sont accordées qu'aux rôles de pilotage — un CFA n'ouvre l'accès aux
+        // autres rôles que s'il le décide (rien n'est ouvert automatiquement).
+        foreach (self::PERMISSIONS_PERSONNALISATION as $permission) {
+            Permission::firstOrCreate(['name' => $permission]);
+        }
+
+        // Administrateur : tout (y compris suppression définitive des tables).
+        Role::findByName('Administrateur')->givePermissionTo(self::PERMISSIONS_PERSONNALISATION);
+
+        // Direction & Commercial : tout sauf la suppression d'une table. Le
+        // Commercial pilote au quotidien ses tableaux Candidats (créer, choisir les
+        // colonnes et les options des listes, saisir des lignes) ; l'apprenant, via
+        // le lien public, ne fait que recevoir les listes figées choisies par eux.
+        foreach (['Direction', 'Commercial'] as $role) {
+            Role::findByName($role)->givePermissionTo(
+                array_values(array_diff(self::PERMISSIONS_PERSONNALISATION, ['custom_tables.delete'])),
+            );
         }
 
         // 4) Rôle « Éditeur » : nous, exploitant de la solution — hors matrice CFA.

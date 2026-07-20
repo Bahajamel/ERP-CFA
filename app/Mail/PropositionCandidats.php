@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Models\Candidate;
 use App\Models\Need;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
@@ -21,7 +22,7 @@ class PropositionCandidats extends Mailable
     use SerializesModels;
 
     /**
-     * @param  Collection<int, \App\Models\Candidate>  $candidats
+     * @param  Collection<int, Candidate>  $candidats
      */
     public function __construct(
         public Need $need,

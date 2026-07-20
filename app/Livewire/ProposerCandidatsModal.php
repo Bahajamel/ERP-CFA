@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Filament\Resources\Needs\NeedResource;
 use App\Matching\PropositionService;
+use App\Models\Candidate;
 use App\Models\Need;
 use App\Models\User;
 use Filament\Notifications\Notification;
@@ -129,7 +130,7 @@ class ProposerCandidatsModal extends Component
         }
 
         // Blocage RGPD : un candidat sans consentement ne peut pas être sélectionné.
-        if (! \App\Models\Candidate::whereKey($id)->value('cv_consentement')) {
+        if (! Candidate::whereKey($id)->value('cv_consentement')) {
             Notification::make()->warning()
                 ->title('Consentement requis')
                 ->body('Ce candidat n\'a pas autorisé la transmission de son CV. Recueillez son accord sur sa fiche.')

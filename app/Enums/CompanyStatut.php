@@ -5,7 +5,7 @@ namespace App\Enums;
 use Filament\Support\Contracts\HasColor;
 use Filament\Support\Contracts\HasLabel;
 
-enum CompanyStatut: string implements HasLabel, HasColor
+enum CompanyStatut: string implements HasColor, HasLabel
 {
     case Prospect = 'prospect';
     case Partenaire = 'partenaire';

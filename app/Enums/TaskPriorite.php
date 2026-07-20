@@ -5,7 +5,7 @@ namespace App\Enums;
 use Filament\Support\Contracts\HasColor;
 use Filament\Support\Contracts\HasLabel;
 
-enum TaskPriorite: string implements HasLabel, HasColor
+enum TaskPriorite: string implements HasColor, HasLabel
 {
     case Basse = 'basse';
     case Normale = 'normale';

@@ -5,7 +5,7 @@ namespace App\Enums;
 use Filament\Support\Contracts\HasColor;
 use Filament\Support\Contracts\HasLabel;
 
-enum ContractSignatureStatut: string implements HasLabel, HasColor
+enum ContractSignatureStatut: string implements HasColor, HasLabel
 {
     case NonSigne = 'non_signe';
     case Envoye = 'envoye';

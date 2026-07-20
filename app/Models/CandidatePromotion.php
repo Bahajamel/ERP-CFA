@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\Pivot;
 
 /**
@@ -24,12 +25,12 @@ class CandidatePromotion extends Pivot
         ];
     }
 
-    public function candidate(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    public function candidate(): BelongsTo
     {
         return $this->belongsTo(Candidate::class);
     }
 
-    public function promotion(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    public function promotion(): BelongsTo
     {
         return $this->belongsTo(Promotion::class);
     }

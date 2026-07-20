@@ -7,7 +7,7 @@ use App\StateMachine\HasStateTransitions;
 use Filament\Support\Contracts\HasColor;
 use Filament\Support\Contracts\HasLabel;
 
-enum OpcoStatut: string implements HasLabel, HasColor, HasStateTransitions
+enum OpcoStatut: string implements HasColor, HasLabel, HasStateTransitions
 {
     use DefinesTransitions;
 

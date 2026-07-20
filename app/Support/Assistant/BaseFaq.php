@@ -59,21 +59,21 @@ class BaseFaq
                 'categorie' => 'Candidats',
                 'question' => 'Comment modifier ou consulter la fiche d\'un candidat ?',
                 'mots' => ['modifier', 'consulter', 'voir', 'fiche', 'candidat', 'apprenant', 'editer', 'coordonnees', 'contact'],
-                'reponse' => "Dans « Candidats », cliquez sur la ligne de la personne pour ouvrir sa fiche. Vous y trouvez son identité, ses documents, sa formation visée et son suivi (admission, contrat, scolarité).",
+                'reponse' => 'Dans « Candidats », cliquez sur la ligne de la personne pour ouvrir sa fiche. Vous y trouvez son identité, ses documents, sa formation visée et son suivi (admission, contrat, scolarité).',
                 'lien' => ['route' => 'filament.admin.resources.candidates.index', 'label' => 'Voir les candidats', 'permission' => 'access_candidates'],
             ],
             [
                 'categorie' => 'Candidats',
                 'question' => 'J\'ai supprimé un candidat par erreur, comment le récupérer ?',
                 'mots' => ['supprime', 'supprimer', 'restaurer', 'recuperer', 'corbeille', 'erreur', 'annuler', 'efface'],
-                'reponse' => "Les candidats supprimés partent à la « Corbeille » (suppression douce). Ouvrez la Corbeille pour restaurer une fiche ou la supprimer définitivement.",
+                'reponse' => 'Les candidats supprimés partent à la « Corbeille » (suppression douce). Ouvrez la Corbeille pour restaurer une fiche ou la supprimer définitivement.',
                 'lien' => ['route' => 'filament.admin.resources.candidates.index', 'label' => 'Module Candidats', 'permission' => 'access_candidates'],
             ],
             [
                 'categorie' => 'Candidats',
                 'question' => 'Comment planifier un entretien avec un candidat ?',
                 'mots' => ['entretien', 'rendez-vous', 'rdv', 'planifier', 'rencontre', 'candidat'],
-                'reponse' => "Le module « Entretiens » recense les rendez-vous avec les candidats. Créez un entretien, choisissez le candidat et la date : il apparaîtra dans le suivi de sa fiche.",
+                'reponse' => 'Le module « Entretiens » recense les rendez-vous avec les candidats. Créez un entretien, choisissez le candidat et la date : il apparaîtra dans le suivi de sa fiche.',
                 'lien' => ['route' => 'filament.admin.resources.entretiens.index', 'label' => 'Voir les entretiens', 'permission' => 'access_candidates'],
             ],
 
@@ -151,7 +151,7 @@ class BaseFaq
                 'categorie' => 'Finance',
                 'question' => 'Où voir les versements et le suivi financier ?',
                 'mots' => ['finance', 'versement', 'versements', 'argent', 'paiement', 'chiffre', 'tableau', 'bord', 'financier', 'recettes', 'montant'],
-                'reponse' => "La page « Finance » agrège automatiquement les montants des dossiers OPCO et des contrats : recettes attendues, versements reçus, restes à percevoir. Tout est synchronisé en continu, sans action manuelle. Cliquez sur un indicateur pour aller au détail.",
+                'reponse' => 'La page « Finance » agrège automatiquement les montants des dossiers OPCO et des contrats : recettes attendues, versements reçus, restes à percevoir. Tout est synchronisé en continu, sans action manuelle. Cliquez sur un indicateur pour aller au détail.',
                 'lien' => ['route' => 'filament.admin.pages.finance', 'label' => 'Ouvrir Finance', 'permission' => 'access_finance'],
             ],
 
@@ -167,7 +167,7 @@ class BaseFaq
                 'categorie' => 'Scolarité',
                 'question' => 'Comment créer une classe / promotion ?',
                 'mots' => ['classe', 'promotion', 'cohorte', 'groupe', 'creer', 'ajouter', 'annee', 'inscrire', 'apprentis'],
-                'reponse' => "Dans « Classes », créez une promotion (formation + année scolaire) puis composez-la en y rattachant les apprentis. Un apprenant ne peut suivre que des classes de sa formation et de son niveau.",
+                'reponse' => 'Dans « Classes », créez une promotion (formation + année scolaire) puis composez-la en y rattachant les apprentis. Un apprenant ne peut suivre que des classes de sa formation et de son niveau.',
                 'lien' => ['route' => 'filament.admin.resources.promotions.create', 'label' => 'Créer une classe', 'permission' => 'access_formations'],
             ],
             [
@@ -190,7 +190,7 @@ class BaseFaq
                 'categorie' => 'Notes',
                 'question' => 'Comment saisir des notes / le cahier de notes ?',
                 'mots' => ['note', 'notes', 'saisir', 'saisie', 'evaluation', 'epreuve', 'controle', 'examen', 'devoir', 'cahier', 'noter', 'moyenne'],
-                'reponse' => "Ouvrez « Notes », choisissez une classe puis une matière : le cahier affiche les apprentis et leurs notes. Le bouton « Nouvelle épreuve » permet de saisir une note pour toute la classe en une fois (type, barème, coefficient).",
+                'reponse' => 'Ouvrez « Notes », choisissez une classe puis une matière : le cahier affiche les apprentis et leurs notes. Le bouton « Nouvelle épreuve » permet de saisir une note pour toute la classe en une fois (type, barème, coefficient).',
                 'lien' => ['route' => 'filament.admin.pages.notes', 'label' => 'Ouvrir le cahier de notes', 'permission' => 'access_attendance'],
             ],
             [
@@ -227,7 +227,7 @@ class BaseFaq
                 'categorie' => 'Tâches',
                 'question' => 'Comment créer une tâche ou un rappel ?',
                 'mots' => ['tache', 'taches', 'rappel', 'todo', 'suivi', 'relance', 'creer', 'action', 'echeance'],
-                'reponse' => "Le module « Tâches » vous aide à suivre vos actions (relances, échéances). Créez une tâche, fixez une échéance et suivez son avancement.",
+                'reponse' => 'Le module « Tâches » vous aide à suivre vos actions (relances, échéances). Créez une tâche, fixez une échéance et suivez son avancement.',
                 'lien' => ['route' => 'filament.admin.resources.tasks.create', 'label' => 'Créer une tâche', 'permission' => 'access_tasks'],
             ],
             [
@@ -236,6 +236,64 @@ class BaseFaq
                 'mots' => ['qualiopi', 'qualite', 'indicateur', 'indicateurs', 'conformite', 'audit', 'certification'],
                 'reponse' => "Le module « Qualiopi » recense les indicateurs de la certification qualité et leur état de conformité, pour préparer sereinement l'audit.",
                 'lien' => ['route' => 'filament.admin.resources.qualiopi-indicators.index', 'label' => 'Voir les indicateurs', 'permission' => 'access_quality'],
+            ],
+
+            // ─── Tableaux personnalisés (façon Monday) ──────────────────────
+            [
+                'categorie' => 'Tableaux personnalisés',
+                'question' => 'Comment créer un tableau personnalisé (façon Monday) ?',
+                'mots' => ['tableau', 'tableaux', 'personnalise', 'personnalises', 'board', 'monday', 'creer', 'ajouter', 'nouveau', 'custom', 'suivi', 'vivier', 'partenaires', 'prospects'],
+                'reponse' => "Chaque CFA peut créer ses propres tableaux, par module. Depuis « Base Candidats » (ou Entreprises / Offres), cliquez sur l'onglet « + Nouveau tableau » du sélecteur de tables en haut : donnez un nom, définissez les colonnes, puis saisissez vos lignes. Vous pouvez aussi passer par Administration → « Tableaux personnalisés ». Réservé aux rôles Commercial, Direction et Administrateur.",
+                'lien' => ['route' => 'filament.admin.resources.custom-tables.create', 'label' => 'Créer un tableau', 'permission' => 'custom_tables.create'],
+            ],
+            [
+                'categorie' => 'Tableaux personnalisés',
+                'question' => 'Comment passer d\'un tableau à un autre ?',
+                'mots' => ['basculer', 'changer', 'passer', 'naviguer', 'selecteur', 'onglet', 'onglets', 'board', 'boards', 'plusieurs', 'tableau', 'tableaux', 'module'],
+                'reponse' => "En haut de la Base Candidats (et des Entreprises / Offres), une barre d'onglets « boards » liste le board principal du module et tous vos tableaux personnalisés de ce module. Cliquez sur un onglet pour basculer d'un tableau à l'autre ; l'onglet courant est surligné.",
+                'lien' => ['route' => 'filament.admin.resources.custom-tables.index', 'label' => 'Voir les tableaux', 'permission' => 'custom_tables.view'],
+            ],
+            [
+                'categorie' => 'Tableaux personnalisés',
+                'question' => 'Comment ajouter une ligne ou une colonne à un tableau ?',
+                'mots' => ['ligne', 'lignes', 'colonne', 'colonnes', 'ajouter', 'saisir', 'remplir', 'champ', 'champs', 'tableau', 'element'],
+                'reponse' => "Ouvrez le tableau (clic sur son nom) : le board affiche ses lignes. Utilisez « Ajouter une ligne » et « Ajouter une colonne » dans la barre du tableau. Le bouton « Configurer » ouvre l'écran complet (nom, icône, couleur, module, colonnes).",
+                'lien' => ['route' => 'filament.admin.resources.custom-tables.index', 'label' => 'Voir les tableaux', 'permission' => 'custom_tables.view'],
+            ],
+            [
+                'categorie' => 'Tableaux personnalisés',
+                'question' => 'Quels types de colonnes puis-je créer et comment marchent les listes déroulantes ?',
+                'mots' => ['type', 'types', 'colonne', 'liste', 'deroulante', 'statut', 'option', 'options', 'choix', 'texte', 'nombre', 'date', 'utilisateur', 'select', 'booleen', 'fichier', 'piece', 'jointe', 'cv', 'relation', 'lien', 'fiche'],
+                'reponse' => 'Types disponibles : texte court, texte long, nombre, date, heure, oui/non, e-mail, téléphone, lien (URL), montant, pourcentage, liste déroulante, multi-sélection, statut (coloré), utilisateur assigné, fichier (pièce jointe) et relation (lien vers une fiche). Pour une colonne « Liste » ou « Statut », au moment de saisir une ligne vous choisissez une option existante ou en ajoutez une nouvelle à la volée : elle est mémorisée pour tout le monde. Une colonne « Fichier » permet de joindre un document à chaque ligne (et de recevoir un CV via le lien public). Une colonne « Relation » relie chaque ligne à une fiche de l\'ERP (candidat, entreprise, offre ou contrat) — non exposée au public. Les personnes qui remplissent le lien public ne reçoivent que les options déjà choisies.',
+                'lien' => ['route' => 'filament.admin.resources.custom-tables.index', 'label' => 'Voir les tableaux', 'permission' => 'custom_tables.view'],
+            ],
+            [
+                'categorie' => 'Tableaux personnalisés',
+                'question' => 'Comment partager un lien pour qu\'une personne remplisse un tableau (candidature / entreprise) ?',
+                'mots' => ['lien', 'candidature', 'entreprise', 'public', 'formulaire', 'partager', 'externe', 'jeton', 'deposer', 'remplir', 'tableau'],
+                'reponse' => "Chaque tableau a son propre lien public. Ouvrez le board, cliquez sur « Lien de candidature » (ou « Lien entreprise » selon le module) : partagez l'URL. La personne remplit un formulaire bâti sur les colonnes du tableau, sans accès à l'ERP, et une ligne est créée dans ce tableau. Le formulaire reprend la charte du module.",
+                'lien' => ['route' => 'filament.admin.resources.custom-tables.index', 'label' => 'Voir les tableaux', 'permission' => 'custom_tables.view'],
+            ],
+            [
+                'categorie' => 'Tableaux personnalisés',
+                'question' => 'Qui voit mes tableaux et comment inviter un collègue ?',
+                'mots' => ['partager', 'partage', 'inviter', 'invitation', 'acces', 'prive', 'collegue', 'commercial', 'lecture', 'modification', 'droit', 'droits', 'voir', 'modifier'],
+                'reponse' => "Chaque tableau est privé : seul son créateur y accède (la Direction et les Administrateurs voient tout, pour la supervision). Pour l'ouvrir à un collègue, cliquez sur « Partager » sur le board, ajoutez la personne et choisissez son niveau : « Lecture » (consulter) ou « Modification » (éditer lignes et colonnes). L'invité est prévenu par une notification. Retirez-le de la liste pour révoquer son accès.",
+                'lien' => ['route' => 'filament.admin.resources.custom-tables.index', 'label' => 'Voir les tableaux', 'permission' => 'custom_tables.view'],
+            ],
+            [
+                'categorie' => 'Tableaux personnalisés',
+                'question' => 'Comment voir un tableau en Kanban et enregistrer une vue ?',
+                'mots' => ['kanban', 'pipeline', 'carte', 'cartes', 'glisser', 'deposer', 'statut', 'vue', 'vues', 'enregistrer', 'filtre', 'tri', 'colonnes'],
+                'reponse' => "Si le tableau a une colonne « Statut » (ou « Liste »), le bouton « Vue Kanban » l'affiche en colonnes : glissez une carte d'une colonne à l'autre pour changer son statut. Le menu « Vues » permet d'enregistrer un préréglage (filtres + tri) et d'en définir un par défaut.",
+                'lien' => ['route' => 'filament.admin.resources.custom-tables.index', 'label' => 'Voir les tableaux', 'permission' => 'custom_tables.view'],
+            ],
+            [
+                'categorie' => 'Tableaux personnalisés',
+                'question' => 'Comment archiver ou supprimer un tableau personnalisé ?',
+                'mots' => ['supprimer', 'archiver', 'retirer', 'desactiver', 'corbeille', 'tableau', 'effacer'],
+                'reponse' => "Pour retirer temporairement un tableau, décochez « Tableau actif » dans sa configuration (archivage réversible). Pour le supprimer, utilisez « Supprimer le tableau » sur le board : il part en corbeille (récupérable). La suppression est réservée à l'Administrateur.",
+                'lien' => ['route' => 'filament.admin.resources.custom-tables.index', 'label' => 'Voir les tableaux', 'permission' => 'custom_tables.view'],
             ],
 
             // ─── Utilisateurs & compte (admin) ──────────────────────────────
@@ -274,7 +332,7 @@ class BaseFaq
             'Comment ajouter un apprenant ?',
             'Comment établir un contrat / CERFA ?',
             'Comment saisir des notes ?',
-            'Où voir les versements OPCO ?',
+            'Comment créer un tableau personnalisé ?',
             'Par où commencer ?',
         ];
     }

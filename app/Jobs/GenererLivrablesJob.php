@@ -48,7 +48,7 @@ class GenererLivrablesJob implements ShouldQueue
         $contract = Contract::with(['candidate', 'company', 'formation', 'tuteur'])->find($this->contractId);
 
         if ($contract === null || $contract->candidate === null) {
-            $this->notifier('danger', 'Génération impossible', "Contrat ou apprenti introuvable.");
+            $this->notifier('danger', 'Génération impossible', 'Contrat ou apprenti introuvable.');
 
             return;
         }

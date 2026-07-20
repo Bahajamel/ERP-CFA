@@ -10,7 +10,9 @@ use App\Models\Need;
 use App\Prospecting\AddressGeocoder;
 use App\Prospecting\LaBonneAlternanceClient;
 use App\Prospecting\ProspectionService;
+use App\Support\CustomFields;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\CreateAction;
 use Filament\Actions\ExportAction;
 use Filament\Forms\Components\DatePicker;
@@ -59,9 +61,8 @@ class ListNeeds extends ListRecords
 
     public function getSubheading(): ?string
     {
-        return 'Chaque ligne = une offre proposée par une entreprise (poste à pourvoir, formation visée, rythme). '
-            .'Cliquez sur une offre pour ouvrir sa fiche (description, entreprise, candidats). '
-            .'Suivez le recrutement jusqu\'au candidat retenu via la « Vue Pipeline ».';
+        // Sous-titre retiré (gain de place).
+        return null;
     }
 
     /** Active/désactive un filtre rapide (bascule si déjà actif). */
@@ -89,19 +90,27 @@ class ListNeeds extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
+            // Boutons directs : action principale + bascule de vue. Le reste est
+            // regroupé dans un menu « Actions » (⋯) pour ne pas saturer l'écran.
+            CreateAction::make(),
             Action::make('pipeline')
                 ->label('Vue Pipeline')
                 ->icon(Heroicon::OutlinedViewColumns)
                 ->color('gray')
                 ->url(NeedResource::getUrl('kanban')),
-            CreateAction::make(),
-            $this->prospecterAction(),
-            ExportAction::make()
-                ->label('Exporter')
-                ->icon('heroicon-o-arrow-down-tray')
-                ->color('gray')
-                ->exporter(NeedExporter::class)
-                ->visible(fn (): bool => Auth::user()?->can('access_reports') ?? false),
+            ActionGroup::make([
+                $this->prospecterAction(),
+                ExportAction::make()
+                    ->label('Exporter')
+                    ->icon('heroicon-o-arrow-down-tray')
+                    ->color('gray')
+                    ->exporter(NeedExporter::class)
+                    ->visible(fn (): bool => Auth::user()?->can('access_reports') ?? false),
+            ])
+                ->label('Actions')
+                ->icon('heroicon-o-ellipsis-horizontal')
+                ->button()
+                ->color('gray'),
         ];
     }
 
@@ -269,5 +278,31 @@ class ListNeeds extends ListRecords
             '<iframe src="'.e($src).'" style="width:100%;height:260px;border:0;border-radius:8px;" loading="lazy" title="Carte du lieu"></iframe>'
             .'<div style="margin-top:.35rem;font-size:.8rem;color:rgba(128,128,128,.95);">📍 '.e((string) $label).'</div>'
         );
+    }
+
+    /* ----------------------------------------------------------------
+     |  Colonnes personnalisées du CFA (barre au-dessus du tableau).
+     * ---------------------------------------------------------------- */
+
+    /** Bouton « Ajouter une colonne » (colonnes personnalisées Offres). */
+    public function ajouterColonneAction(): Action
+    {
+        return CustomFields::gererAction('need', 'Offres', 'ajouterColonne')
+            ->label('Ajouter une colonne')
+            ->icon('heroicon-o-plus')
+            ->button()
+            ->color('gray');
+    }
+
+    /** Bouton « Renommer les colonnes » (surcharge des libellés natifs par CFA). */
+    public function renommerColonnesAction(): Action
+    {
+        return CustomFields::personnaliserAction('need', 'Offres', NeedsTable::COLONNES_PERSONNALISABLES, 'renommerColonnes');
+    }
+
+    /** Bouton « Supprimer une colonne » (retire une colonne personnalisée du CFA). */
+    public function supprimerColonneAction(): Action
+    {
+        return CustomFields::supprimerColonneAction('need', 'Offres', 'supprimerColonne');
     }
 }

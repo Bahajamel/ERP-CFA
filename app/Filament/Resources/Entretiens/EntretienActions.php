@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Entretiens;
 
+use App\Enums\CandidateStatut;
 use App\Enums\EntretienMode;
 use App\Enums\EntretienStatut;
 use App\Models\Entretien;
@@ -15,6 +16,7 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\TimePicker;
 use Filament\Notifications\Notification;
+use Filament\Schemas\Components\Utilities\Get;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -55,7 +57,7 @@ class EntretienActions
             TextInput::make('lien_visio')
                 ->label('Lien visio')
                 ->url()
-                ->visible(fn (\Filament\Schemas\Components\Utilities\Get $get): bool => $get('mode') === EntretienMode::Visio->value)
+                ->visible(fn (Get $get): bool => $get('mode') === EntretienMode::Visio->value)
                 ->default(fn (Entretien $record) => $record->lien_visio),
         ];
     }
@@ -84,7 +86,7 @@ class EntretienActions
             ->success()
             ->title('Entretien planifié')
             ->body($record->creneauLisible().' — '.($record->candidate?->nom_complet ?? '')
-                .($record->candidate?->statut === \App\Enums\CandidateStatut::EntretienPrevu
+                .($record->candidate?->statut === CandidateStatut::EntretienPrevu
                     ? ' (candidat passé à « Entretien prévu »)' : ''))
             ->send();
     }

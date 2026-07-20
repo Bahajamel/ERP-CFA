@@ -120,6 +120,14 @@ class AdminPanelProvider extends PanelProvider
                 PanelsRenderHook::USER_MENU_BEFORE,
                 fn (): string => auth()->check() ? view('filament.user-identity')->render() : '',
             )
+            // Sélecteur de tables « façon Monday » : bascule entre Base Candidats et
+            // les tableaux personnalisés du CFA. Rendu conditionnel DANS la vue
+            // (BoardNavigation::doitAfficher) — visible sur la Base Candidats et les
+            // pages des tableaux personnalisés, onglet actif déduit de la route.
+            ->renderHook(
+                PanelsRenderHook::CONTENT_START,
+                fn (): string => auth()->check() ? view('filament.board-switcher')->render() : '',
+            )
             // Flèche « Retour à la liste » : uniquement sur les sous-pages des
             // ressources Candidat & Entreprise (Créer / Modifier / Voir), pas sur
             // les listes ni le reste du logiciel. Scopée aux classes de pages

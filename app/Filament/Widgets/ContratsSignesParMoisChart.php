@@ -6,6 +6,7 @@ use App\Enums\ContractStatut;
 use App\Filament\Resources\Contracts\ContractResource;
 use App\Filament\Widgets\Concerns\HasClickableChart;
 use App\Models\Contract;
+use Filament\Support\RawJs;
 use Filament\Widgets\ChartWidget;
 use Illuminate\Support\Carbon;
 
@@ -130,7 +131,7 @@ class ContratsSignesParMoisChart extends ChartWidget
         return array_fill(0, 12, $url);
     }
 
-    protected function getOptions(): \Filament\Support\RawJs
+    protected function getOptions(): RawJs
     {
         return $this->clickableOptions([
             'plugins' => [

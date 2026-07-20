@@ -17,7 +17,7 @@ use Filament\Support\Contracts\HasLabel;
  * par les modules dédiés : le statut candidat ne revient jamais en arrière
  * après une décision finale (Accepté / Refusé).
  */
-enum CandidateStatut: string implements HasLabel, HasColor, HasIcon, HasStateTransitions
+enum CandidateStatut: string implements HasColor, HasIcon, HasLabel, HasStateTransitions
 {
     use DefinesTransitions;
 

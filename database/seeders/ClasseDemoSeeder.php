@@ -3,9 +3,11 @@
 namespace Database\Seeders;
 
 use App\Enums\CandidateStatut;
+use App\Enums\EvaluationType;
 use App\Enums\PresenceStatut;
 use App\Enums\SeanceStatut;
 use App\Models\Candidate;
+use App\Models\Evaluation;
 use App\Models\Formation;
 use App\Models\Promotion;
 use App\Models\User;
@@ -112,12 +114,12 @@ class ClasseDemoSeeder extends Seeder
             return; // idempotent
         }
 
-        $types = [\App\Enums\EvaluationType::Devoir, \App\Enums\EvaluationType::Controle, \App\Enums\EvaluationType::Examen];
+        $types = [EvaluationType::Devoir, EvaluationType::Controle, EvaluationType::Examen];
 
         foreach ($classe->apprentis as $apprenti) {
             foreach ($matieres as $i => $matiere) {
                 for ($n = 0; $n < 2; $n++) {
-                    \App\Models\Evaluation::create([
+                    Evaluation::create([
                         'candidate_id' => $apprenti->id,
                         'promotion_id' => $classe->id,
                         'matiere' => $matiere,

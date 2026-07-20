@@ -5,6 +5,7 @@ namespace App\Filament\Resources\OpcoFiles\Pages;
 use App\Enums\OpcoStatut;
 use App\Filament\Resources\OpcoFiles\OpcoFileActions;
 use App\Filament\Resources\OpcoFiles\OpcoFileResource;
+use App\Models\OpcoFile;
 use App\StateMachine\InvalidTransitionException;
 use Filament\Actions\DeleteAction;
 use Filament\Notifications\Notification;
@@ -37,7 +38,7 @@ class EditOpcoFile extends EditRecord
         $nouveauStatut = $data['statut'] ?? null;
         unset($data['statut']);
 
-        /** @var \App\Models\OpcoFile $record */
+        /** @var OpcoFile $record */
         $record = parent::handleRecordUpdate($record, $data);
 
         if ($nouveauStatut !== null && $record->statut->value !== $nouveauStatut) {

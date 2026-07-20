@@ -6,7 +6,7 @@ use Filament\Support\Contracts\HasColor;
 use Filament\Support\Contracts\HasLabel;
 
 /** Origine d'un document dans la GED. */
-enum DocumentSource: string implements HasLabel, HasColor
+enum DocumentSource: string implements HasColor, HasLabel
 {
     case Manuel = 'manuel';
     case LivretRs = 'livretrs';

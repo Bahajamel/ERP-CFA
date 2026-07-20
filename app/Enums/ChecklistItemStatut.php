@@ -5,7 +5,7 @@ namespace App\Enums;
 use Filament\Support\Contracts\HasColor;
 use Filament\Support\Contracts\HasLabel;
 
-enum ChecklistItemStatut: string implements HasLabel, HasColor
+enum ChecklistItemStatut: string implements HasColor, HasLabel
 {
     case Manquante = 'manquante';
     case Presente = 'presente';

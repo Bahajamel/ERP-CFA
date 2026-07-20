@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Http;
 class AddressGeocoder
 {
     /**
-     * @return array{lat: float, lon: float, label: string}|null  Null si aucun résultat.
+     * @return array{lat: float, lon: float, label: string}|null Null si aucun résultat.
      */
     public function geocode(string $query): ?array
     {

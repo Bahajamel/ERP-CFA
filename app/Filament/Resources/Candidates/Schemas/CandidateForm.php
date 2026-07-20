@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Candidates\Schemas;
 use App\Models\Candidate;
 use App\Rules\TelephoneInternational;
 use App\Support\AdresseBan;
+use App\Support\CustomFields;
 use App\Support\Indicatifs;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
@@ -241,6 +242,10 @@ class CandidateForm
                                 ->columnSpanFull(),
                         ]),
                 ])->columnSpan(1),
+
+                // Colonnes personnalisées du CFA (couche « façon Monday ») —
+                // section ajoutée seulement si le CFA en a défini.
+                ...CustomFields::formSchema('candidate'),
             ]);
     }
 }

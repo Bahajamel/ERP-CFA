@@ -15,7 +15,10 @@ use App\Models\Matching;
 use App\Models\Need;
 use App\Parcours\CycleApprenant;
 use App\Parcours\CycleBloqueException;
+use App\Rules\TelephoneInternational;
 use App\StateMachine\InvalidTransitionException;
+use App\Support\CustomFields;
+use App\Support\Indicatifs;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkAction;
@@ -27,21 +30,44 @@ use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\TimePicker;
 use Filament\Notifications\Notification;
+use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\ViewColumn;
 use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Grouping\Group;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class CandidatesTable
 {
+    /**
+     * Colonnes natives « renommables / redimensionnables » par CFA (couche façon
+     * Monday) : clé de colonne => libellé d'origine. Sert au modal « Renommer les
+     * colonnes » et à la portée du glisser-déposer de largeur.
+     */
+    public const COLONNES_PERSONNALISABLES = [
+        'identite' => 'Nom candidat',
+        'statut' => 'Statut',
+        'commercial.name' => 'Référent',
+        'formationVisee.libelle' => 'Formation',
+        'ville' => 'Ville',
+        'disponibilite' => 'Disponibilité',
+        'documents_count' => 'Documents',
+        'progression' => 'Progression',
+        'email' => 'Contact',
+        'created_at' => 'Créé le',
+    ];
+
     public static function configure(Table $table): Table
     {
         return $table
@@ -49,55 +75,111 @@ class CandidatesTable
                 $query->with(['formationVisee', 'commercial', 'interactions', 'matchings', 'admissions']);
                 self::appliquerScopeRapide($query, self::scopeDe($livewire));
             })
-            ->columns([
+            // Colonnes « Base Candidats » (maquette) : nom, statut, référent,
+            // formation, ville, dernier contact, prochaine action, disponibilité,
+            // documents. Colonnes secondaires masquables via le menu « Colonnes ».
+            ->columns(CustomFields::appliquerReglages([
                 ViewColumn::make('identite')
-                    ->label('Candidat')
+                    ->label('Nom candidat')
                     ->view('filament.candidates.col-identite')
                     ->searchable(['nom', 'prenom'])
-                    ->sortable(['nom']),
+                    ->sortable(['nom'])
+                    ->toggleable(),
+                TextColumn::make('statut')
+                    ->label('Statut')
+                    ->badge()
+                    ->sortable()
+                    ->toggleable(),
+                TextColumn::make('commercial.name')
+                    ->label('Référent')
+                    ->placeholder('—')
+                    ->toggleable(),
+                TextColumn::make('formationVisee.libelle')
+                    ->label('Formation')
+                    ->badge()
+                    ->color('info')
+                    ->placeholder('—')
+                    ->toggleable(),
+                TextColumn::make('ville')
+                    ->label('Ville')
+                    ->searchable()
+                    ->sortable()
+                    ->placeholder('—')
+                    ->toggleable(),
+                TextColumn::make('disponibilite')
+                    ->label('Disponibilité')
+                    ->badge()
+                    ->color(fn (?string $state): string => match (true) {
+                        blank($state) => 'gray',
+                        str_contains(Str::lower($state), 'immédiat'), str_contains(Str::lower($state), 'immediat') => 'success',
+                        str_contains(Str::lower($state), 'semaine') => 'info',
+                        str_contains(Str::lower($state), 'mois') => 'warning',
+                        str_contains(Str::lower($state), 'confirm') => 'warning',
+                        str_contains(Str::lower($state), 'non') => 'danger',
+                        default => 'gray',
+                    })
+                    ->placeholder('—')
+                    ->toggleable(),
+                TextColumn::make('documents_count')
+                    ->label('Documents')
+                    ->counts('documents')
+                    ->badge()
+                    ->icon('heroicon-o-paper-clip')
+                    ->color('gray')
+                    ->toggleable(),
+                ViewColumn::make('progression')
+                    ->label('Progression')
+                    ->view('filament.candidates.progression')
+                    ->toggleable(),
+                // Colonnes secondaires, masquées par défaut (réactivables).
                 TextColumn::make('email')
                     ->label('Contact')
                     ->description(fn ($record) => $record->telephone)
                     ->searchable()
                     ->placeholder('—')
-                    ->toggleable(),
-                // Formation : déjà affichée sous le nom (colonne « Candidat »),
-                // masquée par défaut ici pour alléger le tableau (réactivable).
-                TextColumn::make('formationVisee.libelle')
-                    ->label('Formation visée')
-                    ->badge()
-                    ->color('gray')
-                    ->placeholder('—')
                     ->toggleable(isToggledHiddenByDefault: true),
-                // Commercial : visible dans le panneau Focus, masqué par défaut
-                // dans le tableau pour gagner de la largeur (réactivable).
-                TextColumn::make('commercial.name')
-                    ->label('Commercial')
-                    ->placeholder('—')
-                    ->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('statut')
-                    ->label('Statut')
-                    ->badge(),
-                ViewColumn::make('progression')
-                    ->label('Progression')
-                    ->view('filament.candidates.progression'),
-                TextColumn::make('derniere_activite')
-                    ->label('Dernière activité')
-                    ->state(fn ($record): ?string => $record->derniereActivite()['label'])
-                    ->description(fn ($record): ?string => $record->derniereActivite()['quand'])
-                    ->placeholder('—')
-                    ->wrap()
-                    ->toggleable(),
                 TextColumn::make('created_at')
                     ->label('Créé le')
                     ->date('d/m/Y')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
+                // Colonnes personnalisées du CFA (masquables), s'il en a défini.
+                ...CustomFields::tableColumns('candidate'),
+            ], 'candidate'))
+            // Réorganisation « façon Monday » : le CFA glisse-dépose les EN-TÊTES
+            // (JS dédié) et l'ordre est mémorisé PAR CFA (custom_column_settings.position,
+            // appliqué dans CustomFields::appliquerReglages). On n'utilise donc pas
+            // reorderableColumns() natif (ordre par utilisateur, incompatible).
+            // Le menu « Colonnes » conserve l'affichage/masquage (colonnes toggleable).
+            // Vue « façon Monday » : les candidats sont réunis sur UNE page, répartis
+            // en groupes repliables (blocs). Par défaut regroupés par statut — comme
+            // les groupes Monday — l'utilisateur peut changer de critère via « Grouper ».
+            ->groups([
+                Group::make('statut')
+                    ->label('Statut')
+                    ->collapsible()
+                    ->getTitleFromRecordUsing(fn (Candidate $record): string => $record->statut?->getLabel() ?? '—'),
+                Group::make('commercial.name')->label('Référent')->collapsible(),
+                Group::make('formationVisee.libelle')->label('Formation')->collapsible(),
+                Group::make('ville')->label('Ville')->collapsible(),
+                Group::make('disponibilite')->label('Disponibilité')->collapsible(),
             ])
-            // Clic sur une ligne = ouvre le panneau Focus (et non la fiche : elle
-            // reste accessible via « Aperçu » → « Ouvrir la fiche » ou le menu Plus).
-            ->recordAction('focus')
+            // Groupé par statut à l'ouverture (board Monday orienté candidats).
+            ->defaultGroup('statut')
+            // Clic sur une ligne = ouvre le modal d'édition rapide (façon Monday).
+            // Le panneau « Focus du jour » reste accessible via le bouton « Aperçu ».
+            ->recordAction('modifierLigne')
             ->recordUrl(null)
+            // Glisser-déposer des lignes (ordre manuel façon Monday, cohérent avec
+            // les tableaux personnalisés) : réservé à qui peut gérer les candidats.
+            // Le drag réordonne au sein du groupe (statut) affiché.
+            ->reorderable('position', auth()->user()?->can('access_candidates') ?? false)
+            ->reorderRecordsTriggerAction(
+                fn (Action $action, bool $isReordering): Action => $action
+                    ->button()
+                    ->icon('heroicon-o-arrows-up-down')
+                    ->label($isReordering ? 'Terminer le classement' : 'Réorganiser les lignes'),
+            )
             ->filters([
                 // Filtre sur la colonne « Progression » : c'est la question que
                 // l'on se pose devant cet écran (« qui est bloqué où ? »), et rien
@@ -147,6 +229,10 @@ class CandidatesTable
                     ->icon('heroicon-o-eye')
                     ->color('gray')
                     ->action(fn (Candidate $record, $livewire) => $livewire->focusId = $record->getKey()),
+                // Édition rapide « façon Monday » : clic sur la ligne → modal large
+                // (horizontal) pour changer directement le contenu des colonnes,
+                // sans quitter la liste. Réservée à qui peut modifier un candidat.
+                self::modifierLigneAction(),
                 ActionGroup::make([
                     Action::make('changerStatut')
                         ->label('Changer le statut')
@@ -418,11 +504,108 @@ class CandidatesTable
                         ->deselectRecordsAfterCompletion(),
                 ]),
             ])
-            ->defaultSort('created_at', 'desc')
+            // Ordre manuel (glisser-déposer) par défaut — au sein de chaque groupe
+            // de statut. Le tri par colonne (nom, date…) reste possible via l'en-tête.
+            ->defaultSort('position', 'asc')
             ->emptyStateIcon('heroicon-o-user-plus')
             ->emptyStateHeading('Aucun candidat pour le moment')
             ->emptyStateDescription('Créez votre premier candidat : il démarre en « Entretien à planifier ». '
                 .'Planifiez son entretien, puis acceptez-le ou refusez-le — l\'acceptation ouvre automatiquement le Matching.');
+    }
+
+    /**
+     * Modal d'édition rapide « façon Monday » : large et horizontal (grille 3
+     * colonnes), il édite directement les informations affichées dans le tableau
+     * — identité, contact (avec le même contrôle téléphone international que le
+     * formulaire), ville, formation, référent, disponibilité — ainsi que les
+     * colonnes personnalisées du CFA. Le statut reste piloté par le cycle
+     * apprenant (non éditable ici) et les pièces restent sur la fiche complète.
+     */
+    private static function modifierLigneAction(): Action
+    {
+        return Action::make('modifierLigne')
+            ->label('Modifier')
+            ->icon('heroicon-o-pencil-square')
+            ->color('gray')
+            ->visible(fn (Candidate $record): bool => auth()->user()?->can('update', $record) ?? false)
+            ->modalHeading(fn (Candidate $record): string => "Modifier — {$record->nom_complet}")
+            ->modalDescription('Édition rapide des informations principales. Les pièces et le suivi détaillé restent sur la fiche.')
+            ->modalWidth('5xl')
+            ->modalSubmitActionLabel('Enregistrer')
+            ->fillForm(fn (Candidate $record): array => [
+                'nom' => $record->nom,
+                'prenom' => $record->prenom,
+                'email' => $record->email,
+                'telephone' => $record->telephone,
+                'ville' => $record->ville,
+                'formation_visee_id' => $record->formation_visee_id,
+                'commercial_id' => $record->commercial_id,
+                'disponibilite' => $record->disponibilite,
+                'date_disponibilite' => $record->date_disponibilite,
+                'custom_fields' => $record->custom_fields ?? [],
+            ])
+            ->schema([
+                Grid::make(3)->schema([
+                    TextInput::make('nom')
+                        ->label('Nom')
+                        ->required(),
+                    TextInput::make('prenom')
+                        ->label('Prénom')
+                        ->required(),
+                    TextInput::make('email')
+                        ->label('Adresse e-mail')
+                        ->email()
+                        ->requiredWithout('telephone')
+                        ->validationMessages(['required_without' => 'Renseignez au moins un email ou un téléphone.']),
+                    Select::make('indicatif_pays')
+                        ->label('Pays')
+                        ->options(Indicatifs::options())
+                        ->default(Indicatifs::defaut())
+                        ->selectablePlaceholder(false)
+                        ->searchable()
+                        ->dehydrated(false)
+                        ->live()
+                        ->afterStateUpdated(fn ($state, Set $set, Get $get) => $set('telephone', Indicatifs::appliquer($get('telephone'), $state)))
+                        ->afterStateHydrated(function (Select $component, Get $get): void {
+                            if (filled($get('telephone'))) {
+                                $component->state(Indicatifs::detecter($get('telephone')));
+                            }
+                        }),
+                    TextInput::make('telephone')
+                        ->label('Téléphone')
+                        ->tel()
+                        ->placeholder('ex : +33 6 12 34 56 78')
+                        ->rule(new TelephoneInternational)
+                        ->requiredWithout('email')
+                        ->validationMessages(['required_without' => 'Renseignez au moins un email ou un téléphone.']),
+                    TextInput::make('ville')
+                        ->label('Ville'),
+                    Select::make('formation_visee_id')
+                        ->label('Formation')
+                        ->relationship('formationVisee', 'libelle')
+                        ->searchable()
+                        ->preload(),
+                    Select::make('commercial_id')
+                        ->label('Référent')
+                        ->relationship('commercial', 'name')
+                        ->searchable()
+                        ->preload(),
+                    TextInput::make('disponibilite')
+                        ->label('Disponibilité')
+                        ->placeholder('ex : Immédiate, Sous 1 mois'),
+                    DatePicker::make('date_disponibilite')
+                        ->label('Disponible à partir du')
+                        ->displayFormat('d/m/Y')
+                        ->native(false),
+                ]),
+                // Colonnes personnalisées du CFA (éditables ici aussi), s'il en a.
+                ...CustomFields::formSchema('candidate'),
+            ])
+            ->action(function (Candidate $record, array $data): void {
+                $record->update($data);
+
+                Notification::make()->success()->title('Candidat mis à jour')->send();
+            });
     }
 
     /** Scope rapide courant lu sur la page (null hors ListCandidates). */
