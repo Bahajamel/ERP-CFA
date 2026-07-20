@@ -182,11 +182,12 @@ class BoardNavigation
             ];
         }
 
-        // Tableaux personnalisés de CE module.
+        // Tableaux personnalisés de CE module — seulement ceux accessibles à
+        // l'utilisateur (les siens, ceux qu'on lui a partagés, ou tous s'il supervise).
         if (Auth::user()?->can('viewAny', CustomTable::class) ?? false) {
             $recordActif = self::recordCustomTableActif();
 
-            foreach (CustomTable::query()->actif()->where('context', $ctx)->orderBy('sort')->orderBy('name')->get() as $table) {
+            foreach (CustomTable::query()->actif()->where('context', $ctx)->accessiblePar(Auth::user())->orderBy('sort')->orderBy('name')->get() as $table) {
                 $boards[] = [
                     'key' => 'table-'.$table->getKey(),
                     'label' => $table->name,

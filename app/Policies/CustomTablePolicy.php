@@ -19,9 +19,10 @@ class CustomTablePolicy
         return $user->can('custom_tables.view');
     }
 
+    /** Voir : nécessite la capacité ET l'accès au tableau (privé + invitations). */
     public function view(User $user, CustomTable $table): bool
     {
-        return $user->can('custom_tables.view');
+        return $user->can('custom_tables.view') && $table->accessiblePar($user);
     }
 
     public function create(User $user): bool
@@ -29,20 +30,27 @@ class CustomTablePolicy
         return $user->can('custom_tables.create');
     }
 
+    /** Modifier : capacité ET niveau « modification » (ou gestionnaire du tableau). */
     public function update(User $user, CustomTable $table): bool
     {
-        return $user->can('custom_tables.update');
+        return $user->can('custom_tables.update') && $table->modifiablePar($user);
     }
 
-    /** Archivage (soft delete) d'une table. */
+    /** Archivage (soft delete) : réservé au gestionnaire du tableau (créateur / supervision). */
     public function delete(User $user, CustomTable $table): bool
     {
-        return $user->can('custom_tables.delete');
+        return $user->can('custom_tables.delete') && $table->gerePar($user);
     }
 
     public function restore(User $user, CustomTable $table): bool
     {
-        return $user->can('custom_tables.update');
+        return $user->can('custom_tables.update') && $table->gerePar($user);
+    }
+
+    /** Inviter / retirer des personnes : réservé au gestionnaire du tableau. */
+    public function share(User $user, CustomTable $table): bool
+    {
+        return $user->can('custom_tables.update') && $table->gerePar($user);
     }
 
     /** Suppression définitive : réservée à l'Administrateur. */

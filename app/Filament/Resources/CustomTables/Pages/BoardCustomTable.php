@@ -7,7 +7,9 @@ use App\Filament\Resources\CustomTables\CustomTableResource;
 use App\Models\CustomFieldDefinition;
 use App\Models\CustomRecord;
 use App\Models\CustomTable;
+use App\Models\CustomTableShare;
 use App\Models\CustomView;
+use App\Models\User;
 use App\Support\BoardNavigation;
 use App\Support\CustomFields;
 use Filament\Actions\Action;
@@ -19,6 +21,8 @@ use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
@@ -122,6 +126,47 @@ class BoardCustomTable extends Page implements HasTable
                     Notification::make()->success()->title('Lien mis à jour')->send();
                 }),
 
+            // Inviter des membres du CFA à consulter/modifier ce tableau (privé par
+            // défaut). Réservé au gestionnaire (créateur / Administrateur / Direction).
+            Action::make('partager')
+                ->label('Partager')
+                ->icon('heroicon-o-user-plus')
+                ->color('gray')
+                ->visible(fn (): bool => Auth::user()?->can('share', $record) ?? false)
+                ->modalHeading('Partager « '.$record->name.' »')
+                ->modalDescription('Ce tableau est privé. Invitez des membres de votre CFA à le consulter (Lecture) '
+                    .'ou à le modifier (Modification). Le créateur et la Direction y ont toujours accès.')
+                ->modalSubmitActionLabel('Enregistrer les accès')
+                ->modalWidth('2xl')
+                ->fillForm(fn (): array => ['partages' => $record->partages()
+                    ->get()
+                    ->map(fn (CustomTableShare $p): array => ['user_id' => $p->user_id, 'role' => $p->role])
+                    ->all()])
+                ->schema([
+                    Repeater::make('partages')
+                        ->hiddenLabel()
+                        ->addActionLabel('Inviter une personne')
+                        ->columns(2)
+                        ->itemLabel(fn (array $state): ?string => filled($state['user_id'] ?? null)
+                            ? (User::find($state['user_id'])?->name ?? 'Personne') : 'Nouvelle invitation')
+                        ->schema([
+                            Select::make('user_id')
+                                ->label('Membre')
+                                ->options(fn (): array => $this->membresCfa($record))
+                                ->searchable()
+                                ->required()
+                                ->distinct()
+                                ->native(false),
+                            Select::make('role')
+                                ->label('Niveau d\'accès')
+                                ->options(CustomTableShare::roles())
+                                ->default(CustomTableShare::ROLE_LECTURE)
+                                ->required()
+                                ->native(false),
+                        ]),
+                ])
+                ->action(fn (array $data) => $this->synchroniserPartages($record, $data['partages'] ?? [])),
+
             $this->importExportAction(),
 
             Action::make('configurer')
@@ -150,6 +195,72 @@ class BoardCustomTable extends Page implements HasTable
                     return redirect($this->urlRetour($record));
                 }),
         ];
+    }
+
+    /**
+     * Membres du CFA invitables (hors créateur, qui a déjà accès) : id => nom.
+     *
+     * @return array<int, string>
+     */
+    private function membresCfa(CustomTable $record): array
+    {
+        return User::query()
+            ->when($record->organisation_id !== null,
+                fn ($q) => $q->whereHas('organisations', fn ($o) => $o->whereKey($record->organisation_id)))
+            ->whereKeyNot($record->created_by)
+            ->orderBy('name')
+            ->pluck('name', 'id')
+            ->all();
+    }
+
+    /**
+     * Applique la liste des invitations : crée/actualise les partages, retire ceux
+     * qui ne sont plus listés, et prévient les personnes nouvellement invitées.
+     *
+     * @param  array<int, array{user_id?: mixed, role?: mixed}>  $lignes
+     */
+    private function synchroniserPartages(CustomTable $record, array $lignes): void
+    {
+        $anciens = $record->partages()->pluck('user_id')->all();
+        $gardes = [];
+
+        foreach ($lignes as $ligne) {
+            $userId = (int) ($ligne['user_id'] ?? 0);
+            if ($userId <= 0 || $userId === $record->created_by) {
+                continue;
+            }
+
+            $role = in_array($ligne['role'] ?? null, [CustomTableShare::ROLE_LECTURE, CustomTableShare::ROLE_MODIFICATION], true)
+                ? $ligne['role']
+                : CustomTableShare::ROLE_LECTURE;
+
+            $record->partages()->updateOrCreate(
+                ['user_id' => $userId],
+                ['role' => $role, 'organisation_id' => $record->organisation_id],
+            );
+
+            $gardes[] = $userId;
+        }
+
+        // Retire les accès révoqués.
+        $record->partages()->whereNotIn('user_id', $gardes ?: [0])->delete();
+
+        // Prévient les personnes nouvellement invitées (cloche de l'ERP).
+        $nouveaux = array_diff($gardes, $anciens);
+        if ($nouveaux !== []) {
+            $destinataires = User::query()->whereKey($nouveaux)->get();
+
+            foreach ($destinataires as $destinataire) {
+                Notification::make()
+                    ->title('Tableau partagé avec vous : '.$record->name)
+                    ->body('Vous avez été invité à accéder à ce tableau personnalisé.')
+                    ->icon('heroicon-o-user-plus')
+                    ->success()
+                    ->sendToDatabase($destinataire);
+            }
+        }
+
+        Notification::make()->success()->title('Accès mis à jour')->send();
     }
 
     /** Après suppression : retour au module d'origine, sinon à la liste Administration. */
@@ -291,15 +402,19 @@ class BoardCustomTable extends Page implements HasTable
         $record = $this->getRecord();
         $colonnes = $record->colonnes;
 
+        // Droit de modifier CE tableau (gestionnaire ou invité « modification ») :
+        // gouverne l'édition en ligne, l'ajout de lignes et le réordonnancement.
+        $peutModifier = $record->modifiablePar(Auth::user());
+
         // Colonnes dynamiques ÉDITABLES en ligne (façon Monday) + recherche globale.
-        $colonnesDynamiques = CustomFields::colonnes($colonnes, 'data', editable: true);
+        $colonnesDynamiques = CustomFields::colonnes($colonnes, 'data', editable: $peutModifier);
         if ($colonnesDynamiques !== []) {
             $colonnesDynamiques[0]->searchable(query: fn (Builder $query, string $search): Builder => $query->whereRaw('CAST(data AS TEXT) LIKE ?', ['%'.$search.'%']));
         }
 
-        // Glisser-déposer des lignes (ordre manuel façon Monday) : réservé aux
-        // profils qui peuvent modifier les lignes.
-        $peutReordonner = Auth::user()?->can('custom_records.update') ?? false;
+        // Glisser-déposer des lignes (ordre manuel façon Monday) : réservé à qui
+        // peut modifier CE tableau (gestionnaire ou invité « modification »).
+        $peutReordonner = $peutModifier && (Auth::user()?->can('custom_records.update') ?? false);
 
         return $table
             ->query(fn (): Builder => CustomRecord::query()->where('custom_table_id', $record->getKey()))
@@ -329,6 +444,7 @@ class BoardCustomTable extends Page implements HasTable
                 CreateAction::make()
                     ->label('Ajouter une ligne')
                     ->visible(fn (): bool => $colonnes->isNotEmpty()
+                        && $peutModifier
                         && (Auth::user()?->can('create', CustomRecord::class) ?? false))
                     ->schema(CustomFields::champs($colonnes, 'data'))
                     ->using(fn (array $data): CustomRecord => CustomRecord::create(

@@ -276,6 +276,13 @@ class BaseFaq
             ],
             [
                 'categorie' => 'Tableaux personnalisés',
+                'question' => 'Qui voit mes tableaux et comment inviter un collègue ?',
+                'mots' => ['partager', 'partage', 'inviter', 'invitation', 'acces', 'prive', 'collegue', 'commercial', 'lecture', 'modification', 'droit', 'droits', 'voir', 'modifier'],
+                'reponse' => "Chaque tableau est privé : seul son créateur y accède (la Direction et les Administrateurs voient tout, pour la supervision). Pour l'ouvrir à un collègue, cliquez sur « Partager » sur le board, ajoutez la personne et choisissez son niveau : « Lecture » (consulter) ou « Modification » (éditer lignes et colonnes). L'invité est prévenu par une notification. Retirez-le de la liste pour révoquer son accès.",
+                'lien' => ['route' => 'filament.admin.resources.custom-tables.index', 'label' => 'Voir les tableaux', 'permission' => 'custom_tables.view'],
+            ],
+            [
+                'categorie' => 'Tableaux personnalisés',
                 'question' => 'Comment voir un tableau en Kanban et enregistrer une vue ?',
                 'mots' => ['kanban', 'pipeline', 'carte', 'cartes', 'glisser', 'deposer', 'statut', 'vue', 'vues', 'enregistrer', 'filtre', 'tri', 'colonnes'],
                 'reponse' => "Si le tableau a une colonne « Statut » (ou « Liste »), le bouton « Vue Kanban » l'affiche en colonnes : glissez une carte d'une colonne à l'autre pour changer son statut. Le menu « Vues » permet d'enregistrer un préréglage (filtres + tri) et d'en définir un par défaut.",

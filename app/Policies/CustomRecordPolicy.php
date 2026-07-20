@@ -18,9 +18,10 @@ class CustomRecordPolicy
         return $user->can('custom_records.view');
     }
 
+    /** Voir une ligne : capacité ET accès au tableau parent (privé + invitations). */
     public function view(User $user, CustomRecord $record): bool
     {
-        return $user->can('custom_records.view');
+        return $user->can('custom_records.view') && ($record->customTable?->accessiblePar($user) ?? false);
     }
 
     public function create(User $user): bool
@@ -28,20 +29,21 @@ class CustomRecordPolicy
         return $user->can('custom_records.create');
     }
 
+    /** Modifier une ligne : capacité ET niveau « modification » sur le tableau parent. */
     public function update(User $user, CustomRecord $record): bool
     {
-        return $user->can('custom_records.update');
+        return $user->can('custom_records.update') && ($record->customTable?->modifiablePar($user) ?? false);
     }
 
-    /** Archivage (soft delete) d'une ligne. */
+    /** Archivage (soft delete) d'une ligne : idem modification. */
     public function delete(User $user, CustomRecord $record): bool
     {
-        return $user->can('custom_records.delete');
+        return $user->can('custom_records.delete') && ($record->customTable?->modifiablePar($user) ?? false);
     }
 
     public function restore(User $user, CustomRecord $record): bool
     {
-        return $user->can('custom_records.update');
+        return $user->can('custom_records.update') && ($record->customTable?->modifiablePar($user) ?? false);
     }
 
     /** Suppression définitive : réservée à l'Administrateur. */

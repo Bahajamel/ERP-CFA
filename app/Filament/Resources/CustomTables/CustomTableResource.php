@@ -28,6 +28,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 
 /**
@@ -45,6 +46,16 @@ class CustomTableResource extends Resource
         // les capacités création/édition/suppression sont ensuite vérifiées
         // automatiquement par Filament via la policy.
         return Auth::user()?->can('viewAny', CustomTable::class) ?? false;
+    }
+
+    /**
+     * Liste restreinte aux tableaux accessibles (privé + invitations) : chacun ne
+     * voit que les siens et ceux qu'on lui a partagés — la supervision
+     * (Administrateur / Direction) voit tout. Cloisonnement CFA appliqué en amont.
+     */
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->accessiblePar(Auth::user());
     }
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedTableCells;
