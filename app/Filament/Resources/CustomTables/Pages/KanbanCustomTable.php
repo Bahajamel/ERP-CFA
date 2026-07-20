@@ -6,6 +6,7 @@ use App\Enums\CustomFieldType;
 use App\Filament\Resources\CustomTables\CustomTableResource;
 use App\Models\CustomFieldDefinition;
 use App\Models\CustomRecord;
+use App\Support\CustomFields;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Concerns\InteractsWithRecord;
@@ -77,9 +78,15 @@ class KanbanCustomTable extends Page
 
         $colonnes = [];
         foreach ($options as $i => $option) {
+            // Couleur choisie pour l'option (convertie en hex), sinon palette auto.
+            $nomCouleur = $statut->config['colors'][$option] ?? null;
+            $couleur = $nomCouleur !== null
+                ? (CustomFields::COULEURS_HEX[$nomCouleur] ?? $this->couleur($i))
+                : $this->couleur($i);
+
             $colonnes[] = [
                 'valeur' => $option,
-                'couleur' => $this->couleur($i),
+                'couleur' => $couleur,
                 'lignes' => $lignes->filter(fn (CustomRecord $r): bool => data_get($r->data, $statut->key) === $option)->values(),
             ];
         }

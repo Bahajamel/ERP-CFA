@@ -66,6 +66,26 @@ class CustomFields
         return auth()->user()?->hasAnyRole(['Administrateur', 'Direction']) ?? false;
     }
 
+    /** Couleurs proposées pour les options d'une colonne « Statut » (nom Filament => libellé). */
+    public const COULEURS = [
+        'gray' => 'Gris',
+        'primary' => 'Indigo',
+        'info' => 'Bleu',
+        'success' => 'Vert',
+        'warning' => 'Ambre',
+        'danger' => 'Rouge',
+    ];
+
+    /** Équivalent hexadécimal d'une couleur Filament (pour le rendu Kanban). */
+    public const COULEURS_HEX = [
+        'gray' => '#94a3b8',
+        'primary' => '#6366f1',
+        'info' => '#3b82f6',
+        'success' => '#22c55e',
+        'warning' => '#f59e0b',
+        'danger' => '#ef4444',
+    ];
+
     /* ============================================================
      |  Bouton + modal de gestion des colonnes (entité métier)
      * ============================================================ */
@@ -143,13 +163,34 @@ class CustomFields
                     ->options(CustomFieldType::options())
                     ->default(CustomFieldType::Text->value)
                     ->required()->live(),
+                // Liste déroulante : options simples (valeurs).
                 TagsInput::make('options')
                     ->label('Options de la liste')
                     ->placeholder('Ajouter une option…')
-                    // Les types « Liste déroulante » et « Statut » ont des options.
-                    ->visible(fn (Get $get): bool => in_array($get('type'), [CustomFieldType::Select->value, CustomFieldType::Statut->value], true))
-                    ->required(fn (Get $get): bool => in_array($get('type'), [CustomFieldType::Select->value, CustomFieldType::Statut->value], true))
+                    ->visible(fn (Get $get): bool => $get('type') === CustomFieldType::Select->value)
+                    ->required(fn (Get $get): bool => $get('type') === CustomFieldType::Select->value)
                     ->columnSpanFull(),
+                // Statut : chaque option a un libellé ET une couleur choisie.
+                Repeater::make('options_statut')
+                    ->label('Options du statut (libellé + couleur)')
+                    ->addActionLabel('Ajouter une option')
+                    ->visible(fn (Get $get): bool => $get('type') === CustomFieldType::Statut->value)
+                    ->required(fn (Get $get): bool => $get('type') === CustomFieldType::Statut->value)
+                    ->reorderable()
+                    ->columns(2)
+                    ->columnSpanFull()
+                    ->itemLabel(fn (array $state): ?string => $state['valeur'] ?? null)
+                    ->schema([
+                        TextInput::make('valeur')
+                            ->label('Libellé')
+                            ->placeholder('ex : Chaud')
+                            ->required(),
+                        Select::make('couleur')
+                            ->label('Couleur')
+                            ->options(self::COULEURS)
+                            ->default('gray')
+                            ->native(false),
+                    ]),
                 // Valeur par défaut (proposée à la saisie d'une nouvelle ligne).
                 TextInput::make('default_value')
                     ->label('Valeur par défaut')
@@ -190,7 +231,13 @@ class CustomFields
                 'id' => $d->id,
                 'label' => $d->label,
                 'type' => $d->type->value,
-                'options' => $d->config['options'] ?? [],
+                'options' => $d->type === CustomFieldType::Select ? ($d->config['options'] ?? []) : [],
+                'options_statut' => $d->type === CustomFieldType::Statut
+                    ? collect($d->config['options'] ?? [])->map(fn ($o): array => [
+                        'valeur' => $o,
+                        'couleur' => $d->config['colors'][$o] ?? 'gray',
+                    ])->all()
+                    : [],
                 'default_value' => $estBool ? null : ($d->default_value['value'] ?? null),
                 'default_bool' => $estBool ? (bool) ($d->default_value['value'] ?? false) : false,
                 'val_max_length' => $validation['max_length'] ?? null,
@@ -200,6 +247,24 @@ class CustomFields
                 'visible_table' => $d->visible_table,
             ];
         })->all();
+    }
+
+    /** Construit la config d'une colonne Statut depuis les lignes {valeur, couleur}. */
+    private static function configStatut(array $rows): array
+    {
+        $rows = collect($rows)
+            ->map(fn ($r): array => [
+                'valeur' => trim((string) ($r['valeur'] ?? '')),
+                'couleur' => array_key_exists($r['couleur'] ?? null, self::COULEURS) ? $r['couleur'] : 'gray',
+            ])
+            ->filter(fn (array $r): bool => $r['valeur'] !== '')
+            ->unique('valeur')
+            ->values();
+
+        return [
+            'options' => $rows->pluck('valeur')->all(),
+            'colors' => $rows->mapWithKeys(fn (array $r): array => [$r['valeur'] => $r['couleur']])->all(),
+        ];
     }
 
     /* ============================================================
@@ -242,10 +307,19 @@ class CustomFields
             }
 
             $type = $ligne['type'] ?? CustomFieldType::Text->value;
-            $aOptions = in_array($type, [CustomFieldType::Select->value, CustomFieldType::Statut->value], true);
-            $config = $aOptions
-                ? ['options' => collect($ligne['options'] ?? [])->map(fn ($o) => trim((string) $o))->filter()->unique()->values()->all()]
-                : null;
+            $config = match ($type) {
+                CustomFieldType::Select->value => [
+                    'options' => collect($ligne['options'] ?? [])->map(fn ($o) => trim((string) $o))->filter()->unique()->values()->all(),
+                ],
+                CustomFieldType::Statut->value => self::configStatut(
+                    // Nouveau format {valeur, couleur} ; repli sur une simple liste
+                    // « options » (couleur grise) pour la compatibilité ascendante.
+                    filled($ligne['options_statut'] ?? null)
+                        ? $ligne['options_statut']
+                        : collect($ligne['options'] ?? [])->map(fn ($o): array => ['valeur' => $o, 'couleur' => 'gray'])->all(),
+                ),
+                default => null,
+            };
 
             // Valeur par défaut : booléen coché, sinon texte non vide (ou aucune).
             $defaut = $type === CustomFieldType::Boolean->value
@@ -844,6 +918,11 @@ class CustomFields
     {
         if (blank($state)) {
             return 'gray';
+        }
+
+        // Couleur choisie explicitement pour cette option, sinon palette auto.
+        if (filled($def->config['colors'][$state] ?? null)) {
+            return $def->config['colors'][$state];
         }
 
         $palette = ['primary', 'success', 'warning', 'danger', 'info', 'gray'];

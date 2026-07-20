@@ -29,6 +29,27 @@ it('propose les nouveaux types Statut et Utilisateur', function () {
         ->and(CustomFieldType::Utilisateur->needsOptions())->toBeFalse();
 });
 
+it('mémorise et recharge la couleur choisie par option de statut', function () {
+    $table = CustomTable::create(['name' => 'Suivi']);
+    CustomFields::synchroniserTableau($table->id, [
+        ['label' => 'Statut', 'type' => 'statut', 'options_statut' => [
+            ['valeur' => 'Chaud', 'couleur' => 'success'],
+            ['valeur' => 'Perdu', 'couleur' => 'danger'],
+        ]],
+    ]);
+    $def = CustomFieldDefinition::query()->where('custom_table_id', $table->id)->firstOrFail();
+
+    expect($def->config['options'])->toBe(['Chaud', 'Perdu'])
+        ->and($def->config['colors'])->toBe(['Chaud' => 'success', 'Perdu' => 'danger']);
+
+    // Round-trip pour le repeater (préremplissage).
+    $lignes = CustomFields::lignesDepuis(CustomFields::definitionsTableau($table->id));
+    expect($lignes[0]['options_statut'])->toBe([
+        ['valeur' => 'Chaud', 'couleur' => 'success'],
+        ['valeur' => 'Perdu', 'couleur' => 'danger'],
+    ]);
+});
+
 it('construit un filtre par colonne Liste/Statut (et aucun pour les autres types)', function () {
     $table = CustomTable::create(['name' => 'Suivi']);
     CustomFields::synchroniserTableau($table->id, [
