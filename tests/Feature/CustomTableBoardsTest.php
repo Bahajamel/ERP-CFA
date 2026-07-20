@@ -4,6 +4,7 @@ use App\Filament\Resources\CustomTables\Pages\BoardCustomTable;
 use App\Filament\Resources\CustomTables\Pages\KanbanCustomTable;
 use App\Models\CustomRecord;
 use App\Models\CustomTable;
+use App\Models\CustomView;
 use App\Models\User;
 use App\Support\CustomFields;
 use Database\Seeders\RolePermissionSeeder;
@@ -188,4 +189,38 @@ it('applique la validation d\'une colonne au formulaire public (longueur max)', 
     ])->assertRedirect(route('tableau.candidature.merci'));
 
     expect(CustomRecord::withoutGlobalScopes()->where('custom_table_id', $table->id)->count())->toBe(1);
+});
+
+it('enregistre une vue en capturant l\'état des colonnes (ordre + visibilité)', function () {
+    [$table] = tableauAvecStatut();
+
+    Livewire::test(BoardCustomTable::class, ['record' => $table->id])
+        ->callTableAction('enregistrerVue', data: ['name' => 'Ma vue', 'is_default' => true])
+        ->assertHasNoTableActionErrors();
+
+    $vue = CustomView::query()->where('custom_table_id', $table->id)->first();
+
+    expect($vue)->not->toBeNull()
+        ->and($vue->name)->toBe('Ma vue')
+        ->and($vue->is_default)->toBeTrue()
+        ->and($vue->column_order)->toBeArray()      // état des colonnes capturé
+        ->and($vue->column_order)->not->toBeEmpty();
+});
+
+it('restaure une vue enregistrée (colonnes) sans erreur', function () {
+    [$table] = tableauAvecStatut();
+    $vue = CustomView::create([
+        'custom_table_id' => $table->id,
+        'name' => 'V',
+        'sort' => ['tableSort' => null],
+        'filters' => [],
+        'column_order' => [[
+            'type' => 'column', 'name' => 'data.'.$table->colonnes->first()->key, 'label' => 'Nom',
+            'isHidden' => false, 'isToggled' => true, 'isToggleable' => true, 'isToggledHiddenByDefault' => false,
+        ]],
+    ]);
+
+    Livewire::test(BoardCustomTable::class, ['record' => $table->id])
+        ->callTableAction('vue_'.$vue->id)
+        ->assertSuccessful();
 });

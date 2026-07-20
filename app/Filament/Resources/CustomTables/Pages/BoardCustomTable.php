@@ -245,6 +245,12 @@ class BoardCustomTable extends Page implements HasTable
                 ->action(function () use ($vue): void {
                     $this->tableSort = data_get($vue->sort, 'tableSort');
                     $this->tableFilters = $vue->filters ?? [];
+
+                    // Restaure aussi les colonnes visibles et leur ordre.
+                    if (filled($vue->column_order)) {
+                        $this->applyTableColumnManager($vue->column_order, wasReordered: true);
+                    }
+
                     $this->resetTable();
                 }))
             ->all();
@@ -268,6 +274,8 @@ class BoardCustomTable extends Page implements HasTable
                     'is_default' => (bool) ($data['is_default'] ?? false),
                     'sort' => ['tableSort' => $this->tableSort],
                     'filters' => $this->tableFilters ?? [],
+                    // État des colonnes (ordre + visibilité), tel que géré par Filament.
+                    'column_order' => $this->tableColumns,
                 ]);
 
                 Notification::make()->success()->title('Vue enregistrée')->send();
