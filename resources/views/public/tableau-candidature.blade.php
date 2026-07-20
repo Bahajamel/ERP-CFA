@@ -24,7 +24,7 @@
         </div>
     @endif
 
-    <form method="POST" action="{{ route('tableau.candidature.store', ['token' => $table->public_token]) }}" class="space-y-6">
+    <form method="POST" action="{{ route('tableau.candidature.store', ['token' => $table->public_token]) }}" enctype="multipart/form-data" class="space-y-6">
         @csrf
 
         {{-- Honeypot anti-bot (invisible). --}}
@@ -86,6 +86,12 @@
                             @case('percent')
                                 <input type="number" step="any" min="0" max="100" id="{{ $def->key }}" name="{{ $nom }}" value="{{ old($cle) }}"
                                     class="mt-1 w-full rounded-lg border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                @break
+                            @case('file')
+                                <input type="file" id="{{ $def->key }}" name="{{ $nom }}"
+                                    accept=".pdf,.doc,.docx,.odt,.jpg,.jpeg,.png,.webp"
+                                    class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-600 shadow-sm file:mr-3 file:rounded-md file:border-0 file:bg-indigo-50 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-indigo-700 hover:file:bg-indigo-100 focus:border-indigo-500 focus:ring-indigo-500">
+                                <p class="mt-1 text-xs text-slate-400">PDF, Word, image — 10 Mo maximum.</p>
                                 @break
                             @case('select')
                             @case('statut')

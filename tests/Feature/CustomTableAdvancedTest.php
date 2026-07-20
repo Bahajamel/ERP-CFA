@@ -53,6 +53,46 @@ it('gère les types de colonnes avancés (email, tél, url, montant, %, heure, m
         ->and(CustomFields::reglesValidation($defs->firstWhere('label', 'Heure')))->toContain('date_format:H:i');
 });
 
+it('propose les types Fichier et Relation (sans liste d\'options, cible requise pour Relation)', function () {
+    expect(CustomFieldType::options())->toHaveKeys(['file', 'relation'])
+        ->and(CustomFieldType::Fichier->needsOptions())->toBeFalse()
+        ->and(CustomFieldType::Relation->needsOptions())->toBeFalse()
+        ->and(CustomFieldType::Relation->needsRelationTarget())->toBeTrue()
+        ->and(CustomFieldType::Fichier->needsRelationTarget())->toBeFalse();
+});
+
+it('construit une colonne Fichier (champ upload + colonne lecture) sans erreur', function () {
+    $table = CustomTable::create(['name' => 'Docs']);
+    CustomFields::synchroniserTableau($table->id, [
+        ['label' => 'CV', 'type' => 'file'],
+    ]);
+    $defs = CustomFields::definitionsTableau($table->id);
+
+    expect(CustomFields::champs($defs, 'data'))->toHaveCount(1)
+        ->and(CustomFields::colonnes($defs, 'data'))->toHaveCount(1)
+        // Fichier non éditable en ligne → colonne de lecture (TextColumn).
+        ->and(CustomFields::colonnes($defs, 'data', editable: true)[0])->toBeInstanceOf(TextColumn::class);
+});
+
+it('persiste la cible d\'une colonne Relation et la recharge pour le repeater', function () {
+    $table = CustomTable::create(['name' => 'Suivi']);
+    CustomFields::synchroniserTableau($table->id, [
+        ['label' => 'Entreprise liée', 'type' => 'relation', 'relation_cible' => 'company'],
+        ['label' => 'Cible bidon', 'type' => 'relation', 'relation_cible' => 'inconnu'],
+    ]);
+
+    $defs = CustomFieldDefinition::query()->where('custom_table_id', $table->id)->orderBy('sort')->get();
+
+    expect($defs[0]->config['related'])->toBe('company')
+        ->and($defs[1]->config)->toBeNull(); // cible inconnue rejetée
+
+    // Round-trip repeater + génération champ/colonne sans erreur.
+    $lignes = CustomFields::lignesDepuis(CustomFields::definitionsTableau($table->id));
+    expect($lignes[0]['relation_cible'])->toBe('company')
+        ->and(CustomFields::champs($defs, 'data'))->toHaveCount(2)
+        ->and(CustomFields::colonnes($defs, 'data', editable: true)[0])->toBeInstanceOf(TextColumn::class);
+});
+
 it('mémorise et recharge la couleur choisie par option de statut', function () {
     $table = CustomTable::create(['name' => 'Suivi']);
     CustomFields::synchroniserTableau($table->id, [

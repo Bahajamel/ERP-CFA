@@ -10,6 +10,8 @@ use App\Support\CustomFields;
 use Database\Seeders\RolePermissionSeeder;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Testing\File;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
@@ -275,6 +277,49 @@ it('accepte e-mail et multi-sélection via le formulaire public (types avancés)
     $ligne = CustomRecord::withoutGlobalScopes()->where('custom_table_id', $table->id)->first();
     expect($ligne->data[$cleEmail])->toBe('a@b.fr')
         ->and($ligne->data[$cleTags])->toBe(['A', 'C']);
+});
+
+it('reçoit une pièce jointe (CV) via le formulaire public et la stocke', function () {
+    Storage::fake(CustomFields::DISQUE_FICHIERS);
+
+    $table = CustomTable::create(['name' => 'Vivier', 'context' => 'candidate']);
+    CustomFields::synchroniserTableau($table->id, [
+        ['label' => 'CV', 'type' => 'file', 'is_required' => true, 'visible_table' => true],
+    ]);
+    $table->refresh();
+    $cleCv = $table->colonnes->firstWhere('label', 'CV')->key;
+
+    auth()->logout();
+
+    // Sans fichier alors qu'il est requis → rejeté.
+    $this->post(route('tableau.candidature.store', ['token' => $table->public_token]), ['champs' => []])
+        ->assertSessionHasErrors("champs.{$cleCv}");
+
+    // Avec un PDF valide → ligne créée + fichier stocké sur le disque.
+    $pdf = File::create('cv.pdf', 20);
+    $this->post(route('tableau.candidature.store', ['token' => $table->public_token]), [
+        'champs' => [$cleCv => $pdf],
+    ])->assertRedirect(route('tableau.candidature.merci'));
+
+    $ligne = CustomRecord::withoutGlobalScopes()->where('custom_table_id', $table->id)->first();
+
+    expect($ligne)->not->toBeNull()
+        ->and($ligne->data[$cleCv])->toStartWith(CustomFields::DOSSIER_FICHIERS.'/');
+    Storage::disk(CustomFields::DISQUE_FICHIERS)->assertExists($ligne->data[$cleCv]);
+});
+
+it('n\'expose pas les colonnes Relation dans le formulaire public', function () {
+    $table = CustomTable::create(['name' => 'Suivi', 'context' => 'candidate']);
+    CustomFields::synchroniserTableau($table->id, [
+        ['label' => 'Nom', 'type' => 'text', 'visible_table' => true],
+        ['label' => 'Entreprise liée', 'type' => 'relation', 'relation_cible' => 'company', 'visible_table' => true],
+    ]);
+    $table->refresh();
+
+    $this->get(route('tableau.candidature', ['token' => $table->public_token]))
+        ->assertOk()
+        ->assertSee('Nom')
+        ->assertDontSee('Entreprise liée'); // relation masquée au public
 });
 
 it('exporte les lignes du tableau en CSV', function () {

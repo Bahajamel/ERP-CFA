@@ -95,14 +95,18 @@ class PublicCustomTableController extends Controller
 
     /**
      * Colonnes exposées publiquement : on masque le type « Utilisateur assigné »
-     * (attribution interne, hors formulaire public).
+     * (attribution interne) et « Relation » (lien vers une fiche de l'ERP, à ne
+     * pas exposer au public). Le type « Fichier » reste (upload d'un CV, etc.).
      *
      * @return Collection<int, CustomFieldDefinition>
      */
     private function colonnesPubliques(CustomTable $table): Collection
     {
         return $table->colonnes
-            ->reject(fn (CustomFieldDefinition $def): bool => $def->type === CustomFieldType::Utilisateur)
+            ->reject(fn (CustomFieldDefinition $def): bool => in_array($def->type, [
+                CustomFieldType::Utilisateur,
+                CustomFieldType::Relation,
+            ], true))
             ->values();
     }
 
@@ -130,6 +134,7 @@ class PublicCustomTableController extends Controller
                     CustomFieldType::Textarea => ['string', 'max:5000'],
                     CustomFieldType::Select, CustomFieldType::Statut => ['string', Rule::in($this->options($def))],
                     CustomFieldType::MultiSelect => ['array'],
+                    CustomFieldType::Fichier => ['file', 'max:10240', 'mimes:pdf,doc,docx,odt,jpg,jpeg,png,webp'],
                     default => ['string', 'max:255'],
                 },
                 // Mêmes règles que dans l'ERP (longueur max, bornes, format).
@@ -148,6 +153,17 @@ class PublicCustomTableController extends Controller
 
         $data = [];
         foreach ($colonnes as $def) {
+            // Pièce jointe : on stocke le fichier téléversé et on mémorise son chemin.
+            if ($def->type === CustomFieldType::Fichier) {
+                $fichier = $request->file("champs.{$def->key}");
+
+                if ($fichier !== null) {
+                    $data[$def->key] = $fichier->store(CustomFields::DOSSIER_FICHIERS, CustomFields::DISQUE_FICHIERS);
+                }
+
+                continue;
+            }
+
             $valeur = data_get($valide, "champs.{$def->key}");
 
             if ($def->type === CustomFieldType::Boolean) {

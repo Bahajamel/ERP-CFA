@@ -263,8 +263,8 @@ class BaseFaq
             [
                 'categorie' => 'Tableaux personnalisés',
                 'question' => 'Quels types de colonnes puis-je créer et comment marchent les listes déroulantes ?',
-                'mots' => ['type', 'types', 'colonne', 'liste', 'deroulante', 'statut', 'option', 'options', 'choix', 'texte', 'nombre', 'date', 'utilisateur', 'select', 'booleen'],
-                'reponse' => 'Types disponibles : texte court, texte long, nombre, date, oui/non, liste déroulante, statut (coloré) et utilisateur assigné. Pour une colonne « Liste » ou « Statut », au moment de saisir une ligne vous choisissez une option existante ou en ajoutez une nouvelle à la volée : elle est mémorisée pour tout le monde. Les personnes qui remplissent le lien public, elles, ne reçoivent que les options déjà choisies.',
+                'mots' => ['type', 'types', 'colonne', 'liste', 'deroulante', 'statut', 'option', 'options', 'choix', 'texte', 'nombre', 'date', 'utilisateur', 'select', 'booleen', 'fichier', 'piece', 'jointe', 'cv', 'relation', 'lien', 'fiche'],
+                'reponse' => 'Types disponibles : texte court, texte long, nombre, date, heure, oui/non, e-mail, téléphone, lien (URL), montant, pourcentage, liste déroulante, multi-sélection, statut (coloré), utilisateur assigné, fichier (pièce jointe) et relation (lien vers une fiche). Pour une colonne « Liste » ou « Statut », au moment de saisir une ligne vous choisissez une option existante ou en ajoutez une nouvelle à la volée : elle est mémorisée pour tout le monde. Une colonne « Fichier » permet de joindre un document à chaque ligne (et de recevoir un CV via le lien public). Une colonne « Relation » relie chaque ligne à une fiche de l\'ERP (candidat, entreprise, offre ou contrat) — non exposée au public. Les personnes qui remplissent le lien public ne reçoivent que les options déjà choisies.',
                 'lien' => ['route' => 'filament.admin.resources.custom-tables.index', 'label' => 'Voir les tableaux', 'permission' => 'custom_tables.view'],
             ],
             [

@@ -3,13 +3,21 @@
 namespace App\Support;
 
 use App\Enums\CustomFieldType;
+use App\Filament\Resources\Candidates\CandidateResource;
+use App\Filament\Resources\Companies\CompanyResource;
+use App\Filament\Resources\Contracts\ContractResource;
+use App\Filament\Resources\Needs\NeedResource;
 use App\Models\Candidate;
+use App\Models\Company;
+use App\Models\Contract;
 use App\Models\CustomColumnSetting;
 use App\Models\CustomFieldDefinition;
+use App\Models\Need;
 use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
@@ -31,7 +39,9 @@ use Filament\Tables\Columns\ToggleColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Grouping\Group;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 /**
@@ -90,6 +100,112 @@ class CustomFields
         'warning' => '#f59e0b',
         'danger' => '#ef4444',
     ];
+
+    /** Disque et dossier de stockage des pièces jointes (colonnes « Fichier »). */
+    public const DISQUE_FICHIERS = 'public';
+
+    public const DOSSIER_FICHIERS = 'tableaux/fichiers';
+
+    /**
+     * Entités métier ciblables par une colonne « Relation » : clé => libellé.
+     * La résolution modèle/URL/titre se fait dans {@see relationCible()}.
+     */
+    public const RELATIONS = [
+        'candidate' => 'Candidat',
+        'company' => 'Entreprise',
+        'need' => 'Offre (besoin)',
+        'contract' => 'Contrat',
+    ];
+
+    /**
+     * Détails d'une cible de relation : modèle, ressource Filament (pour le lien
+     * vers la fiche) et fonction de titre. null si la clé est inconnue.
+     *
+     * @return array{label: string, model: class-string<Model>, resource: class-string, titre: callable}|null
+     */
+    private static function relationCible(string $cible): ?array
+    {
+        return match ($cible) {
+            'candidate' => [
+                'label' => self::RELATIONS['candidate'],
+                'model' => Candidate::class,
+                'resource' => CandidateResource::class,
+                'titre' => fn (Candidate $c): string => $c->nom_complet ?: ('Candidat #'.$c->getKey()),
+            ],
+            'company' => [
+                'label' => self::RELATIONS['company'],
+                'model' => Company::class,
+                'resource' => CompanyResource::class,
+                'titre' => fn (Company $c): string => $c->raison_sociale ?: ('Entreprise #'.$c->getKey()),
+            ],
+            'need' => [
+                'label' => self::RELATIONS['need'],
+                'model' => Need::class,
+                'resource' => NeedResource::class,
+                'titre' => fn (Need $n): string => $n->intitule_poste ?: ('Offre #'.$n->getKey()),
+            ],
+            'contract' => [
+                'label' => self::RELATIONS['contract'],
+                'model' => Contract::class,
+                'resource' => ContractResource::class,
+                'titre' => fn (Contract $c): string => 'Contrat #'.$c->getKey(),
+            ],
+            default => null,
+        };
+    }
+
+    /**
+     * Options d'une colonne « Relation » : identifiant => titre des enregistrements
+     * de l'entité cible (cloisonnés par CFA via le global scope du modèle).
+     *
+     * @return array<int|string, string>
+     */
+    private static function optionsRelation(CustomFieldDefinition $def): array
+    {
+        $cible = self::relationCible((string) ($def->config['related'] ?? ''));
+
+        if ($cible === null) {
+            return [];
+        }
+
+        return $cible['model']::query()
+            ->latest('id')
+            ->limit(1000)
+            ->get()
+            ->mapWithKeys(fn (Model $m): array => [$m->getKey() => ($cible['titre'])($m)])
+            ->all();
+    }
+
+    /** Titre lisible d'un enregistrement lié (ou null si introuvable). */
+    private static function libelleRelation(CustomFieldDefinition $def, mixed $id): ?string
+    {
+        $cible = self::relationCible((string) ($def->config['related'] ?? ''));
+
+        if ($cible === null || blank($id)) {
+            return null;
+        }
+
+        $modele = $cible['model']::query()->find($id);
+
+        return $modele !== null ? ($cible['titre'])($modele) : null;
+    }
+
+    /** URL de la fiche de l'enregistrement lié (ou null). */
+    private static function urlRelation(CustomFieldDefinition $def, mixed $id): ?string
+    {
+        $cible = self::relationCible((string) ($def->config['related'] ?? ''));
+
+        if ($cible === null || blank($id)) {
+            return null;
+        }
+
+        try {
+            return $cible['resource']::getUrl('view', ['record' => $id]);
+        } catch (\Throwable) {
+            // Toutes les ressources n'ont pas de page « view » : on ignore le lien.
+            return null;
+        }
+    }
 
     /* ============================================================
      |  Bouton + modal de gestion des colonnes (entité métier)
@@ -196,11 +312,25 @@ class CustomFields
                             ->default('gray')
                             ->native(false),
                     ]),
+                // Relation : entité métier ciblée (candidat, entreprise, offre, contrat).
+                Select::make('relation_cible')
+                    ->label('Fiche liée')
+                    ->helperText('Chaque ligne pourra pointer vers un enregistrement de ce module.')
+                    ->options(self::RELATIONS)
+                    ->native(false)
+                    ->visible(fn (Get $get): bool => $get('type') === CustomFieldType::Relation->value)
+                    ->required(fn (Get $get): bool => $get('type') === CustomFieldType::Relation->value)
+                    ->columnSpanFull(),
                 // Valeur par défaut (proposée à la saisie d'une nouvelle ligne).
                 TextInput::make('default_value')
                     ->label('Valeur par défaut')
                     ->maxLength(255)
-                    ->visible(fn (Get $get): bool => ! in_array($get('type'), [CustomFieldType::Boolean->value, CustomFieldType::Utilisateur->value], true)),
+                    ->visible(fn (Get $get): bool => ! in_array($get('type'), [
+                        CustomFieldType::Boolean->value,
+                        CustomFieldType::Utilisateur->value,
+                        CustomFieldType::Fichier->value,
+                        CustomFieldType::Relation->value,
+                    ], true)),
                 Toggle::make('default_bool')
                     ->label('Coché par défaut')
                     ->visible(fn (Get $get): bool => $get('type') === CustomFieldType::Boolean->value),
@@ -243,6 +373,7 @@ class CustomFields
                         'couleur' => $d->config['colors'][$o] ?? 'gray',
                     ])->all()
                     : [],
+                'relation_cible' => $d->type === CustomFieldType::Relation ? ($d->config['related'] ?? null) : null,
                 'default_value' => $estBool ? null : ($d->default_value['value'] ?? null),
                 'default_bool' => $estBool ? (bool) ($d->default_value['value'] ?? false) : false,
                 'val_max_length' => $validation['max_length'] ?? null,
@@ -323,6 +454,9 @@ class CustomFields
                         ? $ligne['options_statut']
                         : collect($ligne['options'] ?? [])->map(fn ($o): array => ['valeur' => $o, 'couleur' => 'gray'])->all(),
                 ),
+                CustomFieldType::Relation->value => array_key_exists((string) ($ligne['relation_cible'] ?? ''), self::RELATIONS)
+                    ? ['related' => (string) $ligne['relation_cible']]
+                    : null,
                 default => null,
             };
 
@@ -756,8 +890,13 @@ class CustomFields
         return $definitions->map(function (CustomFieldDefinition $def) use ($prefixe, $peutEditer) {
             $chemin = "{$prefixe}.{$def->key}";
 
-            // Multi-sélection non éditable en ligne (contrôle multiple) → lecture.
-            $inline = $peutEditer && $def->type !== CustomFieldType::MultiSelect;
+            // Multi-sélection, fichier et relation non éditables en ligne (contrôle
+            // multiple / téléversement / recherche d'une fiche) → lecture seule.
+            $inline = $peutEditer && ! in_array($def->type, [
+                CustomFieldType::MultiSelect,
+                CustomFieldType::Fichier,
+                CustomFieldType::Relation,
+            ], true);
 
             $colonne = $inline
                 ? self::colonneEditable($def, $chemin)
@@ -787,8 +926,26 @@ class CustomFields
             CustomFieldType::Telephone => TextColumn::make($chemin)->label($def->label)->icon('heroicon-o-phone')->copyable()->placeholder('—'),
             CustomFieldType::Url => TextColumn::make($chemin)->label($def->label)->icon('heroicon-o-link')->color('primary')
                 ->url(fn ($state): ?string => filled($state) ? (string) $state : null)->openUrlInNewTab()->placeholder('—'),
+            CustomFieldType::Fichier => TextColumn::make($chemin)->label($def->label)
+                ->badge()->icon('heroicon-o-paper-clip')->color('primary')
+                ->formatStateUsing(fn ($state): ?string => filled($state) ? 'Voir le fichier' : null)
+                ->url(fn ($state): ?string => self::urlFichier($state))->openUrlInNewTab()->placeholder('—'),
+            CustomFieldType::Relation => TextColumn::make($chemin)->label($def->label)
+                ->badge()->icon('heroicon-o-link')->color('info')
+                ->formatStateUsing(fn ($state): ?string => self::libelleRelation($def, $state))
+                ->url(fn ($state): ?string => self::urlRelation($def, $state))->placeholder('—'),
             default => TextColumn::make($chemin)->label($def->label)->placeholder('—'),
         };
+    }
+
+    /** URL publique d'un fichier stocké (chemin relatif sur le disque public), ou null. */
+    private static function urlFichier(mixed $chemin): ?string
+    {
+        if (blank($chemin) || ! is_string($chemin)) {
+            return null;
+        }
+
+        return Storage::disk(self::DISQUE_FICHIERS)->url($chemin);
     }
 
     /**
@@ -853,6 +1010,12 @@ class CustomFields
             CustomFieldType::Url => TextInput::make($chemin)->label($def->label)->url()->maxLength(500),
             CustomFieldType::Montant => TextInput::make($chemin)->label($def->label)->numeric()->prefix('€'),
             CustomFieldType::Pourcentage => TextInput::make($chemin)->label($def->label)->numeric()->suffix('%')->minValue(0)->maxValue(100),
+            CustomFieldType::Fichier => FileUpload::make($chemin)->label($def->label)
+                ->disk(self::DISQUE_FICHIERS)->directory(self::DOSSIER_FICHIERS)
+                ->downloadable()->openable()->maxSize(10240),
+            CustomFieldType::Relation => Select::make($chemin)->label($def->label)
+                ->options(self::optionsRelation($def))->searchable()->native(false)
+                ->getOptionLabelUsing(fn ($value): ?string => self::libelleRelation($def, $value)),
         };
 
         // Obligatoire (sauf Oui/Non, où « requis » n'a pas de sens), validation par

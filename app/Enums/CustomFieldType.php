@@ -26,6 +26,8 @@ enum CustomFieldType: string
     case Url = 'url';
     case Montant = 'amount';
     case Pourcentage = 'percent';
+    case Fichier = 'file';
+    case Relation = 'relation';
 
     public function getLabel(): string
     {
@@ -45,6 +47,8 @@ enum CustomFieldType: string
             self::Url => 'Lien (URL)',
             self::Montant => 'Montant (€)',
             self::Pourcentage => 'Pourcentage',
+            self::Fichier => 'Fichier (pièce jointe)',
+            self::Relation => 'Relation (lien vers une fiche)',
         };
     }
 
@@ -52,6 +56,12 @@ enum CustomFieldType: string
     public function needsOptions(): bool
     {
         return in_array($this, [self::Select, self::Statut, self::MultiSelect], true);
+    }
+
+    /** Ce type cible-t-il une entité métier (config.related) ? */
+    public function needsRelationTarget(): bool
+    {
+        return $this === self::Relation;
     }
 
     /** Le type stocke-t-il un tableau de valeurs (JSONB liste) ? */
