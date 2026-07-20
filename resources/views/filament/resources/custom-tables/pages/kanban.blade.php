@@ -33,9 +33,20 @@
                         <div
                             x-sort:item="{{ $ligne->getKey() }}"
                             wire:key="krow-{{ $ligne->getKey() }}"
-                            class="cursor-grab rounded-lg bg-white p-3 shadow-sm ring-1 ring-gray-950/5 transition hover:shadow-md active:cursor-grabbing dark:bg-gray-800 dark:ring-white/10"
+                            class="group relative cursor-grab rounded-lg bg-white p-3 shadow-sm ring-1 ring-gray-950/5 transition hover:shadow-md active:cursor-grabbing dark:bg-gray-800 dark:ring-white/10"
                         >
-                            <div class="space-y-1 text-sm text-gray-700 dark:text-gray-200">
+                            @if ($this->peutModifier())
+                                <button
+                                    type="button"
+                                    wire:click="mountAction('modifierCarte', @js(['record' => $ligne->getKey()]))"
+                                    title="Modifier"
+                                    class="absolute right-1.5 top-1.5 rounded-md p-1 text-gray-400 opacity-0 transition hover:bg-gray-100 hover:text-indigo-600 group-hover:opacity-100 dark:hover:bg-white/10"
+                                >
+                                    @svg('heroicon-o-pencil-square', 'h-4 w-4')
+                                </button>
+                            @endif
+
+                            <div class="space-y-1 pr-5 text-sm text-gray-700 dark:text-gray-200">
                                 @foreach ($this->colonnesCarte() as $col)
                                     @php $v = data_get($ligne->data, $col->key); @endphp
                                     @if (filled($v) || $col->type->value === 'boolean')
@@ -64,4 +75,7 @@
             </div>
         @endforeach
     </div>
+
+    {{-- Modales des actions (édition d'une carte). --}}
+    <x-filament-actions::modals />
 </x-filament-panels::page>

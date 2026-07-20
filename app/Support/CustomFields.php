@@ -28,6 +28,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\TextInputColumn;
 use Filament\Tables\Columns\ToggleColumn;
 use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Grouping\Group;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
@@ -893,6 +894,32 @@ class CustomFields
                     ->query(fn (Builder $query, array $data): Builder => filled($data['value'] ?? null)
                         ? $query->where("{$prefixe}->{$def->key}", $data['value'])
                         : $query);
+            })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Groupes repliables (façon Monday) pour les colonnes « à valeurs »
+     * (Liste / Statut) : le board peut regrouper ses lignes par l'une d'elles.
+     * Titre/clé lus dans le JSONB ; tri via la syntaxe fléchée (portable).
+     *
+     * @return array<int, Group>
+     */
+    public static function groupes(Collection $definitions, string $prefixe): array
+    {
+        return $definitions
+            ->filter(fn (CustomFieldDefinition $d): bool => in_array($d->type, [CustomFieldType::Select, CustomFieldType::Statut], true))
+            ->map(function (CustomFieldDefinition $def) use ($prefixe): Group {
+                $cle = $def->key;
+                $sans = 'Sans '.mb_strtolower($def->label);
+
+                return Group::make($cle)
+                    ->label($def->label)
+                    ->collapsible()
+                    ->getKeyFromRecordUsing(fn ($record): string => (string) (data_get($record->data, $cle) ?? ''))
+                    ->getTitleFromRecordUsing(fn ($record): string => (string) (data_get($record->data, $cle) ?: $sans))
+                    ->orderQueryUsing(fn (Builder $query, string $direction): Builder => $query->orderBy("{$prefixe}->{$cle}", $direction));
             })
             ->values()
             ->all();

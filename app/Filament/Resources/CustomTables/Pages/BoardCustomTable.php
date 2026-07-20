@@ -192,6 +192,8 @@ class BoardCustomTable extends Page implements HasTable
             ])
             ->reorderableColumns()
             ->filters(CustomFields::filtres($colonnes, 'data'))
+            // Groupes repliables (façon Monday) par colonne Statut/Liste.
+            ->groups(CustomFields::groupes($colonnes, 'data'))
             ->headerActions([
                 CreateAction::make()
                     ->label('Ajouter une ligne')

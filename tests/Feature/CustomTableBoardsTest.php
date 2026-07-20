@@ -224,3 +224,28 @@ it('restaure une vue enregistrée (colonnes) sans erreur', function () {
         ->callTableAction('vue_'.$vue->id)
         ->assertSuccessful();
 });
+
+it('regroupe le board par une colonne statut sans erreur (façon Monday)', function () {
+    [$table, $cleNom, $cleStatut] = tableauAvecStatut();
+    CustomRecord::create(['custom_table_id' => $table->id, 'data' => [$cleNom => 'Léa', $cleStatut => 'Nouveau']]);
+
+    Livewire::test(BoardCustomTable::class, ['record' => $table->id])
+        ->set('tableGrouping', $cleStatut)
+        ->assertSuccessful()
+        ->assertSee('Nouveau');
+});
+
+it('édite une ligne depuis une carte Kanban (détail de carte)', function () {
+    [$table, $cleNom, $cleStatut] = tableauAvecStatut();
+    $ligne = CustomRecord::create(['custom_table_id' => $table->id, 'data' => [$cleNom => 'Léa', $cleStatut => 'Nouveau']]);
+
+    Livewire::test(KanbanCustomTable::class, ['record' => $table->id])
+        ->callAction('modifierCarte',
+            data: ['data' => [$cleNom => 'Léa Martin', $cleStatut => 'Traité']],
+            arguments: ['record' => $ligne->id],
+        )
+        ->assertHasNoActionErrors();
+
+    expect($ligne->fresh()->data[$cleNom])->toBe('Léa Martin')
+        ->and($ligne->fresh()->data[$cleStatut])->toBe('Traité');
+});

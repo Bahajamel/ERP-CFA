@@ -65,8 +65,9 @@ it('construit un filtre par colonne Liste/Statut (et aucun pour les autres types
 
     $defs = CustomFields::definitionsTableau($table->id);
 
-    // Statut + Select => 2 filtres ; Texte et Utilisateur => aucun.
-    expect(CustomFields::filtres($defs, 'data'))->toHaveCount(2);
+    // Statut + Select => 2 filtres/groupes ; Texte et Utilisateur => aucun.
+    expect(CustomFields::filtres($defs, 'data'))->toHaveCount(2)
+        ->and(CustomFields::groupes($defs, 'data'))->toHaveCount(2);
 });
 
 it('construit des colonnes éditables en ligne sur le board (et lecture seule sans droit)', function () {

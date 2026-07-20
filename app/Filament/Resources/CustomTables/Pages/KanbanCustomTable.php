@@ -51,6 +51,46 @@ class KanbanCustomTable extends Page
         ];
     }
 
+    /**
+     * Ouvre le détail d'une carte pour l'éditer (déclenché au clic sur une carte).
+     * Le record cible est passé en argument par le bouton de la carte.
+     */
+    public function modifierCarteAction(): Action
+    {
+        return Action::make('modifierCarte')
+            ->modalHeading('Modifier la ligne')
+            ->visible(fn (): bool => Auth::user()?->can('custom_records.update') ?? false)
+            ->fillForm(function (array $arguments): array {
+                $ligne = $this->ligneDe($arguments);
+
+                return ['data' => $ligne?->data ?? []];
+            })
+            ->schema(CustomFields::champs($this->getRecord()->colonnes, 'data'))
+            ->action(function (array $data, array $arguments): void {
+                $ligne = $this->ligneDe($arguments);
+
+                if ($ligne === null) {
+                    return;
+                }
+
+                $ligne->update(['data' => $data['data'] ?? []]);
+                Notification::make()->success()->title('Ligne mise à jour')->send();
+            });
+    }
+
+    /** Résout la ligne du tableau courant depuis les arguments de l'action. */
+    public function peutModifier(): bool
+    {
+        return Auth::user()?->can('custom_records.update') ?? false;
+    }
+
+    private function ligneDe(array $arguments): ?CustomRecord
+    {
+        return CustomRecord::query()
+            ->where('custom_table_id', $this->getRecord()->getKey())
+            ->find($arguments['record'] ?? null);
+    }
+
     /** Colonne de regroupement : première « Statut », sinon première « Liste ». */
     public function colonneStatut(): ?CustomFieldDefinition
     {
