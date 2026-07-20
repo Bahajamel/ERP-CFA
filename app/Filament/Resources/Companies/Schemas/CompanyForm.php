@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Companies\Schemas;
 use App\Enums\CompanyStatut;
 use App\Models\Company;
 use App\Support\AdresseBan;
+use App\Support\CustomFields;
 use App\Support\EntrepriseAnnuaire;
 use App\Support\OpcoDetector;
 use Carbon\Carbon;
@@ -309,6 +310,8 @@ class CompanyForm
                             Hidden::make('longitude'),
                         ]),
                 ])->columnSpan(1),
+                // Colonnes personnalisées du CFA (section pleine largeur).
+                ...CustomFields::formSchema('company'),
             ]);
     }
 }

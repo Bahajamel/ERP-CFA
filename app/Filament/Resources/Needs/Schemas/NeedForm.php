@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Needs\Schemas;
 use App\Enums\NeedStatut;
 use App\Models\CompanyContact;
 use App\Support\AdresseBan;
+use App\Support\CustomFields;
 use Filament\Forms\Components\Component;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Placeholder;
@@ -255,6 +256,8 @@ class NeedForm
                                 ])),
                         ]),
                 ])->columnSpan(1),
+                // Colonnes personnalisées du CFA (section pleine largeur).
+                ...CustomFields::formSchema('need'),
             ]);
     }
 }

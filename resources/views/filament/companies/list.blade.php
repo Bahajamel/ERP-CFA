@@ -38,6 +38,7 @@
     @php $focus = $this->getFocusCompany(); @endphp
     <div class="cfa-cand-layout {{ $focus ? 'has-focus' : '' }}">
         <div class="cfa-cand-main">
+            @include('filament.partials.colonnes-toolbar')
             {{ $this->table }}
         </div>
         @if ($focus)

@@ -10,6 +10,7 @@ use App\Models\Need;
 use App\Prospecting\AddressGeocoder;
 use App\Prospecting\LaBonneAlternanceClient;
 use App\Prospecting\ProspectionService;
+use App\Support\CustomFields;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\CreateAction;
@@ -277,5 +278,31 @@ class ListNeeds extends ListRecords
             '<iframe src="'.e($src).'" style="width:100%;height:260px;border:0;border-radius:8px;" loading="lazy" title="Carte du lieu"></iframe>'
             .'<div style="margin-top:.35rem;font-size:.8rem;color:rgba(128,128,128,.95);">📍 '.e((string) $label).'</div>'
         );
+    }
+
+    /* ----------------------------------------------------------------
+     |  Colonnes personnalisées du CFA (barre au-dessus du tableau).
+     * ---------------------------------------------------------------- */
+
+    /** Bouton « Ajouter une colonne » (colonnes personnalisées Offres). */
+    public function ajouterColonneAction(): Action
+    {
+        return CustomFields::gererAction('need', 'Offres', 'ajouterColonne')
+            ->label('Ajouter une colonne')
+            ->icon('heroicon-o-plus')
+            ->button()
+            ->color('gray');
+    }
+
+    /** Bouton « Renommer les colonnes » (surcharge des libellés natifs par CFA). */
+    public function renommerColonnesAction(): Action
+    {
+        return CustomFields::personnaliserAction('need', 'Offres', NeedsTable::COLONNES_PERSONNALISABLES, 'renommerColonnes');
+    }
+
+    /** Bouton « Supprimer une colonne » (retire une colonne personnalisée du CFA). */
+    public function supprimerColonneAction(): Action
+    {
+        return CustomFields::supprimerColonneAction('need', 'Offres', 'supprimerColonne');
     }
 }

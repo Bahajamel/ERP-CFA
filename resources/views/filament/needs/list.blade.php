@@ -50,6 +50,7 @@
     @php $focus = $this->getFocusNeed(); @endphp
     <div class="cfa-cand-layout {{ $focus ? 'has-focus' : '' }}">
         <div class="cfa-cand-main">
+            @include('filament.partials.colonnes-toolbar')
             {{ $this->table }}
         </div>
         @if ($focus)

@@ -29,6 +29,7 @@ class Company extends Model
             'statut' => CompanyStatut::class,
             'latitude' => 'float',
             'longitude' => 'float',
+            'custom_fields' => 'array',
         ];
     }
 

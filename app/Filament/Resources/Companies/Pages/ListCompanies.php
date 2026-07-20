@@ -7,6 +7,7 @@ use App\Filament\Resources\Companies\CompanyResource;
 use App\Filament\Resources\Companies\Tables\CompaniesTable;
 use App\Filament\Resources\Needs\NeedResource;
 use App\Models\Company;
+use App\Support\CustomFields;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\CreateAction;
@@ -119,5 +120,31 @@ class ListCompanies extends ListRecords
                 ->button()
                 ->color('gray'),
         ];
+    }
+
+    /* ----------------------------------------------------------------
+     |  Colonnes personnalisées du CFA (barre au-dessus du tableau).
+     * ---------------------------------------------------------------- */
+
+    /** Bouton « Ajouter une colonne » (colonnes personnalisées Entreprises). */
+    public function ajouterColonneAction(): Action
+    {
+        return CustomFields::gererAction('company', 'Entreprises', 'ajouterColonne')
+            ->label('Ajouter une colonne')
+            ->icon('heroicon-o-plus')
+            ->button()
+            ->color('gray');
+    }
+
+    /** Bouton « Renommer les colonnes » (surcharge des libellés natifs par CFA). */
+    public function renommerColonnesAction(): Action
+    {
+        return CustomFields::personnaliserAction('company', 'Entreprises', CompaniesTable::COLONNES_PERSONNALISABLES, 'renommerColonnes');
+    }
+
+    /** Bouton « Supprimer une colonne » (retire une colonne personnalisée du CFA). */
+    public function supprimerColonneAction(): Action
+    {
+        return CustomFields::supprimerColonneAction('company', 'Entreprises', 'supprimerColonne');
     }
 }

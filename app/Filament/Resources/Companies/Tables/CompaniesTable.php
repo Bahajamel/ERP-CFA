@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Companies\Tables;
 
 use App\Models\Company;
 use App\Models\Formation;
+use App\Support\CustomFields;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkActionGroup;
@@ -22,6 +23,15 @@ use Illuminate\Database\Eloquent\Builder;
 
 class CompaniesTable
 {
+    /** Colonnes natives renommables par CFA (clé de colonne => libellé d'origine). */
+    public const COLONNES_PERSONNALISABLES = [
+        'identite' => 'Entreprise',
+        'contact' => 'Contact principal',
+        'secteur' => 'Secteur',
+        'opco.nom' => 'OPCO',
+        'besoins_ouverts' => 'Besoins ouverts',
+    ];
+
     public static function configure(Table $table): Table
     {
         return $table
@@ -29,7 +39,7 @@ class CompaniesTable
                 $query->with(['opco', 'contacts', 'needs', 'interactions']);
                 self::appliquerScopeRapide($query, self::scopeDe($livewire));
             })
-            ->columns([
+            ->columns(CustomFields::appliquerReglages([
                 ViewColumn::make('identite')
                     ->label('Entreprise')
                     ->view('filament.companies.col-identite')
@@ -59,7 +69,9 @@ class CompaniesTable
                     ->color(fn (Company $record): string => $record->besoinsOuvertsCount() > 0 ? 'warning' : 'gray')
                     ->state(fn (Company $record): string => $record->besoinsOuvertsCount().' poste'
                         .($record->besoinsOuvertsCount() > 1 ? 's' : '')),
-            ])
+                // Colonnes personnalisées du CFA (masquables), s'il en a défini.
+                ...CustomFields::tableColumns('company'),
+            ], 'company'))
             // Clic sur une ligne = ouvre le panneau « Focus entreprise » (et non la
             // fiche : elle reste accessible via « Aperçu » ou le menu « Plus »).
             ->recordAction('focus')

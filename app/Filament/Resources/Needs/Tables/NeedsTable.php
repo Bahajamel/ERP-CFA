@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Needs\Tables;
 use App\Enums\NeedStatut;
 use App\Models\Need;
 use App\StateMachine\InvalidTransitionException;
+use App\Support\CustomFields;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
@@ -22,6 +23,15 @@ use Illuminate\Database\Eloquent\Builder;
 
 class NeedsTable
 {
+    /** Colonnes natives renommables par CFA (clé de colonne => libellé d'origine). */
+    public const COLONNES_PERSONNALISABLES = [
+        'identite' => 'Offre',
+        'formation.libelle' => 'Formation',
+        'localisation' => 'Lieu',
+        'matchings_count' => 'Candidats proposés',
+        'date_demarrage' => 'Démarrage',
+    ];
+
     public static function configure(Table $table): Table
     {
         return $table
@@ -29,7 +39,7 @@ class NeedsTable
                 $query->with(['company', 'formation'])->withCount('matchings');
                 self::appliquerScopeRapide($query, self::scopeDe($livewire));
             })
-            ->columns([
+            ->columns(CustomFields::appliquerReglages([
                 ViewColumn::make('identite')
                     ->label('Offre')
                     ->view('filament.needs.col-identite')
@@ -67,7 +77,9 @@ class NeedsTable
                     ->placeholder('—')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
-            ])
+                // Colonnes personnalisées du CFA (masquables), s'il en a défini.
+                ...CustomFields::tableColumns('need'),
+            ], 'need'))
             // Clic sur une ligne = ouvre le panneau « Focus offre » (la page de
             // modification reste accessible via « Aperçu » → « Ouvrir/modifier »
             // ou le menu d'actions).

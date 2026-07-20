@@ -532,6 +532,8 @@ class CustomFields
     /** Entité métier => modèle Eloquent porteur du JSONB « custom_fields ». */
     private const MODELES = [
         'candidate' => Candidate::class,
+        'company' => Company::class,
+        'need' => Need::class,
     ];
 
     /**

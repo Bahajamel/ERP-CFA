@@ -35,6 +35,7 @@ class Need extends Model
             'longitude' => 'float',
             'rayon_km' => 'integer',
             'statut' => NeedStatut::class,
+            'custom_fields' => 'array',
         ];
     }
 
