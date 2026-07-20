@@ -249,3 +249,30 @@ it('édite une ligne depuis une carte Kanban (détail de carte)', function () {
     expect($ligne->fresh()->data[$cleNom])->toBe('Léa Martin')
         ->and($ligne->fresh()->data[$cleStatut])->toBe('Traité');
 });
+
+it('accepte e-mail et multi-sélection via le formulaire public (types avancés)', function () {
+    $table = CustomTable::create(['name' => 'Avancé', 'context' => 'candidate']);
+    CustomFields::synchroniserTableau($table->id, [
+        ['label' => 'Email', 'type' => 'email', 'is_required' => true, 'visible_table' => true],
+        ['label' => 'Tags', 'type' => 'multiselect', 'options' => ['A', 'B', 'C'], 'visible_table' => true],
+    ]);
+    $table->refresh();
+    $cleEmail = $table->colonnes->firstWhere('label', 'Email')->key;
+    $cleTags = $table->colonnes->firstWhere('label', 'Tags')->key;
+
+    auth()->logout();
+
+    // E-mail invalide → rejeté.
+    $this->post(route('tableau.candidature.store', ['token' => $table->public_token]), [
+        'champs' => [$cleEmail => 'pas-un-email'],
+    ])->assertSessionHasErrors("champs.{$cleEmail}");
+
+    // Valide (e-mail + multi-sélection).
+    $this->post(route('tableau.candidature.store', ['token' => $table->public_token]), [
+        'champs' => [$cleEmail => 'a@b.fr', $cleTags => ['A', 'C']],
+    ])->assertRedirect(route('tableau.candidature.merci'));
+
+    $ligne = CustomRecord::withoutGlobalScopes()->where('custom_table_id', $table->id)->first();
+    expect($ligne->data[$cleEmail])->toBe('a@b.fr')
+        ->and($ligne->data[$cleTags])->toBe(['A', 'C']);
+});

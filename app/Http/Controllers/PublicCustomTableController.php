@@ -123,16 +123,24 @@ class PublicCustomTableController extends Controller
             $rules[$champ] = array_merge(
                 [$def->is_required ? 'required' : 'nullable'],
                 match ($def->type) {
-                    CustomFieldType::Number => ['numeric'],
+                    CustomFieldType::Number, CustomFieldType::Montant, CustomFieldType::Pourcentage => ['numeric'],
                     CustomFieldType::Date => ['date'],
+                    CustomFieldType::Heure => ['date_format:H:i'],
                     CustomFieldType::Boolean => ['boolean'],
                     CustomFieldType::Textarea => ['string', 'max:5000'],
                     CustomFieldType::Select, CustomFieldType::Statut => ['string', Rule::in($this->options($def))],
+                    CustomFieldType::MultiSelect => ['array'],
                     default => ['string', 'max:255'],
                 },
-                // Mêmes règles que dans l'ERP (longueur max, bornes min/max).
+                // Mêmes règles que dans l'ERP (longueur max, bornes, format).
                 CustomFields::reglesValidation($def),
             );
+
+            // Multi-sélection : chaque valeur doit appartenir aux options.
+            if ($def->type === CustomFieldType::MultiSelect) {
+                $rules["{$champ}.*"] = ['string', Rule::in($this->options($def))];
+            }
+
             $attributs[$champ] = $def->label;
         }
 
@@ -144,6 +152,12 @@ class PublicCustomTableController extends Controller
 
             if ($def->type === CustomFieldType::Boolean) {
                 $data[$def->key] = (bool) $valeur;
+            } elseif (is_array($valeur)) {
+                // Multi-sélection : liste de valeurs assainies.
+                $propres = collect($valeur)->map(fn ($v): string => trim(strip_tags((string) $v)))->filter()->values()->all();
+                if ($propres !== []) {
+                    $data[$def->key] = $propres;
+                }
             } elseif (is_string($valeur)) {
                 $propre = trim(strip_tags($valeur));
                 if ($propre !== '') {

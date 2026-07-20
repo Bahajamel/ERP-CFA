@@ -15,10 +15,17 @@ enum CustomFieldType: string
     case Textarea = 'textarea';
     case Number = 'number';
     case Date = 'date';
+    case Heure = 'time';
     case Boolean = 'boolean';
     case Select = 'select';
+    case MultiSelect = 'multiselect';
     case Statut = 'statut';
     case Utilisateur = 'user';
+    case Email = 'email';
+    case Telephone = 'phone';
+    case Url = 'url';
+    case Montant = 'amount';
+    case Pourcentage = 'percent';
 
     public function getLabel(): string
     {
@@ -27,17 +34,30 @@ enum CustomFieldType: string
             self::Textarea => 'Texte long',
             self::Number => 'Nombre',
             self::Date => 'Date',
+            self::Heure => 'Heure',
             self::Boolean => 'Oui / Non',
             self::Select => 'Liste déroulante',
+            self::MultiSelect => 'Multi-sélection',
             self::Statut => 'Statut (coloré)',
             self::Utilisateur => 'Utilisateur assigné',
+            self::Email => 'E-mail',
+            self::Telephone => 'Téléphone',
+            self::Url => 'Lien (URL)',
+            self::Montant => 'Montant (€)',
+            self::Pourcentage => 'Pourcentage',
         };
     }
 
     /** Ce type nécessite-t-il une liste d'options (config.options) ? */
     public function needsOptions(): bool
     {
-        return $this === self::Select || $this === self::Statut;
+        return in_array($this, [self::Select, self::Statut, self::MultiSelect], true);
+    }
+
+    /** Le type stocke-t-il un tableau de valeurs (JSONB liste) ? */
+    public function estMultiple(): bool
+    {
+        return $this === self::MultiSelect;
     }
 
     /** @return array<string, string> valeur => libellé, pour un select Filament. */

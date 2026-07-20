@@ -16,6 +16,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TagsInput;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\TimePicker;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Schemas\Components\Grid;
@@ -167,12 +168,12 @@ class CustomFields
                     ->options(CustomFieldType::options())
                     ->default(CustomFieldType::Text->value)
                     ->required()->live(),
-                // Liste déroulante : options simples (valeurs).
+                // Liste déroulante / Multi-sélection : options simples (valeurs).
                 TagsInput::make('options')
                     ->label('Options de la liste')
                     ->placeholder('Ajouter une option…')
-                    ->visible(fn (Get $get): bool => $get('type') === CustomFieldType::Select->value)
-                    ->required(fn (Get $get): bool => $get('type') === CustomFieldType::Select->value)
+                    ->visible(fn (Get $get): bool => in_array($get('type'), [CustomFieldType::Select->value, CustomFieldType::MultiSelect->value], true))
+                    ->required(fn (Get $get): bool => in_array($get('type'), [CustomFieldType::Select->value, CustomFieldType::MultiSelect->value], true))
                     ->columnSpanFull(),
                 // Statut : chaque option a un libellé ET une couleur choisie.
                 Repeater::make('options_statut')
@@ -235,7 +236,7 @@ class CustomFields
                 'id' => $d->id,
                 'label' => $d->label,
                 'type' => $d->type->value,
-                'options' => $d->type === CustomFieldType::Select ? ($d->config['options'] ?? []) : [],
+                'options' => in_array($d->type, [CustomFieldType::Select, CustomFieldType::MultiSelect], true) ? ($d->config['options'] ?? []) : [],
                 'options_statut' => $d->type === CustomFieldType::Statut
                     ? collect($d->config['options'] ?? [])->map(fn ($o): array => [
                         'valeur' => $o,
@@ -312,7 +313,7 @@ class CustomFields
 
             $type = $ligne['type'] ?? CustomFieldType::Text->value;
             $config = match ($type) {
-                CustomFieldType::Select->value => [
+                CustomFieldType::Select->value, CustomFieldType::MultiSelect->value => [
                     'options' => collect($ligne['options'] ?? [])->map(fn ($o) => trim((string) $o))->filter()->unique()->values()->all(),
                 ],
                 CustomFieldType::Statut->value => self::configStatut(
@@ -755,27 +756,39 @@ class CustomFields
         return $definitions->map(function (CustomFieldDefinition $def) use ($prefixe, $peutEditer) {
             $chemin = "{$prefixe}.{$def->key}";
 
-            if ($peutEditer) {
-                return self::colonneEditable($def, $chemin)
-                    ->toggleable(isToggledHiddenByDefault: ! $def->visible_table);
-            }
+            // Multi-sélection non éditable en ligne (contrôle multiple) → lecture.
+            $inline = $peutEditer && $def->type !== CustomFieldType::MultiSelect;
 
-            $colonne = match ($def->type) {
-                CustomFieldType::Boolean => IconColumn::make($chemin)->label($def->label)->boolean(),
-                CustomFieldType::Date => TextColumn::make($chemin)->label($def->label)->date('d/m/Y'),
-                CustomFieldType::Select => TextColumn::make($chemin)->label($def->label)->badge()->color('gray'),
-                CustomFieldType::Statut => TextColumn::make($chemin)->label($def->label)->badge()
-                    ->color(fn (?string $state): string => self::couleurStatut($def, $state)),
-                CustomFieldType::Utilisateur => TextColumn::make($chemin)->label($def->label)
-                    ->formatStateUsing(fn ($state): ?string => filled($state) ? (User::find($state)?->name ?? '—') : null),
-                CustomFieldType::Number => TextColumn::make($chemin)->label($def->label)->numeric(),
-                default => TextColumn::make($chemin)->label($def->label),
-            };
+            $colonne = $inline
+                ? self::colonneEditable($def, $chemin)
+                : self::colonneLecture($def, $chemin);
 
-            return $colonne
-                ->toggleable(isToggledHiddenByDefault: ! $def->visible_table)
-                ->placeholder('—');
+            return $colonne->toggleable(isToggledHiddenByDefault: ! $def->visible_table);
         })->all();
+    }
+
+    /** Colonne de tableau en LECTURE SEULE, adaptée au type. */
+    private static function colonneLecture(CustomFieldDefinition $def, string $chemin): Column
+    {
+        return match ($def->type) {
+            CustomFieldType::Boolean => IconColumn::make($chemin)->label($def->label)->boolean(),
+            CustomFieldType::Date => TextColumn::make($chemin)->label($def->label)->date('d/m/Y')->placeholder('—'),
+            CustomFieldType::Heure => TextColumn::make($chemin)->label($def->label)->placeholder('—'),
+            CustomFieldType::Select => TextColumn::make($chemin)->label($def->label)->badge()->color('gray')->placeholder('—'),
+            CustomFieldType::MultiSelect => TextColumn::make($chemin)->label($def->label)->badge()->color('gray')->placeholder('—'),
+            CustomFieldType::Statut => TextColumn::make($chemin)->label($def->label)->badge()
+                ->color(fn (?string $state): string => self::couleurStatut($def, $state))->placeholder('—'),
+            CustomFieldType::Utilisateur => TextColumn::make($chemin)->label($def->label)
+                ->formatStateUsing(fn ($state): ?string => filled($state) ? (User::find($state)?->name ?? '—') : null)->placeholder('—'),
+            CustomFieldType::Number => TextColumn::make($chemin)->label($def->label)->numeric()->placeholder('—'),
+            CustomFieldType::Montant => TextColumn::make($chemin)->label($def->label)->money('eur')->placeholder('—'),
+            CustomFieldType::Pourcentage => TextColumn::make($chemin)->label($def->label)->numeric()->suffix(' %')->placeholder('—'),
+            CustomFieldType::Email => TextColumn::make($chemin)->label($def->label)->icon('heroicon-o-envelope')->copyable()->placeholder('—'),
+            CustomFieldType::Telephone => TextColumn::make($chemin)->label($def->label)->icon('heroicon-o-phone')->copyable()->placeholder('—'),
+            CustomFieldType::Url => TextColumn::make($chemin)->label($def->label)->icon('heroicon-o-link')->color('primary')
+                ->url(fn ($state): ?string => filled($state) ? (string) $state : null)->openUrlInNewTab()->placeholder('—'),
+            default => TextColumn::make($chemin)->label($def->label)->placeholder('—'),
+        };
     }
 
     /**
@@ -798,8 +811,12 @@ class CustomFields
             CustomFieldType::Select => SelectColumn::make($chemin)->label($def->label)->options(self::optionsListe($def)),
             CustomFieldType::Statut => SelectColumn::make($chemin)->label($def->label)->options(self::optionsListe($def)),
             CustomFieldType::Utilisateur => SelectColumn::make($chemin)->label($def->label)->options(self::optionsUtilisateurs()),
-            CustomFieldType::Number => TextInputColumn::make($chemin)->label($def->label)->type('number'),
+            CustomFieldType::Number, CustomFieldType::Montant, CustomFieldType::Pourcentage => TextInputColumn::make($chemin)->label($def->label)->type('number'),
             CustomFieldType::Date => TextInputColumn::make($chemin)->label($def->label)->type('date'),
+            CustomFieldType::Heure => TextInputColumn::make($chemin)->label($def->label)->type('time'),
+            CustomFieldType::Email => TextInputColumn::make($chemin)->label($def->label)->type('email'),
+            CustomFieldType::Telephone => TextInputColumn::make($chemin)->label($def->label)->type('tel'),
+            CustomFieldType::Url => TextInputColumn::make($chemin)->label($def->label)->type('url'),
             default => TextInputColumn::make($chemin)->label($def->label),
         };
 
@@ -823,11 +840,19 @@ class CustomFields
             CustomFieldType::Textarea => Textarea::make($chemin)->label($def->label)->rows(3),
             CustomFieldType::Number => TextInput::make($chemin)->label($def->label)->numeric(),
             CustomFieldType::Date => DatePicker::make($chemin)->label($def->label)->displayFormat('d/m/Y')->native(false),
+            CustomFieldType::Heure => TimePicker::make($chemin)->label($def->label)->seconds(false),
             CustomFieldType::Boolean => Toggle::make($chemin)->label($def->label),
             CustomFieldType::Select => self::selectCreable($chemin, $def),
             CustomFieldType::Statut => self::selectCreable($chemin, $def),
+            CustomFieldType::MultiSelect => Select::make($chemin)->label($def->label)
+                ->multiple()->options(self::optionsListe($def))->native(false),
             CustomFieldType::Utilisateur => Select::make($chemin)->label($def->label)
                 ->options(self::optionsUtilisateurs())->searchable()->native(false),
+            CustomFieldType::Email => TextInput::make($chemin)->label($def->label)->email()->maxLength(255),
+            CustomFieldType::Telephone => TextInput::make($chemin)->label($def->label)->tel()->maxLength(30),
+            CustomFieldType::Url => TextInput::make($chemin)->label($def->label)->url()->maxLength(500),
+            CustomFieldType::Montant => TextInput::make($chemin)->label($def->label)->numeric()->prefix('€'),
+            CustomFieldType::Pourcentage => TextInput::make($chemin)->label($def->label)->numeric()->suffix('%')->minValue(0)->maxValue(100),
         };
 
         // Obligatoire (sauf Oui/Non, où « requis » n'a pas de sens), validation par
@@ -871,6 +896,19 @@ class CustomFields
             if (filled($v['max'] ?? null)) {
                 $rules[] = 'max:'.$v['max'];
             }
+        }
+
+        // Règle de format selon le type (e-mail, URL, numérique, heure).
+        $format = match ($def->type) {
+            CustomFieldType::Email => 'email',
+            CustomFieldType::Url => 'url',
+            CustomFieldType::Montant, CustomFieldType::Pourcentage => 'numeric',
+            CustomFieldType::Heure => 'date_format:H:i',
+            default => null,
+        };
+
+        if ($format !== null) {
+            $rules[] = $format;
         }
 
         return $rules;

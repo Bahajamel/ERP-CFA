@@ -63,6 +63,30 @@
                                 <input type="date" id="{{ $def->key }}" name="{{ $nom }}" value="{{ old($cle) }}"
                                     class="mt-1 w-full rounded-lg border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                                 @break
+                            @case('time')
+                                <input type="time" id="{{ $def->key }}" name="{{ $nom }}" value="{{ old($cle) }}"
+                                    class="mt-1 w-full rounded-lg border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                @break
+                            @case('email')
+                                <input type="email" id="{{ $def->key }}" name="{{ $nom }}" value="{{ old($cle) }}" maxlength="255"
+                                    class="mt-1 w-full rounded-lg border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                @break
+                            @case('phone')
+                                <input type="tel" id="{{ $def->key }}" name="{{ $nom }}" value="{{ old($cle) }}" maxlength="30"
+                                    class="mt-1 w-full rounded-lg border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                @break
+                            @case('url')
+                                <input type="url" id="{{ $def->key }}" name="{{ $nom }}" value="{{ old($cle) }}" maxlength="500" placeholder="https://…"
+                                    class="mt-1 w-full rounded-lg border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                @break
+                            @case('amount')
+                                <input type="number" step="0.01" id="{{ $def->key }}" name="{{ $nom }}" value="{{ old($cle) }}" placeholder="€"
+                                    class="mt-1 w-full rounded-lg border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                @break
+                            @case('percent')
+                                <input type="number" step="any" min="0" max="100" id="{{ $def->key }}" name="{{ $nom }}" value="{{ old($cle) }}"
+                                    class="mt-1 w-full rounded-lg border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                @break
                             @case('select')
                             @case('statut')
                                 <select id="{{ $def->key }}" name="{{ $nom }}"
@@ -72,6 +96,19 @@
                                         <option value="{{ $opt }}" @selected(old($cle) === $opt)>{{ $opt }}</option>
                                     @endforeach
                                 </select>
+                                @break
+                            @case('multiselect')
+                                @php $choisies = (array) old($cle, []); @endphp
+                                <div class="mt-1 grid gap-1.5 sm:grid-cols-2">
+                                    @foreach (($def->config['options'] ?? []) as $opt)
+                                        <label class="flex items-center gap-2 text-sm text-slate-700">
+                                            <input type="checkbox" name="champs[{{ $def->key }}][]" value="{{ $opt }}"
+                                                @checked(in_array($opt, $choisies))
+                                                class="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
+                                            {{ $opt }}
+                                        </label>
+                                    @endforeach
+                                </div>
                                 @break
                             @default
                                 <input type="text" id="{{ $def->key }}" name="{{ $nom }}" value="{{ old($cle) }}" maxlength="255"

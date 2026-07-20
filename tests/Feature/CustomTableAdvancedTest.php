@@ -33,6 +33,26 @@ it('propose les nouveaux types Statut et Utilisateur', function () {
         ->and(CustomFieldType::Utilisateur->needsOptions())->toBeFalse();
 });
 
+it('gère les types de colonnes avancés (email, tél, url, montant, %, heure, multi-sélection)', function () {
+    $table = CustomTable::create(['name' => 'Avancé']);
+    CustomFields::synchroniserTableau($table->id, [
+        ['label' => 'Email', 'type' => 'email'],
+        ['label' => 'Tel', 'type' => 'phone'],
+        ['label' => 'Site', 'type' => 'url'],
+        ['label' => 'Prix', 'type' => 'amount'],
+        ['label' => 'Taux', 'type' => 'percent'],
+        ['label' => 'Heure', 'type' => 'time'],
+        ['label' => 'Tags', 'type' => 'multiselect', 'options' => ['A', 'B']],
+    ]);
+    $defs = CustomFields::definitionsTableau($table->id);
+
+    expect(CustomFields::champs($defs, 'data'))->toHaveCount(7)
+        ->and(CustomFields::colonnes($defs, 'data'))->toHaveCount(7)
+        ->and($defs->firstWhere('label', 'Tags')->config['options'])->toBe(['A', 'B'])
+        ->and(CustomFields::reglesValidation($defs->firstWhere('label', 'Email')))->toContain('email')
+        ->and(CustomFields::reglesValidation($defs->firstWhere('label', 'Heure')))->toContain('date_format:H:i');
+});
+
 it('mémorise et recharge la couleur choisie par option de statut', function () {
     $table = CustomTable::create(['name' => 'Suivi']);
     CustomFields::synchroniserTableau($table->id, [
