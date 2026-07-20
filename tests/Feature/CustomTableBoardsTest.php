@@ -322,6 +322,29 @@ it('n\'expose pas les colonnes Relation dans le formulaire public', function () 
         ->assertDontSee('Entreprise liée'); // relation masquée au public
 });
 
+it('réordonne les lignes par glisser-déposer (ordre manuel façon Monday)', function () {
+    [$table, $cleNom] = tableauAvecStatut();
+
+    $a = CustomRecord::create(['custom_table_id' => $table->id, 'data' => [$cleNom => 'A']]);
+    $b = CustomRecord::create(['custom_table_id' => $table->id, 'data' => [$cleNom => 'B']]);
+    $c = CustomRecord::create(['custom_table_id' => $table->id, 'data' => [$cleNom => 'C']]);
+
+    // Ajoutées en fin de tableau, dans l'ordre de création.
+    expect([$a->position, $b->position, $c->position])->toBe([1, 2, 3]);
+
+    // Glisser pour inverser : C, B, A.
+    Livewire::test(BoardCustomTable::class, ['record' => $table->id])
+        ->call('reorderTable', [$c->id, $b->id, $a->id]);
+
+    $ordre = CustomRecord::withoutGlobalScopes()
+        ->where('custom_table_id', $table->id)
+        ->orderBy('position')
+        ->pluck('id')
+        ->all();
+
+    expect($ordre)->toBe([$c->id, $b->id, $a->id]);
+});
+
 it('exporte les lignes du tableau en CSV', function () {
     [$table, $cleNom, $cleStatut] = tableauAvecStatut();
     CustomRecord::create(['custom_table_id' => $table->id, 'data' => [$cleNom => 'Léa', $cleStatut => 'Nouveau']]);

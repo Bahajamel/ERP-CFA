@@ -49,6 +49,13 @@ class CustomRecord extends Model
                 $record->created_by = auth()->id();
             }
             $record->updated_by ??= auth()->id();
+
+            // Nouvelle ligne ajoutée en fin de tableau (ordre manuel façon Monday).
+            if (blank($record->position) && filled($record->custom_table_id)) {
+                $record->position = (int) static::withoutGlobalScopes()
+                    ->where('custom_table_id', $record->custom_table_id)
+                    ->max('position') + 1;
+            }
         });
 
         static::updating(function (CustomRecord $record): void {

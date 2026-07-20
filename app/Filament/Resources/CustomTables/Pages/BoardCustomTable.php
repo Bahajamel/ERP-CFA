@@ -297,6 +297,10 @@ class BoardCustomTable extends Page implements HasTable
             $colonnesDynamiques[0]->searchable(query: fn (Builder $query, string $search): Builder => $query->whereRaw('CAST(data AS TEXT) LIKE ?', ['%'.$search.'%']));
         }
 
+        // Glisser-déposer des lignes (ordre manuel façon Monday) : réservé aux
+        // profils qui peuvent modifier les lignes.
+        $peutReordonner = Auth::user()?->can('custom_records.update') ?? false;
+
         return $table
             ->query(fn (): Builder => CustomRecord::query()->where('custom_table_id', $record->getKey()))
             ->columns([
@@ -308,6 +312,8 @@ class BoardCustomTable extends Page implements HasTable
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->reorderableColumns()
+            // Poignée de glissement des lignes (met à jour la colonne « position »).
+            ->reorderable('position', $peutReordonner)
             ->filters(CustomFields::filtres($colonnes, 'data'))
             // Groupes repliables (façon Monday) par colonne Statut/Liste.
             ->groups(CustomFields::groupes($colonnes, 'data'))
@@ -338,7 +344,9 @@ class BoardCustomTable extends Page implements HasTable
                         ->visible(fn (): bool => Auth::user()?->can('custom_records.delete') ?? false),
                 ]),
             ])
-            ->defaultSort('created_at', 'desc')
+            // Ordre manuel (glisser-déposer) par défaut ; retomber sur l'id garde
+            // un ordre stable quand les positions sont égales.
+            ->defaultSort('position', 'asc')
             ->emptyStateIcon('heroicon-o-plus-circle')
             ->emptyStateHeading($colonnes->isEmpty() ? 'Définissez d\'abord des colonnes' : 'Aucune ligne')
             ->emptyStateDescription($colonnes->isEmpty()
