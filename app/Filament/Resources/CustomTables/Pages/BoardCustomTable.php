@@ -92,10 +92,6 @@ class BoardCustomTable extends Page implements HasTable
                         ->content(fn () => view('filament.candidature-lien', ['lien' => $record->lienCandidature()])),
                 ]),
 
-            // Ajouter / gérer les colonnes directement depuis le board.
-            CustomFields::gererActionTableau($record->getKey(), 'gererColonnes')
-                ->visible(fn (): bool => Auth::user()?->can('update', $record) ?? false),
-
             Action::make('configurer')
                 ->label('Configurer')
                 ->icon('heroicon-o-cog-6-tooth')
@@ -178,6 +174,9 @@ class BoardCustomTable extends Page implements HasTable
                     ->using(fn (array $data): CustomRecord => CustomRecord::create(
                         $data + ['custom_table_id' => $record->getKey()],
                     )),
+                // « Ajouter une colonne » placé juste à côté de « Ajouter une ligne ».
+                CustomFields::gererActionTableau($record->getKey(), 'gererColonnes')
+                    ->visible(fn (): bool => Auth::user()?->can('update', $record) ?? false),
                 $this->vuesAction(),
             ])
             ->recordActions([
