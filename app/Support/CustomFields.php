@@ -23,7 +23,10 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Tables\Columns\Column;
 use Filament\Tables\Columns\IconColumn;
+use Filament\Tables\Columns\SelectColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Columns\TextInputColumn;
+use Filament\Tables\Columns\ToggleColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -742,10 +745,19 @@ class CustomFields
     }
 
     /** Colonnes de tableau pour un jeu de définitions, préfixées. */
-    public static function colonnes(Collection $definitions, string $prefixe): array
+    public static function colonnes(Collection $definitions, string $prefixe, bool $editable = false): array
     {
-        return $definitions->map(function (CustomFieldDefinition $def) use ($prefixe) {
+        // Édition inline (façon Monday) : uniquement si demandée ET si l'utilisateur
+        // peut modifier les lignes — sinon colonnes en lecture seule.
+        $peutEditer = $editable && (auth()->user()?->can('custom_records.update') ?? false);
+
+        return $definitions->map(function (CustomFieldDefinition $def) use ($prefixe, $peutEditer) {
             $chemin = "{$prefixe}.{$def->key}";
+
+            if ($peutEditer) {
+                return self::colonneEditable($def, $chemin)
+                    ->toggleable(isToggledHiddenByDefault: ! $def->visible_table);
+            }
 
             $colonne = match ($def->type) {
                 CustomFieldType::Boolean => IconColumn::make($chemin)->label($def->label)->boolean(),
@@ -763,6 +775,42 @@ class CustomFields
                 ->toggleable(isToggledHiddenByDefault: ! $def->visible_table)
                 ->placeholder('—');
         })->all();
+    }
+
+    /**
+     * Colonne ÉDITABLE en ligne (clic sur la cellule) : lit/écrit directement la
+     * valeur dans le JSONB de la ligne ({préfixe}.{clé}). Le type de contrôle
+     * dépend du type de colonne (texte, nombre, date, oui/non, liste, statut…).
+     */
+    private static function colonneEditable(CustomFieldDefinition $def, string $chemin): Column
+    {
+        $cle = $def->key;
+        $lire = fn ($record) => data_get($record->data, $cle);
+        $ecrire = function ($record, $state) use ($cle): void {
+            $data = $record->data ?? [];
+            $data[$cle] = $state;
+            $record->update(['data' => $data]);
+        };
+
+        $colonne = match ($def->type) {
+            CustomFieldType::Boolean => ToggleColumn::make($chemin)->label($def->label),
+            CustomFieldType::Select => SelectColumn::make($chemin)->label($def->label)->options(self::optionsListe($def)),
+            CustomFieldType::Statut => SelectColumn::make($chemin)->label($def->label)->options(self::optionsListe($def)),
+            CustomFieldType::Utilisateur => SelectColumn::make($chemin)->label($def->label)->options(self::optionsUtilisateurs()),
+            CustomFieldType::Number => TextInputColumn::make($chemin)->label($def->label)->type('number'),
+            CustomFieldType::Date => TextInputColumn::make($chemin)->label($def->label)->type('date'),
+            default => TextInputColumn::make($chemin)->label($def->label),
+        };
+
+        $regles = self::reglesValidation($def);
+        if ($def->is_required && $def->type !== CustomFieldType::Boolean) {
+            $regles[] = 'required';
+        }
+        if ($regles !== [] && method_exists($colonne, 'rules')) {
+            $colonne->rules($regles);
+        }
+
+        return $colonne->getStateUsing($lire)->updateStateUsing($ecrire);
     }
 
     private static function champ(CustomFieldDefinition $def, string $prefixe)

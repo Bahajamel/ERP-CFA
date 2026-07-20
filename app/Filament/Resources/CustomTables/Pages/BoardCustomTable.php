@@ -174,8 +174,8 @@ class BoardCustomTable extends Page implements HasTable
         $record = $this->getRecord();
         $colonnes = $record->colonnes;
 
-        // Colonnes dynamiques + recherche globale sur le JSONB (portable).
-        $colonnesDynamiques = CustomFields::colonnes($colonnes, 'data');
+        // Colonnes dynamiques ÉDITABLES en ligne (façon Monday) + recherche globale.
+        $colonnesDynamiques = CustomFields::colonnes($colonnes, 'data', editable: true);
         if ($colonnesDynamiques !== []) {
             $colonnesDynamiques[0]->searchable(query: fn (Builder $query, string $search): Builder => $query->whereRaw('CAST(data AS TEXT) LIKE ?', ['%'.$search.'%']));
         }

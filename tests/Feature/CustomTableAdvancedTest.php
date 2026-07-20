@@ -9,6 +9,10 @@ use App\Models\User;
 use App\Support\CustomFields;
 use Database\Seeders\RolePermissionSeeder;
 use Filament\Facades\Filament;
+use Filament\Tables\Columns\SelectColumn;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Columns\TextInputColumn;
+use Filament\Tables\Columns\ToggleColumn;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Activitylog\Models\Activity;
 
@@ -63,6 +67,29 @@ it('construit un filtre par colonne Liste/Statut (et aucun pour les autres types
 
     // Statut + Select => 2 filtres ; Texte et Utilisateur => aucun.
     expect(CustomFields::filtres($defs, 'data'))->toHaveCount(2);
+});
+
+it('construit des colonnes éditables en ligne sur le board (et lecture seule sans droit)', function () {
+    $table = CustomTable::create(['name' => 'Suivi']);
+    CustomFields::synchroniserTableau($table->id, [
+        ['label' => 'Nom', 'type' => 'text'],
+        ['label' => 'Statut', 'type' => 'statut', 'options_statut' => [['valeur' => 'A', 'couleur' => 'gray']]],
+        ['label' => 'OK', 'type' => 'boolean'],
+    ]);
+    $defs = CustomFields::definitionsTableau($table->id);
+
+    // Administrateur (custom_records.update) → colonnes éditables.
+    $cols = CustomFields::colonnes($defs, 'data', editable: true);
+    expect($cols[0])->toBeInstanceOf(TextInputColumn::class)
+        ->and($cols[1])->toBeInstanceOf(SelectColumn::class)
+        ->and($cols[2])->toBeInstanceOf(ToggleColumn::class);
+
+    // Rôle sans droit de modifier les lignes → lecture seule.
+    $formateur = User::factory()->create(['is_active' => true]);
+    $formateur->syncRoles('Formateur');
+    $this->actingAs($formateur);
+    $lecture = CustomFields::colonnes($defs, 'data', editable: true);
+    expect($lecture[0])->toBeInstanceOf(TextColumn::class);
 });
 
 it('génère champs et colonnes pour Statut et Utilisateur sans erreur', function () {
