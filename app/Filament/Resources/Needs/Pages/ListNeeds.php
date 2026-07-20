@@ -11,6 +11,7 @@ use App\Prospecting\AddressGeocoder;
 use App\Prospecting\LaBonneAlternanceClient;
 use App\Prospecting\ProspectionService;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\CreateAction;
 use Filament\Actions\ExportAction;
 use Filament\Forms\Components\DatePicker;
@@ -88,19 +89,27 @@ class ListNeeds extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
+            // Boutons directs : action principale + bascule de vue. Le reste est
+            // regroupé dans un menu « Actions » (⋯) pour ne pas saturer l'écran.
+            CreateAction::make(),
             Action::make('pipeline')
                 ->label('Vue Pipeline')
                 ->icon(Heroicon::OutlinedViewColumns)
                 ->color('gray')
                 ->url(NeedResource::getUrl('kanban')),
-            CreateAction::make(),
-            $this->prospecterAction(),
-            ExportAction::make()
-                ->label('Exporter')
-                ->icon('heroicon-o-arrow-down-tray')
-                ->color('gray')
-                ->exporter(NeedExporter::class)
-                ->visible(fn (): bool => Auth::user()?->can('access_reports') ?? false),
+            ActionGroup::make([
+                $this->prospecterAction(),
+                ExportAction::make()
+                    ->label('Exporter')
+                    ->icon('heroicon-o-arrow-down-tray')
+                    ->color('gray')
+                    ->exporter(NeedExporter::class)
+                    ->visible(fn (): bool => Auth::user()?->can('access_reports') ?? false),
+            ])
+                ->label('Actions')
+                ->icon('heroicon-o-ellipsis-horizontal')
+                ->button()
+                ->color('gray'),
         ];
     }
 

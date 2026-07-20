@@ -10,6 +10,7 @@ use App\Models\Candidate;
 use App\Models\CustomTable;
 use App\Support\CustomFields;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\CreateAction;
 use Filament\Actions\ExportAction;
 use Filament\Forms\Components\Placeholder;
@@ -96,32 +97,40 @@ class ListCandidates extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
+            // Boutons directs : action principale + bascule de vue. Le reste est
+            // regroupé dans un menu « Actions » (⋯) pour ne pas saturer l'écran.
+            CreateAction::make()
+                ->label('Créer un candidat'),
             Action::make('pipeline')
                 ->label('Vue Pipeline')
                 ->icon(Heroicon::OutlinedViewColumns)
                 ->color('gray')
                 ->url(CandidateResource::getUrl('kanban')),
-            CreateAction::make()
-                ->label('Créer un candidat'),
-            Action::make('lienCandidature')
-                ->label('Lien de candidature')
-                ->icon('heroicon-o-link')
-                ->color('gray')
-                ->modalHeading('Lien du formulaire de candidature')
-                ->modalDescription('Envoyez ce lien à un candidat : il dépose son dossier et ses pièces sans accès à l\'ERP.')
-                ->modalSubmitAction(false)
-                ->modalCancelActionLabel('Fermer')
-                ->schema([
-                    Placeholder::make('outil')
-                        ->hiddenLabel()
-                        ->content(fn () => view('filament.candidature-lien', ['lien' => route('candidature.create')])),
-                ]),
-            ExportAction::make()
-                ->label('Exporter')
-                ->icon('heroicon-o-arrow-down-tray')
-                ->color('gray')
-                ->exporter(CandidateExporter::class)
-                ->visible(fn (): bool => Auth::user()?->can('access_reports') ?? false),
+            ActionGroup::make([
+                Action::make('lienCandidature')
+                    ->label('Lien de candidature')
+                    ->icon('heroicon-o-link')
+                    ->color('gray')
+                    ->modalHeading('Lien du formulaire de candidature')
+                    ->modalDescription('Envoyez ce lien à un candidat : il dépose son dossier et ses pièces sans accès à l\'ERP.')
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Fermer')
+                    ->schema([
+                        Placeholder::make('outil')
+                            ->hiddenLabel()
+                            ->content(fn () => view('filament.candidature-lien', ['lien' => route('candidature.create')])),
+                    ]),
+                ExportAction::make()
+                    ->label('Exporter')
+                    ->icon('heroicon-o-arrow-down-tray')
+                    ->color('gray')
+                    ->exporter(CandidateExporter::class)
+                    ->visible(fn (): bool => Auth::user()?->can('access_reports') ?? false),
+            ])
+                ->label('Actions')
+                ->icon('heroicon-o-ellipsis-horizontal')
+                ->button()
+                ->color('gray'),
         ];
     }
 

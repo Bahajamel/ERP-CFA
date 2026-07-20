@@ -8,6 +8,7 @@ use App\Filament\Resources\Companies\Tables\CompaniesTable;
 use App\Filament\Resources\Needs\NeedResource;
 use App\Models\Company;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\CreateAction;
 use Filament\Actions\ExportAction;
 use Filament\Forms\Components\Placeholder;
@@ -84,31 +85,39 @@ class ListCompanies extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
+            // Boutons directs : action principale + bascule de vue. Le reste est
+            // regroupé dans un menu « Actions » (⋯) pour ne pas saturer l'écran.
+            CreateAction::make(),
             Action::make('vueBesoins')
                 ->label('Vue besoins')
                 ->icon(Heroicon::OutlinedBriefcase)
                 ->color('gray')
                 ->url(NeedResource::getUrl()),
-            CreateAction::make(),
-            Action::make('lienEntreprise')
-                ->label('Lien entreprise')
-                ->icon('heroicon-o-link')
-                ->color('gray')
-                ->modalHeading('Lien du formulaire entreprise partenaire')
-                ->modalDescription('Envoyez ce lien à une entreprise : elle s\'enregistre (infos auto-remplies via son SIRET) sans accès à l\'ERP.')
-                ->modalSubmitAction(false)
-                ->modalCancelActionLabel('Fermer')
-                ->schema([
-                    Placeholder::make('outil')
-                        ->hiddenLabel()
-                        ->content(fn () => view('filament.candidature-lien', ['lien' => route('entreprise.create')])),
-                ]),
-            ExportAction::make()
-                ->label('Exporter')
-                ->icon('heroicon-o-arrow-down-tray')
-                ->color('gray')
-                ->exporter(CompanyExporter::class)
-                ->visible(fn (): bool => Auth::user()?->can('access_reports') ?? false),
+            ActionGroup::make([
+                Action::make('lienEntreprise')
+                    ->label('Lien entreprise')
+                    ->icon('heroicon-o-link')
+                    ->color('gray')
+                    ->modalHeading('Lien du formulaire entreprise partenaire')
+                    ->modalDescription('Envoyez ce lien à une entreprise : elle s\'enregistre (infos auto-remplies via son SIRET) sans accès à l\'ERP.')
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Fermer')
+                    ->schema([
+                        Placeholder::make('outil')
+                            ->hiddenLabel()
+                            ->content(fn () => view('filament.candidature-lien', ['lien' => route('entreprise.create')])),
+                    ]),
+                ExportAction::make()
+                    ->label('Exporter')
+                    ->icon('heroicon-o-arrow-down-tray')
+                    ->color('gray')
+                    ->exporter(CompanyExporter::class)
+                    ->visible(fn (): bool => Auth::user()?->can('access_reports') ?? false),
+            ])
+                ->label('Actions')
+                ->icon('heroicon-o-ellipsis-horizontal')
+                ->button()
+                ->color('gray'),
         ];
     }
 }
