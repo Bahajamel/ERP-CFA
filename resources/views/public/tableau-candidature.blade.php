@@ -1,107 +1,100 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ $table->name }}</title>
-    <style>
-        :root { --p: #4f46e5; --ink: #1e293b; --line: #e2e8f0; --muted: #64748b; }
-        * { box-sizing: border-box; }
-        body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-               background: #f1f5f9; color: var(--ink); }
-        .wrap { max-width: 640px; margin: 0 auto; padding: 2.5rem 1.25rem; }
-        .card { background: #fff; border: 1px solid var(--line); border-radius: 1rem;
-                box-shadow: 0 10px 30px -20px rgba(15,23,42,.35); padding: 1.75rem 1.75rem 2rem; }
-        h1 { margin: 0 0 .25rem; font-size: 1.5rem; }
-        .desc { color: var(--muted); margin: 0 0 1.5rem; }
-        .field { margin-bottom: 1.1rem; }
-        label { display: block; font-weight: 600; font-size: .92rem; margin-bottom: .4rem; }
-        .req { color: #ef4444; }
-        input[type=text], input[type=number], input[type=date], textarea, select {
-            width: 100%; padding: .6rem .7rem; border: 1px solid var(--line); border-radius: .55rem;
-            font-size: 1rem; color: var(--ink); background: #fff;
-        }
-        input:focus, textarea:focus, select:focus { outline: 2px solid var(--p); outline-offset: 0; border-color: var(--p); }
-        textarea { min-height: 5rem; resize: vertical; }
-        .check { display: flex; align-items: center; gap: .5rem; }
-        .check input { width: 1.1rem; height: 1.1rem; }
-        .err { color: #ef4444; font-size: .82rem; margin-top: .3rem; }
-        .hp { position: absolute; left: -9999px; }
-        button { width: 100%; margin-top: .5rem; padding: .8rem; border: 0; border-radius: .6rem;
-                 background: var(--p); color: #fff; font-size: 1rem; font-weight: 700; cursor: pointer; }
-        button:hover { background: #4338ca; }
-        .foot { text-align: center; color: var(--muted); font-size: .8rem; margin-top: 1.25rem; }
-    </style>
-</head>
-<body>
-    <div class="wrap">
-        <div class="card">
-            <h1>{{ $table->name }}</h1>
-            <p class="desc">
-                {{ $table->description ?: 'Remplissez ce formulaire, vos informations seront transmises directement.' }}
-            </p>
+@extends('public.layout')
 
-            @if ($errors->any())
-                <div class="err" style="margin-bottom:1rem">Merci de corriger les champs signalés ci-dessous.</div>
-            @endif
+@php
+    $badge = match ($table->context) {
+        'candidate' => 'CFA · Candidature',
+        'company' => 'CFA · Entreprise partenaire',
+        'need' => 'CFA · Offre',
+        default => 'CFA',
+    };
+@endphp
 
-            <form method="POST" action="{{ route('tableau.candidature.store', ['token' => $table->public_token]) }}">
-                @csrf
+@section('title', $table->name)
+@section('badge', $badge)
+@section('heading', $table->name)
+@section('subheading', $table->description)
 
-                {{-- Honeypot anti-bot (invisible). --}}
-                <input type="text" name="website" class="hp" tabindex="-1" autocomplete="off">
+@section('content')
+    <p class="mb-6 text-sm text-slate-500">
+        Les champs marqués <span class="font-semibold text-rose-500">*</span> sont obligatoires.
+    </p>
 
-                @foreach ($colonnes as $def)
-                    @php $nom = "champs[{$def->key}]"; $cle = "champs.{$def->key}"; @endphp
-                    <div class="field">
-                        @if ($def->type->value === 'boolean')
-                            <label class="check">
-                                <input type="checkbox" name="{{ $nom }}" value="1" @checked(old($cle))>
-                                <span>{{ $def->label }} @if ($def->is_required)<span class="req">*</span>@endif</span>
-                            </label>
-                        @else
-                            <label for="{{ $def->key }}">
-                                {{ $def->label }} @if ($def->is_required)<span class="req">*</span>@endif
-                            </label>
-
-                            @switch($def->type->value)
-                                @case('textarea')
-                                    <textarea id="{{ $def->key }}" name="{{ $nom }}">{{ old($cle) }}</textarea>
-                                    @break
-                                @case('number')
-                                    <input type="number" step="any" id="{{ $def->key }}" name="{{ $nom }}" value="{{ old($cle) }}">
-                                    @break
-                                @case('date')
-                                    <input type="date" id="{{ $def->key }}" name="{{ $nom }}" value="{{ old($cle) }}">
-                                    @break
-                                @case('select')
-                                @case('statut')
-                                    <select id="{{ $def->key }}" name="{{ $nom }}">
-                                        <option value="">— Choisir —</option>
-                                        @foreach (($def->config['options'] ?? []) as $opt)
-                                            <option value="{{ $opt }}" @selected(old($cle) === $opt)>{{ $opt }}</option>
-                                        @endforeach
-                                    </select>
-                                    @break
-                                @default
-                                    <input type="text" id="{{ $def->key }}" name="{{ $nom }}" value="{{ old($cle) }}" maxlength="255">
-                            @endswitch
-                        @endif
-
-                        @error($cle)
-                            <div class="err">{{ $message }}</div>
-                        @enderror
-                    </div>
-                @endforeach
-
-                @if ($colonnes->isEmpty())
-                    <p class="desc">Ce formulaire n'a pas encore de champ. Revenez plus tard.</p>
-                @else
-                    <button type="submit">{{ \App\Support\BoardNavigation::boutonEnvoi($table->context) }}</button>
-                @endif
-            </form>
+    @if ($errors->any())
+        <div class="mb-6 rounded-lg bg-rose-50 p-4 text-sm text-rose-700 ring-1 ring-rose-600/10">
+            <p class="font-semibold">Merci de corriger les points suivants :</p>
+            <ul class="mt-1 list-inside list-disc">
+                @foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach
+            </ul>
         </div>
-        <p class="foot">Vos informations sont transmises uniquement à l'organisme concerné.</p>
-    </div>
-</body>
-</html>
+    @endif
+
+    <form method="POST" action="{{ route('tableau.candidature.store', ['token' => $table->public_token]) }}" class="space-y-6">
+        @csrf
+
+        {{-- Honeypot anti-bot (invisible). --}}
+        <div class="hidden" aria-hidden="true">
+            <label>Ne rien saisir ici <input type="text" name="website" tabindex="-1" autocomplete="off"></label>
+        </div>
+
+        <div class="grid gap-4 sm:grid-cols-2">
+            @foreach ($colonnes as $def)
+                @php $nom = "champs[{$def->key}]"; $cle = "champs.{$def->key}"; @endphp
+
+                @if ($def->type->value === 'boolean')
+                    <label class="flex items-start gap-3 rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200 sm:col-span-2">
+                        <input type="checkbox" name="{{ $nom }}" value="1" @checked(old($cle))
+                            class="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
+                        <span class="text-sm text-slate-700">
+                            {{ $def->label }}@if ($def->is_required) <span class="font-semibold text-rose-500">*</span>@endif
+                        </span>
+                    </label>
+                @else
+                    <div @class(['sm:col-span-2' => $def->type->value === 'textarea'])>
+                        <label for="{{ $def->key }}" class="block text-sm font-medium text-slate-700">
+                            {{ $def->label }}@if ($def->is_required) <span class="font-semibold text-rose-500">*</span>@endif
+                        </label>
+
+                        @switch($def->type->value)
+                            @case('textarea')
+                                <textarea id="{{ $def->key }}" name="{{ $nom }}" rows="3"
+                                    class="mt-1 w-full rounded-lg border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">{{ old($cle) }}</textarea>
+                                @break
+                            @case('number')
+                                <input type="number" step="any" id="{{ $def->key }}" name="{{ $nom }}" value="{{ old($cle) }}"
+                                    class="mt-1 w-full rounded-lg border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                @break
+                            @case('date')
+                                <input type="date" id="{{ $def->key }}" name="{{ $nom }}" value="{{ old($cle) }}"
+                                    class="mt-1 w-full rounded-lg border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                @break
+                            @case('select')
+                            @case('statut')
+                                <select id="{{ $def->key }}" name="{{ $nom }}"
+                                    class="mt-1 w-full rounded-lg border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    <option value="">— Choisir —</option>
+                                    @foreach (($def->config['options'] ?? []) as $opt)
+                                        <option value="{{ $opt }}" @selected(old($cle) === $opt)>{{ $opt }}</option>
+                                    @endforeach
+                                </select>
+                                @break
+                            @default
+                                <input type="text" id="{{ $def->key }}" name="{{ $nom }}" value="{{ old($cle) }}" maxlength="255"
+                                    class="mt-1 w-full rounded-lg border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        @endswitch
+
+                        @error($cle)<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
+                    </div>
+                @endif
+            @endforeach
+        </div>
+
+        @if ($colonnes->isEmpty())
+            <p class="text-sm text-slate-500">Ce formulaire n'a pas encore de champ. Revenez plus tard.</p>
+        @else
+            <button type="submit"
+                class="w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                {{ \App\Support\BoardNavigation::boutonEnvoi($table->context) }}
+            </button>
+        @endif
+    </form>
+@endsection
