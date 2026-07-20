@@ -28,7 +28,5 @@ class NullSignatureProvider implements SignatureProvider
         throw new RuntimeException('Signature électronique désactivée (SIGNATURE_DRIVER=none).');
     }
 
-    public function annuler(SignatureRequest $request): void
-    {
-    }
+    public function annuler(SignatureRequest $request): void {}
 }

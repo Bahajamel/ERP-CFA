@@ -406,7 +406,7 @@ class Candidate extends Model implements HasMedia
      * utilisateur) : ces 5 étapes ne connaissent NI le contrat, NI l'OPCO, NI la
      * rupture. L'application porte donc deux définitions concurrentes du
      * parcours — celle-ci, et la timeline à 7 étapes de
-     * {@see \App\Parcours\CycleApprenant::etapes()} (qui, elle, couvre contrat,
+     * {@see CycleApprenant::etapes()} (qui, elle, couvre contrat,
      * OPCO et rupture). Les deux peuvent se contredire sur un même candidat :
      * un apprenti dont le contrat a été rompu s'affiche ici « Matching », comme
      * s'il cherchait encore une entreprise, faute d'étape le concernant.

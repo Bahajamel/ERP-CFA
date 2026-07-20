@@ -4,10 +4,14 @@ namespace App\Filament\Resources\Candidates\Pages;
 
 use App\Enums\EntretienMode;
 use App\Enums\EntretienStatut;
+use App\Enums\TaskStatut;
 use App\Filament\Resources\Candidates\CandidateResource;
 use App\Filament\Resources\Entretiens\EntretienResource;
 use App\Filament\Resources\Matchings\MatchingResource;
+use App\Matching\CompatibilityScorer;
 use App\Models\Candidate;
+use App\Models\Matching;
+use App\Models\Task;
 use App\Parcours\CycleApprenant;
 use App\Support\SecureMedia;
 use Filament\Actions\Action;
@@ -22,6 +26,7 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Illuminate\Support\HtmlString;
 use Illuminate\Validation\ValidationException;
+use Spatie\Activitylog\Models\Activity;
 
 /**
  * Vue 360° « Parcours de l'apprenant » : timeline du cycle (Candidat →
@@ -50,14 +55,14 @@ class ViewCandidate extends ViewRecord
             ['cle' => 'attestation_projet', 'label' => 'Attestation de projet', 'requis' => $c->plusDe30Ans()],
         ])->map(fn (array $p): array => array_merge($p, [
             'present' => $c->getFirstMedia($p['cle']) !== null,
-            'url' => \App\Support\SecureMedia::pour($c, $p['cle']),
+            'url' => SecureMedia::pour($c, $p['cle']),
         ]));
 
         $requis = $pieces->where('requis', true);
         $dossierPct = (int) round($requis->where('present', true)->count() / max(1, $requis->count()) * 100);
 
-        $scorer = new \App\Matching\CompatibilityScorer;
-        $matchings = $c->matchings()->with('need.company')->latest()->get()->map(fn (\App\Models\Matching $m): array => [
+        $scorer = new CompatibilityScorer;
+        $matchings = $c->matchings()->with('need.company')->latest()->get()->map(fn (Matching $m): array => [
             'entreprise' => $m->need?->company?->raison_sociale ?? '—',
             'besoin' => $m->need?->intitule_poste ?? '—',
             'statut' => $m->statut,
@@ -75,12 +80,12 @@ class ViewCandidate extends ViewRecord
             'pieces' => $pieces,
             'matchings' => $matchings,
             'contrat' => $c->contracts()->with(['company', 'opcoFile'])->latest()->first(),
-            'taches' => \App\Models\Task::query()
+            'taches' => Task::query()
                 ->where('taskable_type', $c->getMorphClass())->where('taskable_id', $c->getKey())
-                ->whereNotIn('statut', [\App\Enums\TaskStatut::Terminee->value, \App\Enums\TaskStatut::Annulee->value])
+                ->whereNotIn('statut', [TaskStatut::Terminee->value, TaskStatut::Annulee->value])
                 ->orderBy('due_date')->get(),
             'notes' => $c->notes()->with('author')->latest()->get(),
-            'activites' => \Spatie\Activitylog\Models\Activity::query()
+            'activites' => Activity::query()
                 ->where('subject_type', $c->getMorphClass())->where('subject_id', $c->getKey())
                 ->with('causer')->latest()->limit(6)->get(),
             'etapes' => app(CycleApprenant::class)->etapes($c),

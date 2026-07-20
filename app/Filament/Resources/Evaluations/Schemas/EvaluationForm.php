@@ -5,7 +5,6 @@ namespace App\Filament\Resources\Evaluations\Schemas;
 use App\Enums\EvaluationType;
 use App\Filament\Resources\Seances\Schemas\SeanceForm;
 use App\Models\Candidate;
-use App\Models\Promotion;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;

@@ -3,6 +3,7 @@
 namespace App\Filament\Widgets;
 
 use App\Enums\CandidateStatut;
+use App\Enums\ContractStatut;
 use App\Enums\MatchingStatut;
 use App\Enums\TaskStatut;
 use App\Filament\Resources\Candidates\CandidateResource;
@@ -50,7 +51,7 @@ class CommercialStatsOverview extends StatsOverviewWidget
         $contratsSignes = Candidate::where('commercial_id', $userId)
             ->whereHas('contracts', fn ($q) => $q->whereIn(
                 'statut_contrat',
-                \App\Enums\ContractStatut::signes(),
+                ContractStatut::signes(),
             ))->count();
 
         $besoinsOuverts = Need::query()->ouverts()->count();

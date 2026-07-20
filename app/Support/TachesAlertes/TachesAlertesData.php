@@ -9,6 +9,7 @@ use App\Filament\Resources\Companies\CompanyResource;
 use App\Filament\Resources\Contracts\ContractResource;
 use App\Filament\Resources\OpcoFiles\OpcoFileResource;
 use App\Filament\Resources\QualiopiIndicators\QualiopiIndicatorResource;
+use App\Filament\Resources\Tasks\TaskResource;
 use App\Models\Candidate;
 use App\Models\Company;
 use App\Models\Contract;
@@ -20,6 +21,7 @@ use App\Models\Task;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
 /**
@@ -300,7 +302,7 @@ class TachesAlertesData
         return array_merge($ligne, [
             'description' => $task->description,
             'historique' => $historique,
-            'reassignerUrl' => $this->url(\App\Filament\Resources\Tasks\TaskResource::class, 'edit', $task),
+            'reassignerUrl' => $this->url(TaskResource::class, 'edit', $task),
         ]);
     }
 
@@ -358,7 +360,7 @@ class TachesAlertesData
             else 3 end";
     }
 
-    private function echeanceLabel(?\Illuminate\Support\Carbon $date): string
+    private function echeanceLabel(?Carbon $date): string
     {
         if ($date === null) {
             return '—';

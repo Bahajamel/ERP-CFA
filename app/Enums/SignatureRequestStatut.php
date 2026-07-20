@@ -6,7 +6,7 @@ use Filament\Support\Contracts\HasColor;
 use Filament\Support\Contracts\HasLabel;
 
 /** Cycle de vie d'une demande de signature électronique multi-parties (EPIC-08). */
-enum SignatureRequestStatut: string implements HasLabel, HasColor
+enum SignatureRequestStatut: string implements HasColor, HasLabel
 {
     case Brouillon = 'brouillon';
     case Envoyee = 'envoyee';

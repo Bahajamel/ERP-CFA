@@ -7,6 +7,7 @@ use App\Filament\Resources\Seances\SeanceResource;
 use App\Filament\Widgets\Concerns\HasClickableChart;
 use App\Models\Presence;
 use App\Models\Promotion;
+use Filament\Support\RawJs;
 use Filament\Widgets\ChartWidget;
 
 /**
@@ -110,7 +111,7 @@ class AssiduiteParPromotionChart extends ChartWidget
         );
     }
 
-    protected function getOptions(): \Filament\Support\RawJs
+    protected function getOptions(): RawJs
     {
         return $this->clickableOptions([
             'plugins' => [

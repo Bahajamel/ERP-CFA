@@ -13,6 +13,7 @@ use Filament\Forms\Components\TimePicker;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
+use Illuminate\Support\Collection;
 
 class SeanceForm
 {
@@ -94,7 +95,7 @@ class SeanceForm
     }
 
     /** Les apprenants de la cohorte, par ordre alphabétique. */
-    protected static function apprenantsDe(mixed $promotionId): \Illuminate\Support\Collection
+    protected static function apprenantsDe(mixed $promotionId): Collection
     {
         return Candidate::query()
             ->whereHas('promotions', fn ($q) => $q->whereKey($promotionId))

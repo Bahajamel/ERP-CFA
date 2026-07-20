@@ -10,22 +10,22 @@ class Modules
 {
     /** slug => libellé français */
     public const LIST = [
-        'candidates'  => 'Candidats',
-        'companies'   => 'Entreprises',
-        'needs'       => 'Les offres proposées',
-        'matching'    => 'Matching',
-        'admissions'  => 'Admission',
-        'documents'   => 'Documents',
-        'contracts'   => 'Contrats',
-        'opco'        => 'OPCO',
-        'attendance'  => 'Assiduité',
-        'finance'     => 'Finance',
-        'quality'     => 'Qualité',
-        'ruptures'    => 'Ruptures',
-        'tasks'       => 'Tâches & alertes',
-        'reports'     => 'Exports',
-        'formations'  => 'Formations (référentiel)',
-        'users'       => 'Utilisateurs',
+        'candidates' => 'Candidats',
+        'companies' => 'Entreprises',
+        'needs' => 'Les offres proposées',
+        'matching' => 'Matching',
+        'admissions' => 'Admission',
+        'documents' => 'Documents',
+        'contracts' => 'Contrats',
+        'opco' => 'OPCO',
+        'attendance' => 'Assiduité',
+        'finance' => 'Finance',
+        'quality' => 'Qualité',
+        'ruptures' => 'Ruptures',
+        'tasks' => 'Tâches & alertes',
+        'reports' => 'Exports',
+        'formations' => 'Formations (référentiel)',
+        'users' => 'Utilisateurs',
     ];
 
     public static function slugs(): array

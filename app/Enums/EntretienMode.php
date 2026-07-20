@@ -6,7 +6,7 @@ use Filament\Support\Contracts\HasIcon;
 use Filament\Support\Contracts\HasLabel;
 
 /** Mode de passation d'un entretien candidat. */
-enum EntretienMode: string implements HasLabel, HasIcon
+enum EntretienMode: string implements HasIcon, HasLabel
 {
     case Presentiel = 'presentiel';
     case Telephone = 'telephone';

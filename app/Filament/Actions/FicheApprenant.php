@@ -104,7 +104,7 @@ class FicheApprenant
                         ->send();
 
                     return response()->streamDownload(
-                        fn () => print($generateur->pdf($record)),
+                        fn () => print ($generateur->pdf($record)),
                         'bulletin-'.$record->nom_complet.'.pdf',
                         ['Content-Type' => 'application/pdf'],
                     );

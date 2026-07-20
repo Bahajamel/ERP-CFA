@@ -42,6 +42,7 @@ use App\Models\SignatureRequest;
 use App\Models\Task;
 use App\Models\User;
 use App\Services\SignatureService;
+use Database\Factories\CandidateFactory;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -603,7 +604,7 @@ class DemoSeeder extends Seeder
     /** PDF minimal valide — défini une seule fois, dans la factory. */
     private static function pdfDemo(): string
     {
-        return \Database\Factories\CandidateFactory::pdfDemo();
+        return CandidateFactory::pdfDemo();
     }
 
     /** Attache un CV de démonstration (PDF minimal valide) au candidat. */

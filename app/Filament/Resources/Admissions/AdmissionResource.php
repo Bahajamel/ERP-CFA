@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Admissions;
 
+use App\Enums\AdmissionStatut;
 use App\Filament\Resources\Admissions\Pages\CreateAdmission;
 use App\Filament\Resources\Admissions\Pages\EditAdmission;
 use App\Filament\Resources\Admissions\Pages\ListAdmissions;
@@ -38,7 +39,7 @@ class AdmissionResource extends Resource
     /** Badge de navigation : dossiers encore à vérifier (action attendue). */
     public static function getNavigationBadge(): ?string
     {
-        $n = Admission::query()->where('statut', \App\Enums\AdmissionStatut::AVerifier->value)->count();
+        $n = Admission::query()->where('statut', AdmissionStatut::AVerifier->value)->count();
 
         return $n > 0 ? (string) $n : null;
     }

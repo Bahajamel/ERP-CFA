@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Contracts;
 
+use App\Enums\ContractSignatureStatut;
 use App\Filament\Resources\Contracts\Pages\CreateContract;
 use App\Filament\Resources\Contracts\Pages\EditContract;
 use App\Filament\Resources\Contracts\Pages\ListContracts;
@@ -41,7 +42,7 @@ class ContractResource extends Resource
     public static function getNavigationBadge(): ?string
     {
         $n = Contract::query()
-            ->where('statut_signature', '!=', \App\Enums\ContractSignatureStatut::Signe->value)
+            ->where('statut_signature', '!=', ContractSignatureStatut::Signe->value)
             ->count();
 
         return $n > 0 ? (string) $n : null;

@@ -14,7 +14,7 @@ use Filament\Support\Contracts\HasLabel;
  * candidat à « Entretien prévu » ; « Réalisé » ouvre la décision finale
  * (accepter / refuser le candidat).
  */
-enum EntretienStatut: string implements HasLabel, HasColor, HasIcon, HasStateTransitions
+enum EntretienStatut: string implements HasColor, HasIcon, HasLabel, HasStateTransitions
 {
     use DefinesTransitions;
 

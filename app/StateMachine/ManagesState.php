@@ -3,6 +3,7 @@
 namespace App\StateMachine;
 
 use BackedEnum;
+use Illuminate\Database\Eloquent\Model;
 
 /**
  * À utiliser sur les modèles Eloquent portant un statut à machine à états.
@@ -11,7 +12,7 @@ use BackedEnum;
  * {@see HasStateTransitions}. Par défaut la colonne est « statut » ; un modèle
  * peut la surcharger via stateColumn() (ex. Contract → « statut_contrat »).
  *
- * @mixin \Illuminate\Database\Eloquent\Model
+ * @mixin Model
  */
 trait ManagesState
 {
@@ -93,7 +94,5 @@ trait ManagesState
      * Point d'accroche pour les effets de bord (tâches auto, actions
      * correctives…). À terme relié au moteur de règles (business_rules).
      */
-    protected function afterTransition(BackedEnum $from, BackedEnum $to, ?string $comment): void
-    {
-    }
+    protected function afterTransition(BackedEnum $from, BackedEnum $to, ?string $comment): void {}
 }

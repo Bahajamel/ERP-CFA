@@ -5,7 +5,7 @@ namespace App\Enums;
 use Filament\Support\Contracts\HasColor;
 use Filament\Support\Contracts\HasLabel;
 
-enum TaskStatut: string implements HasLabel, HasColor
+enum TaskStatut: string implements HasColor, HasLabel
 {
     case AFaire = 'a_faire';
     case EnCours = 'en_cours';

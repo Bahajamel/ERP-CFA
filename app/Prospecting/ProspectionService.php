@@ -53,7 +53,7 @@ class ProspectionService
     }
 
     /**
-     * @return array{0: Company, 1: bool}  L'entreprise et un booléen « nouvellement créée ».
+     * @return array{0: Company, 1: bool} L'entreprise et un booléen « nouvellement créée ».
      */
     private function trouverOuCreerEntreprise(RecruitingCompany $prospect): array
     {

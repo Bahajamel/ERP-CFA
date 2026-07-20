@@ -22,7 +22,7 @@ use Filament\Support\Contracts\HasLabel;
  *  - « Rompu » : rupture anticipée du contrat d'apprentissage (piloté par la
  *    section Ruptures, jamais saisi à la main).
  */
-enum ContractStatut: string implements HasLabel, HasColor, HasStateTransitions
+enum ContractStatut: string implements HasColor, HasLabel, HasStateTransitions
 {
     use DefinesTransitions;
 

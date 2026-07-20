@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages\Auth;
 
+use App\Models\User;
 use Filament\Auth\Pages\EditProfile as BaseEditProfile;
 use Filament\Forms\Components\FileUpload;
 use Filament\Schemas\Components\Component;
@@ -12,7 +13,7 @@ use Filament\Schemas\Schema;
  * des champs standard (nom, email, mot de passe, double authentification).
  *
  * La photo est stockée sur le disque « public » (dossier `avatars/`) et exposée
- * ensuite partout par {@see \App\Models\User::getFilamentAvatarUrl()}.
+ * ensuite partout par {@see User::getFilamentAvatarUrl()}.
  */
 class EditProfile extends BaseEditProfile
 {

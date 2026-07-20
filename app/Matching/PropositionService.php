@@ -11,6 +11,7 @@ use App\Models\CompanyContact;
 use App\Models\Matching;
 use App\Models\Need;
 use App\Models\Task;
+use App\Models\User;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Mail;
 
@@ -91,7 +92,7 @@ class PropositionService
             return null;
         }
 
-        $responsable = optional(\App\Models\User::find($data['responsableId'] ?? null))->name;
+        $responsable = optional(User::find($data['responsableId'] ?? null))->name;
 
         Mail::to($contact->email)->send(new PropositionCandidats(
             $need,

@@ -12,7 +12,7 @@ use Filament\Support\Contracts\HasLabel;
  * générés, puis clôturé. (L'accompagnement / reclassement ne fait pas
  * partie du workflow actuel.)
  */
-enum RuptureStatut: string implements HasLabel, HasColor, HasStateTransitions
+enum RuptureStatut: string implements HasColor, HasLabel, HasStateTransitions
 {
     use DefinesTransitions;
 

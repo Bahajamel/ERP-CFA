@@ -12,7 +12,7 @@ use Filament\Support\Contracts\HasLabel;
  * candidat accepté par le CFA avec une entreprise (partenaire ou trouvée
  * par le candidat lui-même). « Accepté » ouvre la création du contrat.
  */
-enum MatchingStatut: string implements HasLabel, HasColor, HasStateTransitions
+enum MatchingStatut: string implements HasColor, HasLabel, HasStateTransitions
 {
     use DefinesTransitions;
 
