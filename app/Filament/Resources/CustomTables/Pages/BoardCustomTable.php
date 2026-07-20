@@ -314,6 +314,14 @@ class BoardCustomTable extends Page implements HasTable
             ->reorderableColumns()
             // Poignée de glissement des lignes (met à jour la colonne « position »).
             ->reorderable('position', $peutReordonner)
+            // Bouton explicite (au lieu de l'icône discrète) : clic → mode
+            // réorganisation, on glisse les lignes, re-clic → terminé.
+            ->reorderRecordsTriggerAction(
+                fn (Action $action, bool $isReordering): Action => $action
+                    ->button()
+                    ->icon('heroicon-o-arrows-up-down')
+                    ->label($isReordering ? 'Terminer le classement' : 'Réorganiser les lignes'),
+            )
             ->filters(CustomFields::filtres($colonnes, 'data'))
             // Groupes repliables (façon Monday) par colonne Statut/Liste.
             ->groups(CustomFields::groupes($colonnes, 'data'))
