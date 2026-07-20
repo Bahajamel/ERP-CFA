@@ -1,5 +1,6 @@
 <?php
 
+use App\Filament\Resources\CustomTables\Pages\BoardCustomTable;
 use App\Filament\Resources\CustomTables\Pages\KanbanCustomTable;
 use App\Models\CustomRecord;
 use App\Models\CustomTable;
@@ -100,4 +101,26 @@ it('affiche le kanban groupé par statut et déplace une carte (change le statut
         ->call('moveCard', $ligne->id, 'Traité');
 
     expect($ligne->fresh()->data[$cleStatut])->toBe('Traité');
+});
+
+it('supprime un tableau depuis le board (mise en corbeille)', function () {
+    [$table] = tableauAvecStatut();
+
+    Livewire::test(BoardCustomTable::class, ['record' => $table->id])
+        ->callAction('supprimer');
+
+    expect(CustomTable::query()->find($table->id))->toBeNull()            // hors des listes
+        ->and(CustomTable::withTrashed()->find($table->id))->not->toBeNull(); // récupérable
+});
+
+it('n\'expose pas la suppression de tableau à un rôle sans le droit', function () {
+    [$table] = tableauAvecStatut();
+
+    // Direction/Commercial n'ont pas custom_tables.delete → action masquée.
+    $direction = User::factory()->create(['is_active' => true]);
+    $direction->syncRoles('Direction');
+    $this->actingAs($direction);
+
+    Livewire::test(BoardCustomTable::class, ['record' => $table->id])
+        ->assertActionHidden('supprimer');
 });

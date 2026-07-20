@@ -6,7 +6,9 @@ use App\Enums\CustomFieldType;
 use App\Filament\Resources\CustomTables\CustomTableResource;
 use App\Models\CustomFieldDefinition;
 use App\Models\CustomRecord;
+use App\Models\CustomTable;
 use App\Models\CustomView;
+use App\Support\BoardNavigation;
 use App\Support\CustomFields;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
@@ -100,7 +102,36 @@ class BoardCustomTable extends Page implements HasTable
                 ->color('gray')
                 ->url(fn (): string => CustomTableResource::getUrl('edit', ['record' => $record]))
                 ->visible(fn (): bool => Auth::user()?->can('update', $record) ?? false),
+
+            // Supprimer le tableau (corbeille) directement depuis le board.
+            Action::make('supprimer')
+                ->label('Supprimer le tableau')
+                ->icon('heroicon-o-trash')
+                ->color('danger')
+                ->visible(fn (): bool => Auth::user()?->can('delete', $record) ?? false)
+                ->requiresConfirmation()
+                ->modalHeading('Supprimer ce tableau ?')
+                ->modalDescription('Le tableau « '.$record->name.' » et ses lignes seront placés en corbeille : '
+                    .'il disparaît de la liste et du sélecteur de tables. Cette action est réversible par un administrateur.')
+                ->modalSubmitActionLabel('Supprimer le tableau')
+                ->action(function () use ($record) {
+                    $record->delete();
+
+                    Notification::make()->success()->title('Tableau supprimé')->send();
+
+                    return redirect($this->urlRetour($record));
+                }),
         ];
+    }
+
+    /** Après suppression : retour au module d'origine, sinon à la liste Administration. */
+    private function urlRetour(CustomTable $record): string
+    {
+        $contextes = BoardNavigation::contextes();
+
+        return isset($contextes[$record->context])
+            ? $contextes[$record->context]['resource']::getUrl('index')
+            : CustomTableResource::getUrl('index');
     }
 
     /**
