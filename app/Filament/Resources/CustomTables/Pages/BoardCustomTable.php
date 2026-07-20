@@ -17,6 +17,7 @@ use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -29,6 +30,8 @@ use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Page « board » d'un tableau personnalisé : affiche DIRECTEMENT les lignes (façon
@@ -119,6 +122,8 @@ class BoardCustomTable extends Page implements HasTable
                     Notification::make()->success()->title('Lien mis à jour')->send();
                 }),
 
+            $this->importExportAction(),
+
             Action::make('configurer')
                 ->label('Configurer')
                 ->icon('heroicon-o-cog-6-tooth')
@@ -155,6 +160,118 @@ class BoardCustomTable extends Page implements HasTable
         return isset($contextes[$record->context])
             ? $contextes[$record->context]['resource']::getUrl('index')
             : CustomTableResource::getUrl('index');
+    }
+
+    /** Groupe d'actions Import / Export CSV des lignes du tableau. */
+    protected function importExportAction(): ActionGroup
+    {
+        $record = $this->getRecord();
+
+        $exporter = Action::make('exporterCsv')
+            ->label('Exporter (CSV)')
+            ->icon('heroicon-o-arrow-down-tray')
+            ->action(fn (): StreamedResponse => $this->exporterCsv($record));
+
+        $importer = Action::make('importerCsv')
+            ->label('Importer (CSV)')
+            ->icon('heroicon-o-arrow-up-tray')
+            ->visible(fn (): bool => $record->colonnes->isNotEmpty()
+                && (Auth::user()?->can('create', CustomRecord::class) ?? false))
+            ->modalHeading('Importer des lignes (CSV)')
+            ->modalDescription('Fichier CSV séparé par « ; », 1re ligne = en-têtes correspondant aux noms de colonnes '
+                .'(colonnes inconnues ignorées). Astuce : exportez d\'abord pour obtenir le bon format.')
+            ->modalSubmitActionLabel('Importer')
+            ->schema([
+                FileUpload::make('fichier')
+                    ->label('Fichier CSV')
+                    ->acceptedFileTypes(['text/csv', 'text/plain', 'application/vnd.ms-excel', 'application/csv'])
+                    ->storeFiles(false)
+                    ->required(),
+            ])
+            ->action(fn (array $data) => $this->importerCsv($record, $data['fichier']));
+
+        return ActionGroup::make([$exporter, $importer])
+            ->label('Import / Export')
+            ->icon('heroicon-o-arrows-up-down')
+            ->button()
+            ->color('gray');
+    }
+
+    public function exporterCsv(CustomTable $record): StreamedResponse
+    {
+        $colonnes = $record->colonnes;
+        $nom = (Str::slug($record->name) ?: 'tableau').'.csv';
+
+        return response()->streamDownload(function () use ($record, $colonnes): void {
+            $sortie = fopen('php://output', 'w');
+            fwrite($sortie, "\xEF\xBB\xBF"); // BOM UTF-8 (Excel)
+            fputcsv($sortie, $colonnes->pluck('label')->all(), ';');
+
+            $record->records()->orderBy('id')->chunk(500, function ($lignes) use ($sortie, $colonnes): void {
+                foreach ($lignes as $ligne) {
+                    fputcsv($sortie, $colonnes->map(function ($def) use ($ligne): string {
+                        $v = data_get($ligne->data, $def->key);
+
+                        return match (true) {
+                            is_array($v) => implode(', ', $v),
+                            $v === true => 'Oui',
+                            $v === false => 'Non',
+                            default => (string) ($v ?? ''),
+                        };
+                    })->all(), ';');
+                }
+            });
+
+            fclose($sortie);
+        }, $nom, ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    private function importerCsv(CustomTable $record, $fichier): void
+    {
+        $compte = $this->importerDepuisChemin($record, $fichier->getRealPath());
+
+        $this->resetTable();
+        Notification::make()->success()->title($compte.' ligne(s) importée(s)')->send();
+    }
+
+    /** Importe les lignes d'un fichier CSV (séparateur « ; »), renvoie le nombre créé. */
+    public function importerDepuisChemin(CustomTable $record, string $chemin): int
+    {
+        $handle = fopen($chemin, 'r');
+        if ($handle === false) {
+            return 0;
+        }
+
+        $entetes = fgetcsv($handle, 0, ';') ?: [];
+        // En-tête (minuscule, nettoyé) => clé de colonne.
+        $parLabel = $record->colonnes->keyBy(fn ($d): string => mb_strtolower(trim($d->label)));
+        $indexCle = [];
+        foreach ($entetes as $i => $entete) {
+            $cle = mb_strtolower(trim(str_replace("\xEF\xBB\xBF", '', (string) $entete)));
+            if ($parLabel->has($cle)) {
+                $indexCle[$i] = $parLabel->get($cle)->key;
+            }
+        }
+
+        $compte = 0;
+        while (($ligne = fgetcsv($handle, 0, ';')) !== false) {
+            $data = [];
+            foreach ($indexCle as $i => $cle) {
+                $valeur = trim(strip_tags((string) ($ligne[$i] ?? '')));
+                if ($valeur !== '') {
+                    $data[$cle] = $valeur;
+                }
+            }
+
+            if ($data !== []) {
+                CustomRecord::create(['custom_table_id' => $record->getKey(), 'data' => $data]);
+                $compte++;
+            }
+        }
+
+        fclose($handle);
+
+        return $compte;
     }
 
     /**

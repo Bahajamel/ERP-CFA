@@ -276,3 +276,33 @@ it('accepte e-mail et multi-sélection via le formulaire public (types avancés)
     expect($ligne->data[$cleEmail])->toBe('a@b.fr')
         ->and($ligne->data[$cleTags])->toBe(['A', 'C']);
 });
+
+it('exporte les lignes du tableau en CSV', function () {
+    [$table, $cleNom, $cleStatut] = tableauAvecStatut();
+    CustomRecord::create(['custom_table_id' => $table->id, 'data' => [$cleNom => 'Léa', $cleStatut => 'Nouveau']]);
+
+    $page = Livewire::test(BoardCustomTable::class, ['record' => $table->id])->instance();
+    $response = $page->exporterCsv($table->refresh());
+
+    ob_start();
+    $response->sendContent();
+    $csv = ob_get_clean();
+
+    expect($csv)->toContain('Nom')->toContain('Statut')->toContain('Léa')->toContain('Nouveau');
+});
+
+it('importe des lignes depuis un CSV (en-têtes = noms de colonnes)', function () {
+    [$table, $cleNom, $cleStatut] = tableauAvecStatut();
+
+    $chemin = tempnam(sys_get_temp_dir(), 'csv');
+    file_put_contents($chemin, "\xEF\xBB\xBF"."Nom;Statut\nLéa;Nouveau\nTom;Traité\n");
+
+    $page = Livewire::test(BoardCustomTable::class, ['record' => $table->id])->instance();
+    $compte = $page->importerDepuisChemin($table->refresh(), $chemin);
+    @unlink($chemin);
+
+    expect($compte)->toBe(2)
+        ->and(CustomRecord::query()->where('custom_table_id', $table->id)->count())->toBe(2)
+        ->and(CustomRecord::query()->where('custom_table_id', $table->id)->get()->pluck("data.{$cleNom}")->all())
+        ->toContain('Léa', 'Tom');
+});
