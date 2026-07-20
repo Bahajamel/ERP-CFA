@@ -59,9 +59,8 @@ class ListNeeds extends ListRecords
 
     public function getSubheading(): ?string
     {
-        return 'Chaque ligne = une offre proposée par une entreprise (poste à pourvoir, formation visée, rythme). '
-            .'Cliquez sur une offre pour ouvrir sa fiche (description, entreprise, candidats). '
-            .'Suivez le recrutement jusqu\'au candidat retenu via la « Vue Pipeline ».';
+        // Sous-titre retiré (gain de place).
+        return null;
     }
 
     /** Active/désactive un filtre rapide (bascule si déjà actif). */

@@ -38,7 +38,8 @@ class ListCompanies extends ListRecords
 
     public function getSubheading(): ?string
     {
-        return 'Gérez les entreprises partenaires, leurs contacts, leurs besoins de recrutement et le suivi du matching avec vos candidats.';
+        // Sous-titre retiré (gain de place).
+        return null;
     }
 
     /** Active/désactive un filtre rapide (bascule si déjà actif). */
