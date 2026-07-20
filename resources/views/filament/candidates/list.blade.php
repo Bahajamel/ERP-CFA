@@ -1,26 +1,20 @@
 <x-filament-panels::page>
     <div class="mb-board">
-        {{-- Barre d'outils « Monday » (au-dessus du filtre) : les actions sur les
-             colonnes sont regroupées dans un menu déroulant « Colonnes ».
-             La création d'un tableau se fait via l'onglet « ＋ Nouveau tableau »
-             du sélecteur de tables (en haut) — pas de doublon ici. --}}
+        {{-- Barre d'outils « Monday » (au-dessus du filtre), même logique que les
+             tableaux personnalisés : « Configurer » (renommer / supprimer des
+             colonnes) + « Ajouter une colonne ». « Ajouter une ligne » est en pied
+             de tableau. La création d'un tableau passe par le sélecteur de tables. --}}
         @if (\App\Support\CustomFields::peutGerer())
             <div class="mb-toolbar">
+                {{-- Configurer : regroupe le renommage et la suppression de colonnes. --}}
                 <x-filament::dropdown placement="bottom-start">
                     <x-slot name="trigger">
-                        <x-filament::button color="gray" icon="heroicon-o-view-columns">
-                            Colonnes
+                        <x-filament::button color="gray" icon="heroicon-o-cog-6-tooth">
+                            Configurer
                         </x-filament::button>
                     </x-slot>
 
                     <x-filament::dropdown.list>
-                        <x-filament::dropdown.list.item
-                            icon="heroicon-o-plus"
-                            wire:click="mountAction('ajouterColonne')"
-                        >
-                            Ajouter une colonne
-                        </x-filament::dropdown.list.item>
-
                         <x-filament::dropdown.list.item
                             icon="heroicon-o-pencil-square"
                             wire:click="mountAction('renommerColonnes')"
@@ -37,6 +31,9 @@
                         </x-filament::dropdown.list.item>
                     </x-filament::dropdown.list>
                 </x-filament::dropdown>
+
+                {{-- Ajouter une colonne (même modal que les tableaux personnalisés). --}}
+                {{ $this->ajouterColonneAction }}
             </div>
         @endif
 

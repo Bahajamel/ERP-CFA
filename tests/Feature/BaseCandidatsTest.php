@@ -25,6 +25,9 @@ it('affiche la page « Base Candidats » avec les colonnes de la maquette', func
     Livewire::test(ListCandidates::class)
         ->assertSuccessful()
         ->assertSee('Base Candidats')
+        // Barre « façon tableaux personnalisés » : Configurer + Ajouter une colonne.
+        ->assertSee('Configurer')
+        ->assertSee('Ajouter une colonne')
         // Sous-titre retiré (gain de place) : il ne doit plus apparaître.
         ->assertDontSee('Suivi des candidats et de leur avancement')
         ->assertCanRenderTableColumn('identite')
