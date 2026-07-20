@@ -71,6 +71,43 @@ class BoardNavigation
         };
     }
 
+    /**
+     * Habillage du formulaire public selon le module : image de fond, dégradé,
+     * badge et pied de page — repris à l'identique des formulaires publics
+     * existants (candidature / entreprise) pour une charte cohérente.
+     *
+     * @return array{image: string, gradient: string, badge: string, footer: string}
+     */
+    public static function themePublic(?string $context): array
+    {
+        return match ($context) {
+            'company' => [
+                'image' => 'partenaire.jfif',
+                'gradient' => 'from-slate-900/90 via-indigo-800/85 to-indigo-700/90',
+                'badge' => 'CFA · Entreprise partenaire',
+                'footer' => 'Vos données servent uniquement à établir le partenariat avec notre CFA.',
+            ],
+            'candidate' => [
+                'image' => 'Rejoignez-nous2.jpg',
+                'gradient' => 'from-indigo-700/90 via-indigo-700/80 to-violet-700/90',
+                'badge' => 'CFA · Candidature',
+                'footer' => 'Vos informations servent uniquement au traitement de votre candidature.',
+            ],
+            'need' => [
+                'image' => 'Rejoignez-nous2.jpg',
+                'gradient' => 'from-indigo-700/90 via-indigo-700/80 to-violet-700/90',
+                'badge' => 'CFA · Offre',
+                'footer' => 'Vos informations servent uniquement au traitement de votre demande.',
+            ],
+            default => [
+                'image' => 'Rejoignez-nous2.jpg',
+                'gradient' => 'from-indigo-700/90 via-indigo-700/80 to-violet-700/90',
+                'badge' => 'CFA',
+                'footer' => 'Vos informations servent uniquement au traitement de votre demande.',
+            ],
+        };
+    }
+
     /** La barre s'affiche-t-elle sur la page courante ? (uniquement si un contexte est identifié) */
     public static function doitAfficher(): bool
     {

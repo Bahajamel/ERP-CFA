@@ -90,6 +90,18 @@ it('adapte le libellé du lien public au module du tableau', function () {
         ->and(BoardNavigation::libelleLien(null))->toBe('Lien du formulaire');
 });
 
+it('reprend la charte du module pour le formulaire public (entreprise vs candidat)', function () {
+    $entreprise = BoardNavigation::themePublic('company');
+    $candidat = BoardNavigation::themePublic('candidate');
+
+    // Un tableau Entreprises reprend l'habillage du formulaire entreprise existant.
+    expect($entreprise['image'])->toBe('partenaire.jfif')
+        ->and($entreprise['badge'])->toBe('CFA · Entreprise partenaire')
+        // …distinct du thème Candidats.
+        ->and($candidat['image'])->toBe('Rejoignez-nous2.jpg')
+        ->and($candidat['badge'])->toBe('CFA · Candidature');
+});
+
 it('réserve « Nouveau tableau » à qui a la permission de créer une table', function () {
     expect(BoardNavigation::peutCreer())->toBeTrue(); // Administrateur
 

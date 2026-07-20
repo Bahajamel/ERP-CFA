@@ -1,16 +1,12 @@
 @extends('public.layout')
 
-@php
-    $badge = match ($table->context) {
-        'candidate' => 'CFA · Candidature',
-        'company' => 'CFA · Entreprise partenaire',
-        'need' => 'CFA · Offre',
-        default => 'CFA',
-    };
-@endphp
+@php $theme = \App\Support\BoardNavigation::themePublic($table->context); @endphp
 
 @section('title', $table->name)
-@section('badge', $badge)
+@section('heroImage', asset($theme['image']))
+@section('heroGradient', $theme['gradient'])
+@section('badge', $theme['badge'])
+@section('footer', $theme['footer'])
 @section('heading', $table->name)
 @section('subheading', $table->description)
 
