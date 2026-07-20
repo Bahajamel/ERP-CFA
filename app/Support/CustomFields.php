@@ -150,6 +150,27 @@ class CustomFields
                     ->visible(fn (Get $get): bool => in_array($get('type'), [CustomFieldType::Select->value, CustomFieldType::Statut->value], true))
                     ->required(fn (Get $get): bool => in_array($get('type'), [CustomFieldType::Select->value, CustomFieldType::Statut->value], true))
                     ->columnSpanFull(),
+                // Valeur par défaut (proposée à la saisie d'une nouvelle ligne).
+                TextInput::make('default_value')
+                    ->label('Valeur par défaut')
+                    ->maxLength(255)
+                    ->visible(fn (Get $get): bool => ! in_array($get('type'), [CustomFieldType::Boolean->value, CustomFieldType::Utilisateur->value], true)),
+                Toggle::make('default_bool')
+                    ->label('Coché par défaut')
+                    ->visible(fn (Get $get): bool => $get('type') === CustomFieldType::Boolean->value),
+                // Validation simple par type.
+                TextInput::make('val_max_length')
+                    ->label('Longueur maximale')
+                    ->numeric()->minValue(1)
+                    ->visible(fn (Get $get): bool => in_array($get('type'), [CustomFieldType::Text->value, CustomFieldType::Textarea->value], true)),
+                TextInput::make('val_min')
+                    ->label('Valeur minimale')
+                    ->numeric()
+                    ->visible(fn (Get $get): bool => $get('type') === CustomFieldType::Number->value),
+                TextInput::make('val_max')
+                    ->label('Valeur maximale')
+                    ->numeric()
+                    ->visible(fn (Get $get): bool => $get('type') === CustomFieldType::Number->value),
                 Toggle::make('is_required')
                     ->label('Obligatoire'),
                 Toggle::make('visible_table')
@@ -161,14 +182,24 @@ class CustomFields
     /** Transforme des définitions en lignes de repeater (pour préremplir un modal). */
     public static function lignesDepuis(Collection $definitions): array
     {
-        return $definitions->map(fn (CustomFieldDefinition $d): array => [
-            'id' => $d->id,
-            'label' => $d->label,
-            'type' => $d->type->value,
-            'options' => $d->config['options'] ?? [],
-            'is_required' => $d->is_required,
-            'visible_table' => $d->visible_table,
-        ])->all();
+        return $definitions->map(function (CustomFieldDefinition $d): array {
+            $validation = (array) ($d->validation_rules ?? []);
+            $estBool = $d->type === CustomFieldType::Boolean;
+
+            return [
+                'id' => $d->id,
+                'label' => $d->label,
+                'type' => $d->type->value,
+                'options' => $d->config['options'] ?? [],
+                'default_value' => $estBool ? null : ($d->default_value['value'] ?? null),
+                'default_bool' => $estBool ? (bool) ($d->default_value['value'] ?? false) : false,
+                'val_max_length' => $validation['max_length'] ?? null,
+                'val_min' => $validation['min'] ?? null,
+                'val_max' => $validation['max'] ?? null,
+                'is_required' => $d->is_required,
+                'visible_table' => $d->visible_table,
+            ];
+        })->all();
     }
 
     /* ============================================================
@@ -216,10 +247,24 @@ class CustomFields
                 ? ['options' => collect($ligne['options'] ?? [])->map(fn ($o) => trim((string) $o))->filter()->unique()->values()->all()]
                 : null;
 
+            // Valeur par défaut : booléen coché, sinon texte non vide (ou aucune).
+            $defaut = $type === CustomFieldType::Boolean->value
+                ? ((bool) ($ligne['default_bool'] ?? false) ? true : null)
+                : (($v = trim((string) ($ligne['default_value'] ?? ''))) !== '' ? $v : null);
+
+            // Validation simple (longueur max pour le texte ; min/max pour le nombre).
+            $validation = array_filter([
+                'max_length' => filled($ligne['val_max_length'] ?? null) ? (int) $ligne['val_max_length'] : null,
+                'min' => filled($ligne['val_min'] ?? null) ? 0 + $ligne['val_min'] : null,
+                'max' => filled($ligne['val_max'] ?? null) ? 0 + $ligne['val_max'] : null,
+            ], fn ($x): bool => $x !== null);
+
             $attributs = [
                 'label' => $label,
                 'type' => $type,
                 'config' => $config,
+                'default_value' => $defaut !== null ? ['value' => $defaut] : null,
+                'validation_rules' => $validation !== [] ? $validation : null,
                 'is_required' => (bool) ($ligne['is_required'] ?? false),
                 'visible_table' => (bool) ($ligne['visible_table'] ?? true),
                 'sort' => $index,
@@ -662,16 +707,50 @@ class CustomFields
                 ->options(self::optionsUtilisateurs())->searchable()->native(false),
         };
 
-        // Obligatoire (sauf Oui/Non, où « requis » n'a pas de sens) + règles de
-        // validation propres à la colonne (couche personnalisation, Lot 7).
+        // Obligatoire (sauf Oui/Non, où « requis » n'a pas de sens), validation par
+        // type, et valeur par défaut proposée à la saisie.
         if ($def->is_required && $def->type !== CustomFieldType::Boolean) {
             $champ->required();
         }
-        if (filled($def->validation_rules)) {
-            $champ->rules(array_values((array) $def->validation_rules));
+
+        $regles = self::reglesValidation($def);
+        if ($regles !== []) {
+            $champ->rules($regles);
+        }
+
+        if ($def->default_value !== null && array_key_exists('value', (array) $def->default_value)) {
+            $champ->default($def->default_value['value']);
         }
 
         return $champ;
+    }
+
+    /**
+     * Règles de validation Laravel d'une colonne (au-delà de « required »), bâties
+     * depuis ses paramètres : longueur max pour le texte, bornes min/max pour le
+     * nombre. Réutilisées par le formulaire ERP et par le formulaire public.
+     *
+     * @return list<string>
+     */
+    public static function reglesValidation(CustomFieldDefinition $def): array
+    {
+        $v = (array) ($def->validation_rules ?? []);
+        $rules = [];
+
+        if (in_array($def->type, [CustomFieldType::Text, CustomFieldType::Textarea], true) && filled($v['max_length'] ?? null)) {
+            $rules[] = 'max:'.(int) $v['max_length'];
+        }
+
+        if ($def->type === CustomFieldType::Number) {
+            if (filled($v['min'] ?? null)) {
+                $rules[] = 'min:'.$v['min'];
+            }
+            if (filled($v['max'] ?? null)) {
+                $rules[] = 'max:'.$v['max'];
+            }
+        }
+
+        return $rules;
     }
 
     /**

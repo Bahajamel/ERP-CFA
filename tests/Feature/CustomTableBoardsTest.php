@@ -167,3 +167,25 @@ it('notifie le créateur du tableau à la réception d\'une soumission publique'
 
     expect($this->user->fresh()->notifications()->count())->toBe(1);
 });
+
+it('applique la validation d\'une colonne au formulaire public (longueur max)', function () {
+    $table = CustomTable::create(['name' => 'Codes', 'context' => 'candidate']);
+    CustomFields::synchroniserTableau($table->id, [
+        ['label' => 'Code', 'type' => 'text', 'is_required' => true, 'val_max_length' => 3, 'visible_table' => true],
+    ]);
+    $cle = $table->refresh()->colonnes->first()->key;
+
+    auth()->logout();
+
+    // Trop long → rejeté.
+    $this->post(route('tableau.candidature.store', ['token' => $table->public_token]), [
+        'champs' => [$cle => 'TROPLONG'],
+    ])->assertSessionHasErrors("champs.{$cle}");
+
+    // Dans la limite → accepté.
+    $this->post(route('tableau.candidature.store', ['token' => $table->public_token]), [
+        'champs' => [$cle => 'AB1'],
+    ])->assertRedirect(route('tableau.candidature.merci'));
+
+    expect(CustomRecord::withoutGlobalScopes()->where('custom_table_id', $table->id)->count())->toBe(1);
+});

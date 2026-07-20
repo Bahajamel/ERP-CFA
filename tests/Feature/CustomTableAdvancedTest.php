@@ -75,6 +75,28 @@ it('permet d\'ajouter une option à une liste/statut à la volée (façon Monday
     expect($def->fresh()->config['options'])->toBe(['À contacter', 'Chaud', 'Perdu']);
 });
 
+it('persiste et applique la valeur par défaut et la validation d\'une colonne', function () {
+    $table = CustomTable::create(['name' => 'Suivi']);
+    CustomFields::synchroniserTableau($table->id, [
+        ['label' => 'Priorité', 'type' => 'text', 'default_value' => 'Normale', 'val_max_length' => 20],
+        ['label' => 'Score', 'type' => 'number', 'val_min' => 0, 'val_max' => 100],
+        ['label' => 'Actif', 'type' => 'boolean', 'default_bool' => true],
+    ]);
+
+    $defs = CustomFieldDefinition::query()->where('custom_table_id', $table->id)->orderBy('sort')->get();
+
+    expect($defs[0]->default_value)->toBe(['value' => 'Normale'])
+        ->and(CustomFields::reglesValidation($defs[0]))->toBe(['max:20'])
+        ->and(CustomFields::reglesValidation($defs[1]))->toBe(['min:0', 'max:100'])
+        ->and($defs[2]->default_value)->toBe(['value' => true]);
+
+    // Rechargement pour le repeater (round-trip).
+    $lignes = CustomFields::lignesDepuis(CustomFields::definitionsTableau($table->id));
+    expect($lignes[0]['default_value'])->toBe('Normale')
+        ->and($lignes[0]['val_max_length'])->toBe(20)
+        ->and($lignes[2]['default_bool'])->toBeTrue();
+});
+
 it('persiste le caractère obligatoire (is_required) d\'une colonne', function () {
     $table = CustomTable::create(['name' => 'Suivi']);
     CustomFields::synchroniserTableau($table->id, [

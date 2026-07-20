@@ -6,6 +6,7 @@ use App\Enums\CustomFieldType;
 use App\Models\CustomFieldDefinition;
 use App\Models\CustomRecord;
 use App\Models\CustomTable;
+use App\Support\CustomFields;
 use Filament\Notifications\Notification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -46,7 +47,7 @@ class PublicCustomTableController extends Controller
 
         $data = $this->valider($request, $colonnes);
 
-        $ligne = CustomRecord::create([
+        CustomRecord::create([
             // Hors contexte CFA (formulaire public) : on rattache explicitement la
             // ligne au CFA propriétaire du tableau.
             'organisation_id' => $table->organisation_id,
@@ -54,7 +55,7 @@ class PublicCustomTableController extends Controller
             'data' => $data,
         ]);
 
-        $this->notifier($table, $ligne);
+        $this->notifier($table);
 
         return redirect()->route('tableau.candidature.merci');
     }
@@ -76,7 +77,7 @@ class PublicCustomTableController extends Controller
      * Prévient le créateur du tableau qu'une nouvelle entrée est arrivée via le
      * lien public (notification en base, visible dans la cloche de l'ERP).
      */
-    private function notifier(CustomTable $table, CustomRecord $ligne): void
+    private function notifier(CustomTable $table): void
     {
         $destinataire = $table->creePar;
 
@@ -129,6 +130,8 @@ class PublicCustomTableController extends Controller
                     CustomFieldType::Select, CustomFieldType::Statut => ['string', Rule::in($this->options($def))],
                     default => ['string', 'max:255'],
                 },
+                // Mêmes règles que dans l'ERP (longueur max, bornes min/max).
+                CustomFields::reglesValidation($def),
             );
             $attributs[$champ] = $def->label;
         }
