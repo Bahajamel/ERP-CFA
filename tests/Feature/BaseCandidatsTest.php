@@ -25,7 +25,8 @@ it('affiche la page « Base Candidats » avec les colonnes de la maquette', func
     Livewire::test(ListCandidates::class)
         ->assertSuccessful()
         ->assertSee('Base Candidats')
-        ->assertSee('Suivi des candidats et de leur avancement')
+        // Sous-titre retiré (gain de place) : il ne doit plus apparaître.
+        ->assertDontSee('Suivi des candidats et de leur avancement')
         ->assertCanRenderTableColumn('identite')
         ->assertCanRenderTableColumn('statut')
         ->assertCanRenderTableColumn('ville')
@@ -41,6 +42,48 @@ it('recherche un candidat par ville', function () {
         ->searchTable('Nantes')
         ->assertCanSeeTableRecords(Candidate::query()->where('ville', 'Nantes')->get())
         ->assertCanNotSeeTableRecords(Candidate::query()->where('ville', 'Strasbourg')->get());
+});
+
+it('modifie un candidat via le modal d\'édition rapide (clic sur la ligne)', function () {
+    $candidat = Candidate::factory()->create([
+        'nom' => 'Ancien', 'prenom' => 'Nom', 'email' => 'edit@exemple.fr', 'ville' => 'Paris',
+        'telephone' => null, // évite qu'un numéro legacy de la factory bloque le submit
+    ]);
+
+    Livewire::test(ListCandidates::class)
+        ->callTableAction('modifierLigne', $candidat, data: [
+            'nom' => 'Nouveau',
+            'prenom' => 'Nom',
+            'email' => 'edit@exemple.fr',
+            'ville' => 'Lyon',
+            'disponibilite' => 'Immédiate',
+        ])
+        ->assertHasNoTableActionErrors();
+
+    $candidat->refresh();
+    expect($candidat->nom)->toBe('Nouveau')
+        ->and($candidat->ville)->toBe('Lyon')
+        ->and($candidat->disponibilite)->toBe('Immédiate');
+});
+
+it('refuse un téléphone sans indicatif dans le modal d\'édition rapide', function () {
+    $candidat = Candidate::factory()->create(['email' => 'tel@exemple.fr']);
+
+    Livewire::test(ListCandidates::class)
+        ->callTableAction('modifierLigne', $candidat, data: [
+            'nom' => 'Test', 'prenom' => 'Tel', 'email' => 'tel@exemple.fr',
+            'telephone' => '0612345678', // sans « + » indicatif → rejeté
+        ])
+        ->assertHasTableActionErrors(['telephone']);
+});
+
+it('regroupe les candidats par statut par défaut (board façon Monday)', function () {
+    Candidate::factory()->create(['disponibilite' => 'Immédiate']);
+
+    // Ouverture directe sur une vue groupée par statut (groupes repliables).
+    Livewire::test(ListCandidates::class)
+        ->assertSuccessful()
+        ->assertSet('tableGrouping', 'statut:asc');
 });
 
 it('groupe les candidats par disponibilité', function () {

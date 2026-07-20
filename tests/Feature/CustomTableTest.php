@@ -2,9 +2,12 @@
 
 use App\Enums\CustomFieldType;
 use App\Filament\Resources\CustomTables\CustomTableResource;
+use App\Filament\Resources\CustomTables\Pages\BoardCustomTable;
 use App\Filament\Resources\CustomTables\Pages\CreateCustomTable;
 use App\Filament\Resources\CustomTables\Pages\EditCustomTable;
 use App\Filament\Resources\CustomTables\RelationManagers\LignesRelationManager;
+use App\Models\CustomFieldDefinition;
+use App\Models\CustomRecord;
 use App\Models\CustomTable;
 use App\Models\Organisation;
 use App\Models\User;
@@ -111,11 +114,50 @@ it('isole les tableaux personnalisés par CFA', function () {
     expect(CustomTable::query()->pluck('name')->all())->toBe(['À nous']);
 });
 
-it('réserve les tableaux personnalisés aux rôles Administrateur et Direction', function () {
-    expect(CustomTableResource::canAccess())->toBeTrue();
+it('ouvre les tableaux personnalisés à Commercial, Direction et Administrateur (pas aux autres)', function () {
+    expect(CustomTableResource::canAccess())->toBeTrue(); // Administrateur (beforeEach)
 
-    $commercial = User::factory()->create(['is_active' => true]);
-    $commercial->syncRoles('Commercial');
-    $this->actingAs($commercial);
+    foreach (['Direction', 'Commercial'] as $role) {
+        $u = User::factory()->create(['is_active' => true]);
+        $u->syncRoles($role);
+        $this->actingAs($u);
+        expect(CustomTableResource::canAccess())->toBeTrue();
+    }
+
+    // Un rôle hors périmètre (ex. Formateur) n'y a pas accès.
+    $formateur = User::factory()->create(['is_active' => true]);
+    $formateur->syncRoles('Formateur');
+    $this->actingAs($formateur);
     expect(CustomTableResource::canAccess())->toBeFalse();
+});
+
+it('ouvre le BOARD d\'un tableau (les lignes), pas le formulaire de configuration', function () {
+    $table = CustomTable::create(['name' => 'Vivier alternance', 'context' => 'candidate']);
+    CustomFields::synchroniserTableau($table->id, [
+        ['label' => 'Candidat', 'type' => 'text', 'visible_table' => true],
+    ]);
+    $def = CustomFieldDefinition::query()->where('custom_table_id', $table->id)->firstOrFail();
+    $ligne = CustomRecord::create(['custom_table_id' => $table->id, 'data' => [$def->key => 'Léa Martin']]);
+
+    Livewire::test(BoardCustomTable::class, ['record' => $table->id])
+        ->assertSuccessful()
+        ->assertSee('Vivier alternance')                 // le nom du tableau = titre
+        ->assertCanSeeTableRecords([$ligne])             // les lignes s'affichent
+        ->assertCanRenderTableColumn('data.'.$def->key); // la colonne dynamique est rendue
+});
+
+it('n\'affiche sur le board que les lignes du tableau courant (isolation des lignes)', function () {
+    $a = CustomTable::create(['name' => 'Table A']);
+    $b = CustomTable::create(['name' => 'Table B']);
+    CustomFields::synchroniserTableau($a->id, [['label' => 'Col', 'type' => 'text', 'visible_table' => true]]);
+    CustomFields::synchroniserTableau($b->id, [['label' => 'Col', 'type' => 'text', 'visible_table' => true]]);
+    $defA = CustomFieldDefinition::query()->where('custom_table_id', $a->id)->firstOrFail();
+    $defB = CustomFieldDefinition::query()->where('custom_table_id', $b->id)->firstOrFail();
+
+    $ligneA = CustomRecord::create(['custom_table_id' => $a->id, 'data' => [$defA->key => 'AAA']]);
+    $ligneB = CustomRecord::create(['custom_table_id' => $b->id, 'data' => [$defB->key => 'BBB']]);
+
+    Livewire::test(BoardCustomTable::class, ['record' => $a->id])
+        ->assertCanSeeTableRecords([$ligneA])
+        ->assertCanNotSeeTableRecords([$ligneB]);
 });

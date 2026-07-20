@@ -5,6 +5,8 @@ namespace App\Models;
 use App\Enums\CustomFieldType;
 use App\Models\Concerns\BelongsToOrganisation;
 use Illuminate\Database\Eloquent\Model;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 /**
  * Définition d'une colonne personnalisée d'un CFA (couche « façon Monday »).
@@ -15,8 +17,18 @@ use Illuminate\Database\Eloquent\Model;
 class CustomFieldDefinition extends Model
 {
     use BelongsToOrganisation;
+    use LogsActivity;
 
     protected $guarded = [];
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly(['label', 'type', 'is_required', 'visible_table'])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->useLogName('colonne_personnalisee');
+    }
 
     protected function casts(): array
     {
@@ -25,6 +37,9 @@ class CustomFieldDefinition extends Model
             'config' => 'array',
             'visible_table' => 'boolean',
             'sort' => 'integer',
+            'is_required' => 'boolean',
+            'default_value' => 'array',
+            'validation_rules' => 'array',
         ];
     }
 

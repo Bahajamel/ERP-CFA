@@ -19,16 +19,19 @@ function workspaceAdmin(): User
     return $u;
 }
 
-it('rend le workspace candidats avec ses filtres rapides', function () {
+it('rend le workspace candidats sans les blocs KPI (retirés pour gagner de la place)', function () {
     $this->seed(RolePermissionSeeder::class);
     $this->actingAs(workspaceAdmin());
     Candidate::factory()->count(3)->create(['statut' => CandidateStatut::EntretienAPlanifier]);
 
+    // Les blocs KPI (« entretiens à planifier »…) ont été retirés de la vue ;
+    // la logique quickScope, elle, reste disponible et testée plus bas.
     Livewire::test(ListCandidates::class)
         ->assertOk()
-        ->assertSee('entretiens à planifier')
-        ->assertSee('décisions en attente')
-        ->assertSee('acceptés à orienter');
+        ->assertSee('Base Candidats')
+        ->assertDontSee('entretiens à planifier')
+        ->assertDontSee('décisions en attente')
+        ->assertDontSee('acceptés à orienter');
 });
 
 it('le filtre « décisions en attente » ne garde que les entretiens réalisés sans décision', function () {

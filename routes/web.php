@@ -3,6 +3,7 @@
 use App\Http\Controllers\CandidatureController;
 use App\Http\Controllers\EntrepriseFormController;
 use App\Http\Controllers\InscriptionController;
+use App\Http\Controllers\PublicCustomTableController;
 use App\Http\Controllers\SecureMediaController;
 use App\Http\Controllers\SignatureWebhookController;
 use App\Models\User;
@@ -24,6 +25,14 @@ Route::get('/documents-securises/{media}', SecureMediaController::class)
 Route::get('/candidature', [CandidatureController::class, 'create'])->name('candidature.create');
 Route::post('/candidature', [CandidatureController::class, 'store'])->middleware('throttle:6,1')->name('candidature.store');
 Route::view('/candidature/merci', 'candidature.merci')->name('candidature.merci');
+
+// Formulaire public de candidature RATTACHÉ À UN TABLEAU personnalisé (sans accès
+// ERP) : un jeton ouvre un formulaire bâti sur les colonnes du tableau et crée une
+// LIGNE dans ce tableau. « merci » déclaré AVANT « {token} » (sinon capté comme jeton).
+Route::view('/tableau/candidature/merci', 'public.tableau-merci')->name('tableau.candidature.merci');
+Route::get('/tableau/{token}', [PublicCustomTableController::class, 'show'])->name('tableau.candidature');
+Route::post('/tableau/{token}', [PublicCustomTableController::class, 'store'])
+    ->middleware('throttle:10,1')->name('tableau.candidature.store');
 
 // Formulaire public d'inscription en scolarité (sans accès ERP) : après validation
 // de son admission, l'apprenant choisit ses matières via un lien tokenisé personnel.

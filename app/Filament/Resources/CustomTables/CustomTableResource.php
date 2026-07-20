@@ -2,23 +2,33 @@
 
 namespace App\Filament\Resources\CustomTables;
 
+use App\Filament\Resources\CustomTables\Pages\BoardCustomTable;
 use App\Filament\Resources\CustomTables\Pages\CreateCustomTable;
 use App\Filament\Resources\CustomTables\Pages\EditCustomTable;
+use App\Filament\Resources\CustomTables\Pages\KanbanCustomTable;
 use App\Filament\Resources\CustomTables\Pages\ListCustomTables;
 use App\Filament\Resources\CustomTables\RelationManagers\LignesRelationManager;
 use App\Models\CustomTable;
+use App\Support\BoardNavigation;
 use App\Support\CustomFields;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
+use Filament\Forms\Components\ColorPicker;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\TernaryFilter;
+use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
+use Illuminate\Support\Facades\Auth;
 
 /**
  * Tableaux personnalisés « façon Monday » (Phase 3) : un CFA crée ses propres
@@ -31,7 +41,10 @@ class CustomTableResource extends Resource
 
     public static function canAccess(): bool
     {
-        return CustomFields::peutGerer();
+        // Accès gouverné par la permission granulaire (CustomTablePolicy::viewAny) —
+        // les capacités création/édition/suppression sont ensuite vérifiées
+        // automatiquement par Filament via la policy.
+        return Auth::user()?->can('viewAny', CustomTable::class) ?? false;
     }
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedTableCells;
@@ -48,17 +61,56 @@ class CustomTableResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'name';
 
+    /** Icônes proposées pour personnaliser un tableau (heroicons déjà embarqués). */
+    public const ICONES = [
+        'heroicon-o-table-cells' => 'Tableau',
+        'heroicon-o-rectangle-stack' => 'Pile',
+        'heroicon-o-users' => 'Personnes',
+        'heroicon-o-building-office-2' => 'Entreprise',
+        'heroicon-o-briefcase' => 'Mallette',
+        'heroicon-o-academic-cap' => 'Formation',
+        'heroicon-o-calendar-days' => 'Agenda',
+        'heroicon-o-clipboard-document-check' => 'Suivi',
+        'heroicon-o-flag' => 'Drapeau',
+        'heroicon-o-star' => 'Étoile',
+    ];
+
     public static function form(Schema $schema): Schema
     {
         return $schema->components([
             Section::make('Le tableau')
                 ->icon('heroicon-o-table-cells')
+                ->columns(2)
                 ->schema([
                     TextInput::make('name')
                         ->label('Nom du tableau')
                         ->placeholder('ex : Suivi partenariats, Événements…')
                         ->required()
                         ->maxLength(255),
+                    Select::make('icon')
+                        ->label('Icône')
+                        ->options(self::ICONES)
+                        ->native(false)
+                        ->searchable()
+                        ->placeholder('Icône par défaut'),
+                    Select::make('context')
+                        ->label('Module de rattachement')
+                        ->options(BoardNavigation::optionsContexte())
+                        ->native(false)
+                        ->placeholder('Autonome (Administration)')
+                        ->helperText('Rattachez ce tableau à un module pour qu\'il apparaisse dans son sélecteur de tables (ex. plusieurs boards Candidats).'),
+                    Textarea::make('description')
+                        ->label('Description')
+                        ->placeholder('À quoi sert ce tableau ?')
+                        ->rows(2)
+                        ->maxLength(1000)
+                        ->columnSpanFull(),
+                    ColorPicker::make('color')
+                        ->label('Couleur'),
+                    Toggle::make('is_active')
+                        ->label('Tableau actif')
+                        ->default(true)
+                        ->helperText('Décochez pour archiver ce tableau (réversible).'),
                 ]),
             Section::make('Colonnes')
                 ->icon('heroicon-o-view-columns')
@@ -79,6 +131,8 @@ class CustomTableResource extends Resource
                 TextColumn::make('name')
                     ->label('Tableau')
                     ->weight('bold')
+                    ->icon(fn (CustomTable $record): ?string => $record->icon)
+                    ->description(fn (CustomTable $record): ?string => $record->description)
                     ->searchable(),
                 TextColumn::make('colonnes_count')
                     ->label('Colonnes')
@@ -90,16 +144,48 @@ class CustomTableResource extends Resource
                     ->counts('records')
                     ->badge()
                     ->color('info'),
+                TextColumn::make('context')
+                    ->label('Module')
+                    ->badge()
+                    ->formatStateUsing(fn (?string $state): string => $state ? (BoardNavigation::optionsContexte()[$state] ?? $state) : 'Autonome')
+                    ->color(fn (?string $state): string => $state ? 'primary' : 'gray')
+                    ->toggleable(),
+                TextColumn::make('creePar.name')
+                    ->label('Créateur')
+                    ->placeholder('—')
+                    ->toggleable(),
+                TextColumn::make('is_active')
+                    ->label('Statut')
+                    ->badge()
+                    ->formatStateUsing(fn (bool $state): string => $state ? 'Actif' : 'Archivé')
+                    ->color(fn (bool $state): string => $state ? 'success' : 'gray'),
                 TextColumn::make('created_at')
                     ->label('Créé le')
                     ->date('d/m/Y')
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(),
+            ])
+            ->filters([
+                TernaryFilter::make('is_active')
+                    ->label('Statut')
+                    ->placeholder('Tous')
+                    ->trueLabel('Actifs')
+                    ->falseLabel('Archivés'),
+                TrashedFilter::make(),
             ])
             ->recordActions([
                 Action::make('ouvrir')
                     ->label('Ouvrir')
                     ->icon('heroicon-o-arrow-right-circle')
-                    ->url(fn (CustomTable $record): string => static::getUrl('edit', ['record' => $record])),
+                    // Ouvre le BOARD (les lignes), pas le formulaire de configuration.
+                    ->url(fn (CustomTable $record): string => static::getUrl('board', ['record' => $record])),
+                // Archivage réversible (is_active) — distinct de la corbeille (soft delete).
+                Action::make('archiver')
+                    ->label(fn (CustomTable $record): string => $record->is_active ? 'Archiver' : 'Réactiver')
+                    ->icon(fn (CustomTable $record): string => $record->is_active ? 'heroicon-o-archive-box' : 'heroicon-o-arrow-uturn-left')
+                    ->color('gray')
+                    ->visible(fn (CustomTable $record): bool => Auth::user()?->can('update', $record) ?? false)
+                    ->action(fn (CustomTable $record) => $record->update(['is_active' => ! $record->is_active])),
                 EditAction::make(),
                 DeleteAction::make(),
             ])
@@ -120,6 +206,9 @@ class CustomTableResource extends Resource
         return [
             'index' => ListCustomTables::route('/'),
             'create' => CreateCustomTable::route('/create'),
+            // Board : affiche les LIGNES du tableau (vue par défaut à l'ouverture).
+            'board' => BoardCustomTable::route('/{record}/board'),
+            'kanban' => KanbanCustomTable::route('/{record}/kanban'),
             'edit' => EditCustomTable::route('/{record}/edit'),
         ];
     }

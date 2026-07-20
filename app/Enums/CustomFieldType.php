@@ -17,6 +17,8 @@ enum CustomFieldType: string
     case Date = 'date';
     case Boolean = 'boolean';
     case Select = 'select';
+    case Statut = 'statut';
+    case Utilisateur = 'user';
 
     public function getLabel(): string
     {
@@ -27,13 +29,15 @@ enum CustomFieldType: string
             self::Date => 'Date',
             self::Boolean => 'Oui / Non',
             self::Select => 'Liste déroulante',
+            self::Statut => 'Statut (coloré)',
+            self::Utilisateur => 'Utilisateur assigné',
         };
     }
 
     /** Ce type nécessite-t-il une liste d'options (config.options) ? */
     public function needsOptions(): bool
     {
-        return $this === self::Select;
+        return $this === self::Select || $this === self::Statut;
     }
 
     /** @return array<string, string> valeur => libellé, pour un select Filament. */

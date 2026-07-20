@@ -46,7 +46,8 @@ class ListCandidates extends ListRecords
 
     public function getSubheading(): ?string
     {
-        return 'Suivi des candidats et de leur avancement';
+        // Sous-titre retiré (gain de place) — le titre « Base Candidats » suffit.
+        return null;
     }
 
     /** Active/désactive un filtre rapide (bascule si déjà actif). */
@@ -132,7 +133,8 @@ class ListCandidates extends ListRecords
     /** Bouton « Ajouter une colonne » (barre, au-dessus du filtre). */
     public function ajouterColonneAction(): Action
     {
-        return CustomFields::gererAction('candidate', 'Candidats')
+        // Nom « ajouterColonne » = méthode « ajouterColonneAction » → résolution OK.
+        return CustomFields::gererAction('candidate', 'Candidats', 'ajouterColonne')
             ->label('Ajouter une colonne')
             ->icon('heroicon-o-plus')
             ->button()
@@ -147,7 +149,7 @@ class ListCandidates extends ListRecords
             ->icon('heroicon-o-table-cells')
             ->button()
             ->color('gray')
-            ->visible(fn (): bool => CustomFields::peutGerer())
+            ->visible(fn (): bool => Auth::user()?->can('create', CustomTable::class) ?? false)
             ->modalHeading('Créer un tableau personnalisé')
             ->modalDescription('Donnez-lui un nom et définissez ses colonnes. Vous saisirez les lignes juste après.')
             ->modalSubmitActionLabel('Créer le tableau')
@@ -161,21 +163,77 @@ class ListCandidates extends ListRecords
                 CustomFields::repeaterColonnes(),
             ])
             ->action(function (array $data) {
-                $tableau = CustomTable::create(['name' => $data['name']]);
+                // Rattaché au module « Candidats » : ce tableau apparaîtra dans le
+                // sélecteur de tables de la Base Candidats (plusieurs boards possibles).
+                $tableau = CustomTable::create(['name' => $data['name'], 'context' => 'candidate']);
                 CustomFields::synchroniserTableau($tableau->id, $data['colonnes'] ?? []);
 
-                return redirect(CustomTableResource::getUrl('edit', ['record' => $tableau]));
+                // Ouvre directement le board (les lignes) du nouveau tableau.
+                return redirect(CustomTableResource::getUrl('board', ['record' => $tableau]));
             });
     }
 
-    /** Bouton « Ajouter un élément » (pied du tableau) : nouvelle ligne = nouveau candidat. */
+    /** Bouton « Ajouter un candidat » (pied du tableau) : nouvelle ligne = nouveau candidat. */
     public function ajouterElementAction(): Action
     {
         return Action::make('ajouterElement')
-            ->label('Ajouter un élément')
+            ->label('Ajouter un candidat')
             ->icon('heroicon-o-plus')
             ->link()
             ->color('primary')
             ->url(CandidateResource::getUrl('create'));
+    }
+
+    /** Bouton « Renommer les colonnes » (barre) : surcharge des libellés natifs par CFA. */
+    public function renommerColonnesAction(): Action
+    {
+        // Nom « renommerColonnes » = méthode « renommerColonnesAction » → résolution OK.
+        return CustomFields::personnaliserAction('candidate', 'Candidats', CandidatesTable::COLONNES_PERSONNALISABLES, 'renommerColonnes');
+    }
+
+    /** Bouton « Supprimer une colonne » (barre) : retire une colonne personnalisée du CFA. */
+    public function supprimerColonneAction(): Action
+    {
+        // Nom « supprimerColonne » = méthode « supprimerColonneAction » → résolution OK.
+        return CustomFields::supprimerColonneAction('candidate', 'Candidats', 'supprimerColonne');
+    }
+
+    /**
+     * Mémorise la largeur d'une colonne (px) — appelé par le glisser-déposer souris
+     * de l'en-tête ; $px null = réinitialisation (double-clic). N'agit que sur une
+     * colonne connue et pour un utilisateur autorisé (contrôle serveur).
+     */
+    public function setLargeurColonne(string $key, ?int $px): void
+    {
+        if (! array_key_exists($key, CandidatesTable::COLONNES_PERSONNALISABLES)) {
+            return;
+        }
+
+        CustomFields::definirLargeur('candidate', $key, $px);
+        $this->resetTable();
+    }
+
+    /**
+     * Mémorise l'ordre des colonnes (façon Monday) — appelé par le glisser-déposer
+     * des en-têtes. Ne conserve que les clés de colonnes connues (natives + custom
+     * du CFA) : toute clé étrangère est ignorée (contrôle serveur).
+     *
+     * @param  array<int, string>  $cles
+     */
+    public function setOrdreColonnes(array $cles): void
+    {
+        $autorisees = array_merge(
+            array_keys(CandidatesTable::COLONNES_PERSONNALISABLES),
+            CustomFields::definitions('candidate')->map(fn ($d): string => 'custom_fields.'.$d->key)->all(),
+        );
+
+        $cles = array_values(array_filter($cles, fn ($cle): bool => in_array($cle, $autorisees, true)));
+
+        if ($cles === []) {
+            return;
+        }
+
+        CustomFields::definirOrdre('candidate', $cles);
+        $this->resetTable();
     }
 }
