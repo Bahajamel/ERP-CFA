@@ -171,6 +171,16 @@ class Candidate extends Model implements HasMedia
      */
     protected static function booted(): void
     {
+        // Nouveau candidat ajouté en fin de « Base Candidats » (ordre manuel
+        // façon Monday) — max de la position dans le même CFA + 1.
+        static::creating(function (self $candidate): void {
+            if (blank($candidate->position)) {
+                $candidate->position = (int) static::withoutGlobalScopes()
+                    ->when(filled($candidate->organisation_id), fn ($q) => $q->where('organisation_id', $candidate->organisation_id))
+                    ->max('position') + 1;
+            }
+        });
+
         static::saving(function (self $candidate): void {
             if (blank($candidate->email) && blank($candidate->telephone)) {
                 throw ValidationException::withMessages([

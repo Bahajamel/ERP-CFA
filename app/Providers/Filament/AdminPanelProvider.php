@@ -120,16 +120,6 @@ class AdminPanelProvider extends PanelProvider
                 PanelsRenderHook::USER_MENU_BEFORE,
                 fn (): string => auth()->check() ? view('filament.user-identity')->render() : '',
             )
-            // Barre de navigation contextuelle « Commercial » : accès rapides
-            // Candidats / Entreprises / Offres, affichée en haut du contenu (au-dessus
-            // du titre) sur toutes les pages du groupe Commercial. Le rendu est
-            // conditionnel DANS la vue (CommercialNavigation::doitAfficher) : aucune
-            // duplication par page, aucune route codée en dur, onglet actif déduit
-            // de la route. Placée avant le bouton « Retour » pour rester au-dessus.
-            ->renderHook(
-                PanelsRenderHook::CONTENT_START,
-                fn (): string => auth()->check() ? view('filament.commercial-subnav')->render() : '',
-            )
             // Sélecteur de tables « façon Monday » : bascule entre Base Candidats et
             // les tableaux personnalisés du CFA. Rendu conditionnel DANS la vue
             // (BoardNavigation::doitAfficher) — visible sur la Base Candidats et les

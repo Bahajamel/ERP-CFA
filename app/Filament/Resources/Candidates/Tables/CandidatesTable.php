@@ -170,6 +170,16 @@ class CandidatesTable
             // Le panneau « Focus du jour » reste accessible via le bouton « Aperçu ».
             ->recordAction('modifierLigne')
             ->recordUrl(null)
+            // Glisser-déposer des lignes (ordre manuel façon Monday, cohérent avec
+            // les tableaux personnalisés) : réservé à qui peut gérer les candidats.
+            // Le drag réordonne au sein du groupe (statut) affiché.
+            ->reorderable('position', auth()->user()?->can('access_candidates') ?? false)
+            ->reorderRecordsTriggerAction(
+                fn (Action $action, bool $isReordering): Action => $action
+                    ->button()
+                    ->icon('heroicon-o-arrows-up-down')
+                    ->label($isReordering ? 'Terminer le classement' : 'Réorganiser les lignes'),
+            )
             ->filters([
                 // Filtre sur la colonne « Progression » : c'est la question que
                 // l'on se pose devant cet écran (« qui est bloqué où ? »), et rien
@@ -494,7 +504,9 @@ class CandidatesTable
                         ->deselectRecordsAfterCompletion(),
                 ]),
             ])
-            ->defaultSort('created_at', 'desc')
+            // Ordre manuel (glisser-déposer) par défaut — au sein de chaque groupe
+            // de statut. Le tri par colonne (nom, date…) reste possible via l'en-tête.
+            ->defaultSort('position', 'asc')
             ->emptyStateIcon('heroicon-o-user-plus')
             ->emptyStateHeading('Aucun candidat pour le moment')
             ->emptyStateDescription('Créez votre premier candidat : il démarre en « Entretien à planifier ». '

@@ -95,3 +95,27 @@ it('groupe les candidats par disponibilité', function () {
         ->set('tableGrouping', 'disponibilite')
         ->assertSuccessful();
 });
+
+it('ajoute chaque nouveau candidat en fin de liste (position croissante)', function () {
+    $a = Candidate::factory()->create();
+    $b = Candidate::factory()->create();
+    $c = Candidate::factory()->create();
+
+    // Positions strictement croissantes dans l'ordre de création.
+    expect($a->position)->toBeLessThan($b->position)
+        ->and($b->position)->toBeLessThan($c->position);
+});
+
+it('réordonne les candidats par glisser-déposer (ordre manuel façon Monday)', function () {
+    $a = Candidate::factory()->create(['nom' => 'Aaa']);
+    $b = Candidate::factory()->create(['nom' => 'Bbb']);
+    $c = Candidate::factory()->create(['nom' => 'Ccc']);
+
+    // Glisser pour inverser l'ordre : C, B, A.
+    Livewire::test(ListCandidates::class)
+        ->call('reorderTable', [$c->id, $b->id, $a->id]);
+
+    $ordre = Candidate::query()->orderBy('position')->pluck('id')->all();
+
+    expect($ordre)->toBe([$c->id, $b->id, $a->id]);
+});
