@@ -44,6 +44,17 @@ it('ne renvoie rien pour une question hors sujet', function () {
     expect(BaseFaq::rechercher('quelle est la météo à Paris demain'))->toBeEmpty();
 });
 
+it('connaît les tableaux personnalisés (façon Monday)', function () {
+    $creation = BaseFaq::rechercher('comment créer un tableau personnalisé');
+    expect($creation)->not->toBeEmpty()
+        ->and($creation[0]['categorie'])->toBe('Tableaux personnalisés')
+        ->and($creation[0]['lien']['route'])->toBe('filament.admin.resources.custom-tables.create');
+
+    // Le lien public de candidature/entreprise est aussi couvert.
+    $lien = BaseFaq::rechercher('partager un lien de candidature pour un tableau');
+    expect($lien[0]['categorie'])->toBe('Tableaux personnalisés');
+});
+
 // ─── Composant Livewire ─────────────────────────────────────────────────
 
 it('affiche un message d\'accueil avec des suggestions', function () {
