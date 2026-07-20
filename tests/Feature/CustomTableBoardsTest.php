@@ -124,3 +124,46 @@ it('n\'expose pas la suppression de tableau à un rôle sans le droit', function
     Livewire::test(BoardCustomTable::class, ['record' => $table->id])
         ->assertActionHidden('supprimer');
 });
+
+it('désactive le formulaire public d\'un tableau (lien inopérant)', function () {
+    [$table] = tableauAvecStatut();
+    $table->update(['public_enabled' => false]);
+
+    $this->get(route('tableau.candidature', ['token' => $table->public_token]))->assertNotFound();
+
+    auth()->logout();
+    $this->post(route('tableau.candidature.store', ['token' => $table->public_token]), ['champs' => []])
+        ->assertNotFound();
+});
+
+it('régénère le jeton public : l\'ancien lien cesse de fonctionner', function () {
+    [$table] = tableauAvecStatut();
+    $ancien = $table->public_token;
+
+    $table->regenererToken();
+
+    expect($table->public_token)->not->toBe($ancien);
+    $this->get(route('tableau.candidature', ['token' => $ancien]))->assertNotFound();       // ancien lien mort
+    $this->get(route('tableau.candidature', ['token' => $table->public_token]))->assertOk(); // nouveau lien OK
+});
+
+it('active/désactive le formulaire public depuis le board', function () {
+    [$table] = tableauAvecStatut();
+
+    Livewire::test(BoardCustomTable::class, ['record' => $table->id])
+        ->callAction('lienCandidature', data: ['public_enabled' => false]);
+
+    expect($table->fresh()->public_enabled)->toBeFalse();
+});
+
+it('notifie le créateur du tableau à la réception d\'une soumission publique', function () {
+    [$table, $cleNom, $cleStatut] = tableauAvecStatut();
+    expect($table->created_by)->toBe($this->user->id);
+
+    auth()->logout();
+    $this->post(route('tableau.candidature.store', ['token' => $table->public_token]), [
+        'champs' => [$cleNom => 'Léa', $cleStatut => 'Nouveau'],
+    ])->assertRedirect(route('tableau.candidature.merci'));
+
+    expect($this->user->fresh()->notifications()->count())->toBe(1);
+});

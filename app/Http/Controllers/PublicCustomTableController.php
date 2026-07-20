@@ -6,6 +6,7 @@ use App\Enums\CustomFieldType;
 use App\Models\CustomFieldDefinition;
 use App\Models\CustomRecord;
 use App\Models\CustomTable;
+use Filament\Notifications\Notification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -45,7 +46,7 @@ class PublicCustomTableController extends Controller
 
         $data = $this->valider($request, $colonnes);
 
-        CustomRecord::create([
+        $ligne = CustomRecord::create([
             // Hors contexte CFA (formulaire public) : on rattache explicitement la
             // ligne au CFA propriétaire du tableau.
             'organisation_id' => $table->organisation_id,
@@ -53,16 +54,42 @@ class PublicCustomTableController extends Controller
             'data' => $data,
         ]);
 
+        $this->notifier($table, $ligne);
+
         return redirect()->route('tableau.candidature.merci');
     }
 
-    /** Tableau ACTIF correspondant au jeton (public → sans global scope CFA). */
+    /**
+     * Tableau correspondant au jeton, ACTIF et dont le formulaire public est
+     * ACTIVÉ (public → sans global scope CFA).
+     */
     private function resoudre(string $token): CustomTable
     {
         return CustomTable::withoutGlobalScopes()
             ->where('public_token', $token)
             ->where('is_active', true)
+            ->where('public_enabled', true)
             ->firstOrFail();
+    }
+
+    /**
+     * Prévient le créateur du tableau qu'une nouvelle entrée est arrivée via le
+     * lien public (notification en base, visible dans la cloche de l'ERP).
+     */
+    private function notifier(CustomTable $table, CustomRecord $ligne): void
+    {
+        $destinataire = $table->creePar;
+
+        if ($destinataire === null) {
+            return;
+        }
+
+        Notification::make()
+            ->title('Nouvelle entrée : '.$table->name)
+            ->body('Une personne vient de remplir le formulaire public de ce tableau.')
+            ->icon('heroicon-o-inbox-arrow-down')
+            ->success()
+            ->sendToDatabase($destinataire);
     }
 
     /**

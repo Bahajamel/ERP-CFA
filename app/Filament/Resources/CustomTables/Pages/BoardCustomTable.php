@@ -77,6 +77,7 @@ class BoardCustomTable extends Page implements HasTable
 
             // Lien public PROPRE à ce tableau : le formulaire crée une ligne dans CE
             // tableau. Le libellé s'adapte au module (candidature, entreprise, offre).
+            // On peut y activer/désactiver le formulaire et régénérer le lien.
             Action::make('lienCandidature')
                 ->label(BoardNavigation::libelleLien($record->context))
                 ->icon('heroicon-o-link')
@@ -84,13 +85,39 @@ class BoardCustomTable extends Page implements HasTable
                 ->visible(fn (): bool => Auth::user()?->can('update', $record) ?? false)
                 ->modalHeading(BoardNavigation::libelleLien($record->context).' de ce tableau')
                 ->modalDescription('Partagez ce lien : la personne remplit le formulaire et une ligne est créée dans ce tableau, sans accès à l\'ERP.')
-                ->modalSubmitAction(false)
+                ->modalSubmitActionLabel('Enregistrer')
                 ->modalCancelActionLabel('Fermer')
+                ->fillForm(fn (): array => ['public_enabled' => $record->public_enabled])
                 ->schema([
                     Placeholder::make('lien')
                         ->hiddenLabel()
-                        ->content(fn () => view('filament.candidature-lien', ['lien' => $record->lienCandidature()])),
-                ]),
+                        ->content(fn () => $record->public_enabled
+                            ? view('filament.candidature-lien', ['lien' => $record->lienCandidature()])
+                            : 'Le formulaire public est désactivé. Activez-le ci-dessous pour obtenir un lien fonctionnel.'),
+                    Toggle::make('public_enabled')
+                        ->label('Formulaire public activé')
+                        ->helperText('Décochez pour fermer le formulaire : le lien ne créera plus de ligne.'),
+                ])
+                ->extraModalFooterActions([
+                    Action::make('regenererLien')
+                        ->label('Régénérer le lien')
+                        ->icon('heroicon-o-arrow-path')
+                        ->color('danger')
+                        ->requiresConfirmation()
+                        ->modalHeading('Régénérer le lien ?')
+                        ->modalDescription('L\'ancien lien cessera immédiatement de fonctionner ; un nouveau lien est généré.')
+                        ->action(function () use ($record): void {
+                            $record->regenererToken();
+                            Notification::make()->success()
+                                ->title('Nouveau lien généré')
+                                ->body('Rouvrez la fenêtre « Lien » pour copier le nouveau lien.')
+                                ->send();
+                        }),
+                ])
+                ->action(function (array $data) use ($record): void {
+                    $record->update(['public_enabled' => (bool) ($data['public_enabled'] ?? false)]);
+                    Notification::make()->success()->title('Lien mis à jour')->send();
+                }),
 
             Action::make('configurer')
                 ->label('Configurer')

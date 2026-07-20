@@ -26,6 +26,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
  * @property bool $is_active
  * @property ?int $created_by
  * @property ?string $public_token
+ * @property bool $public_enabled
  */
 class CustomTable extends Model
 {
@@ -49,6 +50,7 @@ class CustomTable extends Model
         return [
             'sort' => 'integer',
             'is_active' => 'boolean',
+            'public_enabled' => 'boolean',
         ];
     }
 
@@ -130,5 +132,11 @@ class CustomTable extends Model
         }
 
         return route('tableau.candidature', ['token' => $this->public_token]);
+    }
+
+    /** Régénère le jeton public : l'ancien lien cesse immédiatement de fonctionner. */
+    public function regenererToken(): void
+    {
+        $this->forceFill(['public_token' => Str::random(48)])->save();
     }
 }
