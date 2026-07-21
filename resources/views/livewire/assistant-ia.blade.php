@@ -263,8 +263,14 @@
             </span>
         </div>
 
-        <div x-show="!reduit" style="display:contents">
-            <div class="cfa-ia-body" x-ref="corps"
+        {{--
+            Le corps et le pied portent « x-show » CHACUN, sans conteneur
+            intermédiaire : un wrapper en « display: contents » ne survit pas à
+            Alpine, qui supprime la propriété display à l'affichage. Le wrapper
+            redevenait alors un bloc ordinaire, le corps et le pied cessaient
+            d'être des éléments flex du panneau, et la conversation débordait.
+        --}}
+            <div class="cfa-ia-body" x-show="!reduit" x-ref="corps"
                  @assistant-defiler.window="$nextTick(() => $refs.corps.scrollTop = $refs.corps.scrollHeight)">
 
                 @foreach ($messages as $message)
@@ -341,7 +347,7 @@
             </div>
 
             {{-- Pied : poser une autre question --}}
-            <div class="cfa-ia-foot">
+            <div class="cfa-ia-foot" x-show="!reduit">
                 <form class="cfa-ia-form" wire:submit="envoyer">
                     <input type="text" class="cfa-ia-input" wire:model="question"
                            placeholder="Poser une autre question…" autocomplete="off">
@@ -354,6 +360,5 @@
                 <p class="cfa-ia-note">Assistant local — vos données restent dans l'ERP.</p>
             </div>
         </div>
-    </div>
 @endif
 </div>
