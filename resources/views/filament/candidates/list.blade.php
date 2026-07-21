@@ -60,52 +60,71 @@
          sombre par défaut ; on force ici un rendu clair : cartes blanches, badges
          pastel, lignes aérées, fidèle à la maquette). --}}
     <style>
-        .mb-board { --mb-line: #e8ecf2; --mb-ink: #1e293b; }
+        /* Palette du board, en variables : le rendu clair « façon Monday » est la
+           valeur par défaut ; le mode sombre ne redéfinit que ces variables (voir
+           « .dark .mb-board » plus bas), sans dupliquer les règles. */
+        .mb-board {
+            --mb-line: #e8ecf2;          /* bordures                    */
+            --mb-ink: #1e293b;           /* texte principal             */
+            --mb-surface: #fff;          /* carte, lignes, champs       */
+            --mb-surface-2: #f8fafc;     /* en-têtes, filtres           */
+            --mb-text: #334155;          /* texte des cellules          */
+            --mb-muted: #64748b;         /* libellés secondaires        */
+            --mb-muted-strong: #475569;  /* pagination, états vides     */
+            --mb-row-hover: #f8fafc;     /* survol de ligne             */
+            --mb-row-line: #f1f5f9;      /* séparateur de lignes        */
+            --mb-input-text: #0f172a;    /* saisie                      */
+            --mb-placeholder: #94a3b8;
+            --mb-badge-ring: rgba(15,23,42,.06);
+            --mb-group-cell: #f1f5f9;    /* bandeau de groupe           */
+            --mb-group-bg: #f8fafc;
+            --mb-group-hover: #eef2ff;
+        }
         .mb-toolbar { display: flex; flex-wrap: wrap; gap: .6rem; margin: 0 0 .75rem; }
 
-        /* Carte tableau : blanc, arrondi, ombre douce */
+        /* Carte tableau : arrondi, ombre douce */
         .mb-board .fi-ta,
         .mb-board .fi-ta-ctn {
-            background: #fff !important;
+            background: var(--mb-surface) !important;
             border: 1px solid var(--mb-line) !important;
             border-radius: 1rem !important;
             box-shadow: 0 1px 2px rgba(15,23,42,.05), 0 10px 30px -20px rgba(15,23,42,.2) !important;
             color: var(--mb-ink) !important;
         }
-        /* Barre de filtres + toolbar interne en clair */
+        /* Barre de filtres + toolbar interne */
         .mb-board .fi-ta-header-ctn,
         .mb-board .fi-ta-header-toolbar,
         .mb-board .fi-ta-filters,
-        .mb-board .fi-ta-selection-ctn { background: #fff !important; border-color: var(--mb-line) !important; }
-        .mb-board .fi-ta-filters { background: #f8fafc !important; border-radius: .75rem; }
+        .mb-board .fi-ta-selection-ctn { background: var(--mb-surface) !important; border-color: var(--mb-line) !important; }
+        .mb-board .fi-ta-filters { background: var(--mb-surface-2) !important; border-radius: .75rem; }
         .mb-board .fi-fo-field-wrp-label,
-        .mb-board .fi-ta-filters label { color: #64748b !important; }
+        .mb-board .fi-ta-filters label { color: var(--mb-muted) !important; }
 
         /* En-têtes de colonnes */
         .mb-board .fi-ta-header-cell,
-        .mb-board thead th { background: #f8fafc !important; border-color: var(--mb-line) !important; }
+        .mb-board thead th { background: var(--mb-surface-2) !important; border-color: var(--mb-line) !important; }
         .mb-board .fi-ta-header-cell-label,
-        .mb-board thead th { color: #64748b !important; font-weight: 600; }
+        .mb-board thead th { color: var(--mb-muted) !important; font-weight: 600; }
 
         /* Lignes & cellules */
-        .mb-board .fi-ta-row { background: #fff !important; }
-        .mb-board .fi-ta-row:hover { background: #f8fafc !important; }
-        .mb-board tbody tr { border-top: 1px solid #f1f5f9 !important; }
+        .mb-board .fi-ta-row { background: var(--mb-surface) !important; }
+        .mb-board .fi-ta-row:hover { background: var(--mb-row-hover) !important; }
+        .mb-board tbody tr { border-top: 1px solid var(--mb-row-line) !important; }
         .mb-board .fi-ta-cell,
         .mb-board tbody td { color: var(--mb-ink) !important; }
         .mb-board .fi-ta-record-content * { color: var(--mb-ink); }
         .mb-board .fi-ta-empty-state,
-        .mb-board .fi-ta-empty-state-heading { color: #475569 !important; }
+        .mb-board .fi-ta-empty-state-heading { color: var(--mb-muted-strong) !important; }
 
-        /* Champs (recherche, selects, group-by) en clair */
+        /* Champs (recherche, selects, group-by) */
         .mb-board .fi-input,
         .mb-board .fi-select-input,
-        .mb-board .fi-input-wrp { background: #fff !important; color: #0f172a !important; border-color: var(--mb-line) !important; }
-        .mb-board .fi-input::placeholder { color: #94a3b8 !important; }
+        .mb-board .fi-input-wrp { background: var(--mb-surface) !important; color: var(--mb-input-text) !important; border-color: var(--mb-line) !important; }
+        .mb-board .fi-input::placeholder { color: var(--mb-placeholder) !important; }
 
         /* Pagination */
         .mb-board .fi-pagination,
-        .mb-board .fi-pagination * { color: #475569 !important; }
+        .mb-board .fi-pagination * { color: var(--mb-muted-strong) !important; }
 
         /* Pied « Ajouter un élément » */
         .mb-add-row { display: flex; align-items: center; padding: .6rem .25rem 0; }
@@ -120,21 +139,21 @@
         .mb-board .fi-fo-field-wrp-label,
         .mb-board .fi-ta-header-toolbar,
         .mb-board .fi-ta-grouping-settings,
-        .mb-board .fi-dropdown-trigger { color: #475569 !important; }
+        .mb-board .fi-dropdown-trigger { color: var(--mb-muted-strong) !important; }
         .mb-board .fi-ta-cell,
         .mb-board .fi-ta-cell .fi-ta-text,
         .mb-board .fi-ta-record-content,
         .mb-board .fi-ta-text-item-label,
-        .mb-board tbody td { color: #334155 !important; }
-        .mb-board .fi-ta-cell .fi-ta-text-item-icon { color: #94a3b8 !important; }
+        .mb-board tbody td { color: var(--mb-text) !important; }
+        .mb-board .fi-ta-cell .fi-ta-text-item-icon { color: var(--mb-placeholder) !important; }
         /* Panneau de filtres : titre + labels + valeurs lisibles */
         .mb-board .fi-ta-filters-heading,
         .mb-board .fi-ta-filters label,
-        .mb-board .fi-ta-filters .fi-fo-field-wrp-label { color: #475569 !important; }
+        .mb-board .fi-ta-filters .fi-fo-field-wrp-label { color: var(--mb-muted-strong) !important; }
         .mb-board .fi-ta-filters .fi-input,
-        .mb-board .fi-ta-filters .fi-select-input { color: #0f172a !important; }
-        /* Léger liseré sur les badges pour les détacher du blanc */
-        .mb-board .fi-ta-cell .fi-badge { box-shadow: inset 0 0 0 1px rgba(15,23,42,.06); }
+        .mb-board .fi-ta-filters .fi-select-input { color: var(--mb-input-text) !important; }
+        /* Léger liseré sur les badges pour les détacher du fond */
+        .mb-board .fi-ta-cell .fi-badge { box-shadow: inset 0 0 0 1px var(--mb-badge-ring); }
 
         /* --- Redimensionnement des colonnes à la souris (façon Monday) ---
                Poignée invisible collée au bord droit de chaque en-tête ; on tire
@@ -164,17 +183,17 @@
         /* --- Groupes « façon Monday » : chaque groupe (statut par défaut) est un
                bloc repliable, avec un accent coloré, un titre en gras et un
                compteur. La couleur est posée par JS selon le statut (--mb-g). --- */
-        .mb-board .fi-ta-group-header-cell { padding: 0 !important; background: #f1f5f9 !important; }
+        .mb-board .fi-ta-group-header-cell { padding: 0 !important; background: var(--mb-group-cell) !important; }
         .mb-board .fi-ta-group-header {
             display: flex; align-items: center; gap: .55rem;
             padding: .7rem 1rem; cursor: pointer;
             border-left: 4px solid var(--mb-g, #6366f1);
-            background: #f8fafc;
+            background: var(--mb-group-bg);
         }
-        .mb-board .fi-ta-group-header:hover { background: #eef2ff; }
+        .mb-board .fi-ta-group-header:hover { background: var(--mb-group-hover); }
         .mb-board .fi-ta-group-heading {
             display: inline-flex; align-items: center; gap: .5rem;
-            font-weight: 700; font-size: .95rem; color: #1e293b !important;
+            font-weight: 700; font-size: .95rem; color: var(--mb-ink) !important;
         }
         .mb-board .fi-ta-group-heading::before {
             content: ''; width: .7rem; height: .7rem; border-radius: 3px;
@@ -190,10 +209,26 @@
         .mb-board .fi-ta-group-header .fi-icon-btn,
         .mb-board .fi-ta-group-header > button:last-child { margin-left: auto; }
 
-        .dark .mb-board .fi-ta-group-header-cell { background: #0b1220 !important; }
-        .dark .mb-board .fi-ta-group-header { background: #0f172a; }
-        .dark .mb-board .fi-ta-group-header:hover { background: #17233b; }
-        .dark .mb-board .fi-ta-group-heading { color: #e2e8f0 !important; }
+        /* --- Mode sombre : on ne redéfinit QUE les variables ci-dessus, toutes les
+               règles suivent automatiquement (mêmes teintes que le thème Filament
+               sombre : slate 900/800). Le rendu clair reste inchangé. --- */
+        .dark .mb-board {
+            --mb-line: #1e293b;
+            --mb-ink: #e2e8f0;
+            --mb-surface: #0f172a;
+            --mb-surface-2: #16203a;
+            --mb-text: #cbd5e1;
+            --mb-muted: #94a3b8;
+            --mb-muted-strong: #cbd5e1;
+            --mb-row-hover: #17233b;
+            --mb-row-line: #1e293b;
+            --mb-input-text: #e2e8f0;
+            --mb-placeholder: #64748b;
+            --mb-badge-ring: rgba(226,232,240,.14);
+            --mb-group-cell: #0b1220;
+            --mb-group-bg: #0f172a;
+            --mb-group-hover: #17233b;
+        }
     </style>
 
     {{-- Redimensionnement des colonnes à la souris : on greffe une poignée au bord
