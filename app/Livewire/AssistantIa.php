@@ -88,6 +88,58 @@ class AssistantIa extends Component
     }
 
     /**
+     * Clic sur une question proposée. On transmet l'IDENTIFIANT et non le texte :
+     * une apostrophe ou une barre oblique dans la question suffirait à casser
+     * l'appel côté navigateur.
+     *
+     * L'entrée est cherchée DANS l'assistant courant : impossible d'obtenir la
+     * réponse d'une autre section en forgeant un identifiant.
+     */
+    public function poser(int $entreeId): void
+    {
+        $bot = $this->bot;
+
+        if ($bot === null) {
+            return;
+        }
+
+        $entree = $bot->entrees()->actif()->whereKey($entreeId)->first();
+
+        if ($entree === null) {
+            return;
+        }
+
+        $this->messages[] = [
+            'role' => 'user',
+            'type' => 'question',
+            'texte' => $entree->question,
+            'liens' => [],
+            'suggestions' => [],
+        ];
+
+        $this->messages[] = $this->reponseDepuis($entree, $this->autresQue($bot, $entree));
+        $this->question = '';
+
+        $this->dispatch('assistant-defiler');
+    }
+
+    /**
+     * Quelques autres questions du même assistant, pour la rubrique
+     * « Questions liées ».
+     *
+     * @return list<array{id: int, question: string}>
+     */
+    private function autresQue(FaqBot $bot, FaqEntry $entree): array
+    {
+        return $bot->entrees()->actif()
+            ->whereKeyNot($entree->id)
+            ->limit(3)
+            ->get()
+            ->map(fn (FaqEntry $e): array => ['id' => $e->id, 'question' => $e->question])
+            ->all();
+    }
+
+    /**
      * Construit la réponse : la meilleure entrée de CET assistant, plus les
      * suivantes proposées en « Voir aussi ».
      */
@@ -110,15 +162,27 @@ class AssistantIa extends Component
         /** @var FaqEntry $principal */
         $principal = $resultats->shift();
 
+        // Les autres résultats deviennent des questions liées, cliquables.
+        return $this->reponseDepuis($principal, $resultats
+            ->map(fn (FaqEntry $e): array => ['id' => $e->id, 'question' => $e->question])
+            ->all());
+    }
+
+    /**
+     * Message de réponse à partir d'une entrée de FAQ.
+     *
+     * @param  list<array{id: int, question: string}>  $liees
+     */
+    private function reponseDepuis(FaqEntry $entree, array $liees): array
+    {
         return [
             'role' => 'bot',
             // « reponse » : affichée sous le libellé « Réponse », suivie des
             // questions liées.
             'type' => 'reponse',
-            'texte' => $principal->answer,
-            'liens' => array_values(array_filter([$this->resoudreLien($principal)])),
-            // Les autres résultats deviennent des questions liées, cliquables.
-            'suggestions' => $resultats->pluck('question')->all(),
+            'texte' => $entree->answer,
+            'liens' => array_values(array_filter([$this->resoudreLien($entree)])),
+            'suggestions' => $liees,
         ];
     }
 

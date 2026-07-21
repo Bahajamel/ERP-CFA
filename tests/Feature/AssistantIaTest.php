@@ -210,3 +210,52 @@ it('dessine un avatar distinct pour chaque assistant', function () {
     // …et les cinq assistants ne se ressemblent pas.
     expect($rendus->unique())->toHaveCount(5);
 });
+
+it('répond au clic sur une question, même avec apostrophe ou barre oblique', function () {
+    $this->seed(FaqBotSeeder::class);
+    assistantConnecte('Administrateur');
+
+    $bot = FaqBot::query()->where('module', 'commercial')->firstOrFail();
+    // Une question piégeuse : l'apostrophe cassait l'appel côté navigateur.
+    $entree = $bot->entrees()->create([
+        'organisation_id' => $bot->organisation_id,
+        'question' => "Comment consulter la fiche d'un candidat / apprenant ?",
+        'answer' => 'Ouvrez la fiche depuis la liste des candidats.',
+        'keywords' => ['fiche', 'candidat'],
+        'sort_order' => 99,
+    ]);
+
+    $composant = Livewire::test(AssistantIa::class, ['module' => 'commercial'])
+        ->call('poser', $entree->id);
+
+    // La question est bien posée… (assertSee échappe : l'apostrophe devient &#039;)
+    $composant->assertSee("Comment consulter la fiche d'un candidat / apprenant ?")
+        // …et la réponse affichée.
+        ->assertSee('Ouvrez la fiche depuis la liste des candidats.');
+});
+
+it('n\'expose pas la réponse d\'un autre assistant via son identifiant', function () {
+    $this->seed(FaqBotSeeder::class);
+    assistantConnecte('Administrateur');
+
+    $entreeContrats = FaqBot::query()->where('module', 'contrats')->firstOrFail()
+        ->entrees()->firstOrFail();
+
+    // On demande à l'assistant Commercial une entrée qui ne lui appartient pas.
+    Livewire::test(AssistantIa::class, ['module' => 'commercial'])
+        ->call('poser', $entreeContrats->id)
+        ->assertDontSee($entreeContrats->answer);
+});
+
+it('rend des boutons de question sans texte échappé dans l\'appel', function () {
+    $this->seed(FaqBotSeeder::class);
+    assistantConnecte('Administrateur');
+
+    $html = Livewire::test(AssistantIa::class, ['module' => 'commercial'])->html();
+
+    // Le clic porte un identifiant numérique, et plus le texte de la question :
+    // c'est l'échappement de ce texte (' pour une apostrophe) qui cassait
+    // l'appel côté navigateur.
+    expect($html)->toMatch('/wire:click="poser\(\d+\)"/')
+        ->and($html)->not->toContain('wire:click="demander(');
+});

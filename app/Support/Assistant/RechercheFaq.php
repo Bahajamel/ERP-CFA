@@ -58,11 +58,17 @@ class RechercheFaq
      * Questions proposées d'emblée par l'assistant (les premières de sa liste,
      * dans l'ordre défini par l'administrateur).
      *
-     * @return list<string>
+     * On renvoie l'identifiant EN PLUS du libellé : c'est lui que le bouton
+     * transmet au clic. Passer le texte se paie cher — une apostrophe ou une
+     * barre oblique dans la question casse silencieusement l'appel Livewire.
+     *
+     * @return list<array{id: int, question: string}>
      */
     public static function suggestions(FaqBot $bot, int $limite = 4): array
     {
-        return $bot->entrees()->actif()->limit($limite)->pluck('question')->all();
+        return $bot->entrees()->actif()->limit($limite)->get()
+            ->map(fn (FaqEntry $e): array => ['id' => $e->id, 'question' => $e->question])
+            ->all();
     }
 
     /** Score de pertinence d'une entrée face aux mots de la question. */
