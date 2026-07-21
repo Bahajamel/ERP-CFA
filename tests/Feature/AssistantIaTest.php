@@ -193,3 +193,19 @@ it('permet de modifier l\'identité d\'un assistant sans toucher au code', funct
         ->assertSee('Assistant Recrutement')
         ->assertSee('en quoi puis-je aider');
 });
+
+it('dessine un avatar distinct pour chaque assistant', function () {
+    $this->seed(FaqBotSeeder::class);
+    assistantConnecte('Administrateur');
+
+    $rendus = collect(['commercial', 'contrats', 'finance', 'scolarite', 'pilotage'])
+        ->map(fn (string $module): string => Livewire::test(AssistantIa::class, ['module' => $module])->html());
+
+    // Chaque assistant expose son avatar SVG, à sa propre couleur…
+    foreach ($rendus as $html) {
+        expect($html)->toContain('<svg viewBox="0 0 64 64"');
+    }
+
+    // …et les cinq dessins diffèrent (coupe, lunettes, barbe, chignon).
+    expect($rendus->unique())->toHaveCount(5);
+});

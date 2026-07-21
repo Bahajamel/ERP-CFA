@@ -4,6 +4,7 @@ use App\Enums\CandidateStatut;
 use App\Enums\DocumentType;
 use App\Models\Candidate;
 use App\Models\Formation;
+use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -84,7 +85,7 @@ it('rattache les documents au CFA du candidat (visibles sous contexte tenant)', 
     // Reproduit la condition réelle : le formulaire public tourne SANS tenant
     // Filament actif. Sans ça, le TestCase de base garde un CFA courant qui
     // masque le bug (le trait rattache alors les documents automatiquement).
-    \Filament\Facades\Filament::setTenant(null, isQuiet: true);
+    Filament::setTenant(null, isQuiet: true);
 
     $this->post(route('candidature.store'), $payload)
         ->assertRedirect(route('candidature.merci'));
@@ -102,8 +103,8 @@ it('rattache les documents au CFA du candidat (visibles sous contexte tenant)', 
 
     // Sous le contexte CFA du candidat (comme le panneau), les 3 pièces restent
     // visibles et aucune n'est signalée manquante.
-    \Filament\Facades\Filament::setCurrentPanel('admin');
-    \Filament\Facades\Filament::setTenant($candidate->organisation, isQuiet: true);
+    Filament::setCurrentPanel('admin');
+    Filament::setTenant($candidate->organisation, isQuiet: true);
 
     expect($candidate->fresh()->piecesManquantes())->toBe([]);
 });

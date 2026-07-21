@@ -9,6 +9,7 @@ use Database\Seeders\RolePermissionSeeder;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
+use Spatie\Permission\Models\Role;
 
 uses(RefreshDatabase::class);
 
@@ -65,7 +66,7 @@ it('rattache automatiquement au CFA courant un compte créé depuis le panneau',
             // `uncompromised()` interroge HaveIBeenPwned : on prend donc une
             // chaîne quelconque, qui n'a aucune chance de figurer dans une fuite.
             'password' => 'Kx7#vTqm-Zr42Ln',
-            'roles' => [\Spatie\Permission\Models\Role::where('name', 'Administrateur')->value('id')],
+            'roles' => [Role::where('name', 'Administrateur')->value('id')],
             'is_active' => true,
         ])
         ->call('create')

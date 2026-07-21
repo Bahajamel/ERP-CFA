@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\DocumentStatut;
 use App\Enums\DocumentType;
 use App\Filament\Pages\Assiduite;
 use App\Filament\Resources\Promotions\Pages\EditPromotion;
@@ -68,7 +69,7 @@ it('affiche l\'identité, la formation, la classe et les documents dans la fiche
 
     $document = $apprenant->documents()->create([
         'type' => DocumentType::DocumentPedagogique,
-        'statut' => \App\Enums\DocumentStatut::Recu,
+        'statut' => DocumentStatut::Recu,
         'nom_fichier' => 'bulletin-s1.pdf',
         'version' => 1,
     ]);

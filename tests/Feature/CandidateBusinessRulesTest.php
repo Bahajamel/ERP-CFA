@@ -2,6 +2,7 @@
 
 use App\Enums\CandidateStatut;
 use App\Models\Candidate;
+use App\Models\Entretien;
 use App\Parcours\CycleApprenant;
 use App\StateMachine\InvalidTransitionException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -47,7 +48,7 @@ it('démarre tout nouveau candidat au statut « Entretien à planifier » (défa
 
 it('autorise le passage d\'« Entretien prévu » à « Accepté » après un entretien réalisé', function () {
     $candidate = Candidate::factory()->create(['statut' => CandidateStatut::EntretienPrevu]);
-    \App\Models\Entretien::factory()->realise()->create(['candidate_id' => $candidate->id]);
+    Entretien::factory()->realise()->create(['candidate_id' => $candidate->id]);
 
     $candidate->transitionTo(CandidateStatut::Accepte);
 

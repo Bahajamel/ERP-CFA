@@ -1,11 +1,13 @@
-﻿<?php
+<?php
 
 use App\Enums\CandidateStatut;
 use App\Enums\EntretienStatut;
 use App\Enums\MatchingStatut;
+use App\Enums\NeedStatut;
 use App\Models\Candidate;
 use App\Models\Entretien;
 use App\Models\Matching;
+use App\Models\Need;
 use App\Models\User;
 use App\Parcours\CycleApprenant;
 use App\Parcours\CycleBloqueException;
@@ -26,9 +28,9 @@ function cycleEntretiens(): CycleApprenant
     return app(CycleApprenant::class);
 }
 
-function besoinOuvertPourEntretiens(): \App\Models\Need
+function besoinOuvertPourEntretiens(): Need
 {
-    return \App\Models\Need::factory()->create(['statut' => \App\Enums\NeedStatut::ProfilsEnvoyes]);
+    return Need::factory()->create(['statut' => NeedStatut::ProfilsEnvoyes]);
 }
 
 /*
@@ -301,4 +303,3 @@ it('affiche l\'étape Entretien dans la timeline du parcours', function () {
         ->and($etapes['entretien']['detail'])->toBe('Entretien planifié')
         ->and(cycleEntretiens()->etapeCourante($candidat->fresh())['cle'])->toBe('candidat');
 });
-

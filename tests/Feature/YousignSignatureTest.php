@@ -1,6 +1,8 @@
 <?php
 
 use App\Cerfa\CerfaApprentissage;
+use App\Enums\SignatureRequestStatut;
+use App\Models\Contract;
 use App\Models\SignatureRequest;
 use App\Signature\Providers\YousignSignatureProvider;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -35,12 +37,12 @@ function providerYousign(): YousignSignatureProvider
 /** Enveloppe locale rattachée à un contrat, avec deux parties. */
 function enveloppeYousign(): SignatureRequest
 {
-    $contract = \App\Models\Contract::factory()->create();
+    $contract = Contract::factory()->create();
 
     return SignatureRequest::create([
         'contract_id' => $contract->id,
         'provider' => 'yousign',
-        'statut' => \App\Enums\SignatureRequestStatut::Brouillon->value,
+        'statut' => SignatureRequestStatut::Brouillon->value,
         'signataires' => [
             ['role' => 'apprenti', 'libelle' => 'Apprenti', 'nom' => 'Marie Dupont', 'email' => 'marie@exemple.fr', 'ordre' => 1, 'signe_at' => null],
             ['role' => 'cfa', 'libelle' => 'CFA', 'nom' => 'CFA V2S', 'email' => 'direction@cfa-v2s.fr', 'ordre' => 2, 'signe_at' => null],

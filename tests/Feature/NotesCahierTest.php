@@ -2,6 +2,8 @@
 
 use App\Enums\EvaluationType;
 use App\Filament\Pages\Notes;
+use App\Filament\Resources\Evaluations\EvaluationResource;
+use App\Filament\Resources\Evaluations\Pages\EditEvaluation;
 use App\Models\Candidate;
 use App\Models\Document;
 use App\Models\Evaluation;
@@ -187,11 +189,11 @@ it('ouvre l\'édition d\'une note sans page « liste » (fil d\'Ariane vers le c
 
     // La page d'édition se monte : son fil d'Ariane utilise getIndexUrl(),
     // qui pointe désormais vers le cahier de notes (plus de route « index »).
-    Livewire::test(\App\Filament\Resources\Evaluations\Pages\EditEvaluation::class, ['record' => $note->getRouteKey()])
+    Livewire::test(EditEvaluation::class, ['record' => $note->getRouteKey()])
         ->assertSuccessful();
 
-    expect(App\Filament\Resources\Evaluations\EvaluationResource::getIndexUrl())
-        ->toBe(App\Filament\Pages\Notes::getUrl());
+    expect(EvaluationResource::getIndexUrl())
+        ->toBe(Notes::getUrl());
 });
 
 it('saisit une épreuve pour toute la classe via l\'action', function () {

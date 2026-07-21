@@ -21,7 +21,7 @@ it('additionne formation (50) + disponibilité (25) + niveau (10)', function () 
         'mobilite' => 'Locale',
     ]);
 
-    expect((new CompatibilityScorer())->score($candidate, $need))->toBe(85);
+    expect((new CompatibilityScorer)->score($candidate, $need))->toBe(85);
 });
 
 it('ajoute la mobilité (15) quand elle contient la localisation du besoin', function () {
@@ -34,7 +34,7 @@ it('ajoute la mobilité (15) quand elle contient la localisation du besoin', fun
         'mobilite' => 'Lyon et périphérie',
     ]);
 
-    expect((new CompatibilityScorer())->score($candidate, $need))->toBe(100);
+    expect((new CompatibilityScorer)->score($candidate, $need))->toBe(100);
 });
 
 it('donne un score nul sans formation ni disponibilité', function () {
@@ -46,7 +46,7 @@ it('donne un score nul sans formation ni disponibilité', function () {
         'mobilite' => null,
     ]);
 
-    expect((new CompatibilityScorer())->score($candidate, $need))->toBe(0);
+    expect((new CompatibilityScorer)->score($candidate, $need))->toBe(0);
 });
 
 it('classe les candidats compatibles par score décroissant', function () {

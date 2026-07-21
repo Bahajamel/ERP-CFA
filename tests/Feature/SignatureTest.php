@@ -4,12 +4,15 @@ use App\Enums\ContractSignatureStatut;
 use App\Enums\ContractStatut;
 use App\Enums\DocumentType;
 use App\Enums\SignatureRequestStatut;
+use App\Filament\Resources\Contracts\Pages\EditContract;
 use App\Models\Candidate;
 use App\Models\Contract;
 use App\Models\SignatureRequest;
+use App\Models\User;
 use App\Services\SignatureService;
 use App\Signature\Providers\NullSignatureProvider;
 use App\Signature\Providers\SimulationSignatureProvider;
+use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -160,14 +163,14 @@ it('désactive la signature avec le driver « none »', function () {
 })->throws(RuntimeException::class);
 
 it('rend la page d\'édition du contrat avec les actions de signature', function () {
-    $this->seed(Database\Seeders\RolePermissionSeeder::class);
-    $admin = App\Models\User::factory()->create(['is_active' => true]);
+    $this->seed(RolePermissionSeeder::class);
+    $admin = User::factory()->create(['is_active' => true]);
     $admin->syncRoles(['Administrateur']);
     $this->actingAs($admin);
 
     $contract = contratSignable();
 
-    Livewire\Livewire::test(App\Filament\Resources\Contracts\Pages\EditContract::class, ['record' => $contract->getKey()])
+    Livewire\Livewire::test(EditContract::class, ['record' => $contract->getKey()])
         ->assertOk()
         ->assertActionVisible('envoyerSignature');
 });

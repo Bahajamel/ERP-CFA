@@ -213,7 +213,7 @@
             @if ($bot->avatarUrl())
                 <img src="{{ $bot->avatarUrl() }}" alt="">
             @else
-                @svg($bot->icone(), 'cfa-ia-ico')
+                @include('filament.assistant.avatar', ['bot' => $bot])
             @endif
             <span class="cfa-ia-dot"></span>
         </span>
@@ -233,7 +233,7 @@
                 @if ($bot->avatarUrl())
                     <img src="{{ $bot->avatarUrl() }}" alt="">
                 @else
-                    @svg($bot->icone(), 'cfa-ia-ico')
+                    @include('filament.assistant.avatar', ['bot' => $bot])
                 @endif
                 <span class="cfa-ia-dot"></span>
             </span>

@@ -2,7 +2,9 @@
 
 use App\Filament\Resources\Formations\Pages\EditFormation;
 use App\Filament\Resources\Formations\Pages\ViewFormation;
+use App\Filament\Resources\Seances\Schemas\SeanceForm;
 use App\Models\Formation;
+use App\Models\Promotion;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Filament\Facades\Filament;
@@ -55,18 +57,18 @@ it('nettoie le programme : espaces superflus et doublons retirés', function () 
 });
 
 it('propose les matières du catalogue à la création d\'une séance (synchronisation)', function () {
-    $formation = \App\Models\Formation::factory()->create([
+    $formation = Formation::factory()->create([
         'matieres' => ['Développement web', 'Cybersécurité', 'Anglais professionnel'],
     ]);
-    $classe = \App\Models\Promotion::factory()->create(['formation_id' => $formation->id]);
+    $classe = Promotion::factory()->create(['formation_id' => $formation->id]);
 
     // La séance d'une classe de cette formation se voit proposer son programme.
-    expect(\App\Filament\Resources\Seances\Schemas\SeanceForm::matieresCatalogue($classe->id))
+    expect(SeanceForm::matieresCatalogue($classe->id))
         ->toBe(['Développement web', 'Cybersécurité', 'Anglais professionnel']);
 
     // Ajouter une matière au catalogue la rend aussitôt disponible.
     $formation->update(['matieres' => [...$formation->matieres, 'Bases de données']]);
 
-    expect(\App\Filament\Resources\Seances\Schemas\SeanceForm::matieresCatalogue($classe->id))
+    expect(SeanceForm::matieresCatalogue($classe->id))
         ->toContain('Bases de données');
 });

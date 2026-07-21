@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\AdmissionStatut;
+use App\Filament\Resources\Admissions\Pages\ListAdmissions;
 use App\Mail\InvitationInscription;
 use App\Models\Admission;
 use App\Models\Candidate;
@@ -10,6 +11,7 @@ use App\Models\Promotion;
 use App\Models\User;
 use App\Scolarite\InscriptionService;
 use Database\Seeders\RolePermissionSeeder;
+use Filament\Actions\Testing\TestAction;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
@@ -71,9 +73,9 @@ it('affecte à une classe et envoie l\'invitation depuis une admission validée'
     $admission->candidate->update(['formation_visee_id' => $formation->id, 'email' => 'apprenti@example.test']);
     $admission->forceFill(['statut' => AdmissionStatut::Valide->value])->save();
 
-    Livewire::test(\App\Filament\Resources\Admissions\Pages\ListAdmissions::class)
+    Livewire::test(ListAdmissions::class)
         ->callAction(
-            \Filament\Actions\Testing\TestAction::make('affecterClasse')->table($admission),
+            TestAction::make('affecterClasse')->table($admission),
             data: ['promotion_id' => $promotion->id],
         )
         ->assertHasNoActionErrors();

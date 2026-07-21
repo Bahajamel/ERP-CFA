@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\CandidateStatut;
 use App\Enums\ContractStatut;
 use App\Filament\Widgets\CockpitWidget;
 use App\Models\Candidate;
@@ -36,7 +37,7 @@ it('renvoie les six cartes KPI avec une mini-courbe à six points', function () 
 
 it('reflète les entretiens à planifier dans la première carte KPI', function () {
     $this->seed(RolePermissionSeeder::class);
-    Candidate::factory()->count(3)->create(['statut' => \App\Enums\CandidateStatut::EntretienAPlanifier]);
+    Candidate::factory()->count(3)->create(['statut' => CandidateStatut::EntretienAPlanifier]);
 
     $entretiens = collect(app(CockpitData::class)->kpis())->firstWhere('cle', 'entretiens');
 
@@ -45,7 +46,7 @@ it('reflète les entretiens à planifier dans la première carte KPI', function 
 
 it('construit un entonnoir décroissant candidats → contrats', function () {
     $this->seed(RolePermissionSeeder::class);
-    Candidate::factory()->count(5)->create(['statut' => \App\Enums\CandidateStatut::EntretienAPlanifier]);
+    Candidate::factory()->count(5)->create(['statut' => CandidateStatut::EntretienAPlanifier]);
 
     $pipeline = app(CockpitData::class)->pipeline();
 
