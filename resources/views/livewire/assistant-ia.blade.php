@@ -78,7 +78,16 @@
         .cfa-ia-body {
             flex: 1; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: 1rem;
             background: #f8fafc;
+            /* Indispensable : sans min-height, un flex-item grandit avec son
+               contenu au lieu de défiler — la conversation débordait et le pied
+               du panneau était poussé hors de l'écran. */
+            min-height: 0;
         }
+
+        /* Chaque message est un bloc flex : c'est lui qui aligne la bulle
+           (à droite pour l'utilisateur), pas le corps du panneau. */
+        .cfa-ia-msg { display: flex; flex-direction: column; }
+        .cfa-ia-msg--user { align-items: flex-end; }
 
         /* ── Bulles ──────────────────────────────────────────────────── */
         .cfa-ia-bubble {
@@ -86,7 +95,7 @@
             background: #fff; color: #1f2937; border: 1px solid rgba(0, 0, 0, .07);
         }
         .cfa-ia-bubble--user {
-            align-self: flex-end; max-width: 85%;
+            max-width: 85%;
             background: var(--ia); color: #fff; border-color: transparent;
         }
         /* Réponse : bulle teintée, comme sur la maquette. */
@@ -261,7 +270,7 @@
                 @foreach ($messages as $message)
                     @php $type = $message['type'] ?? 'reponse'; @endphp
 
-                    <div wire:key="msg-{{ $loop->index }}">
+                    <div class="cfa-ia-msg cfa-ia-msg--{{ $message['role'] }}" wire:key="msg-{{ $loop->index }}">
                         {{-- Question de l'utilisateur --}}
                         @if ($message['role'] === 'user')
                             <div class="cfa-ia-bubble cfa-ia-bubble--user">{{ $message['texte'] }}</div>
