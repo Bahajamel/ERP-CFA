@@ -308,6 +308,12 @@ class Need extends Model
         return $this->morphMany(Note::class, 'notable');
     }
 
+    /** Pièces rattachées à l'offre en GED (dont la fiche besoin générée). */
+    public function documents(): MorphMany
+    {
+        return $this->morphMany(Document::class, 'documentable');
+    }
+
     /**
      * Candidats compatibles avec ce besoin, classés par score décroissant.
      * Exclut les candidats déjà proposés et les ruptures. Chaque élément :

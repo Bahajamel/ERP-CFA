@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Needs\Tables;
 
 use App\Enums\NeedStatut;
 use App\Models\Need;
+use App\Services\FicheBesoinService;
 use App\StateMachine\InvalidTransitionException;
 use App\Support\CustomFields;
 use Filament\Actions\Action;
@@ -20,6 +21,7 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class NeedsTable
 {
@@ -127,6 +129,29 @@ class NeedsTable
                     ->icon('heroicon-o-eye')
                     ->color('gray')
                     ->action(fn (Need $record, $livewire) => $livewire->focusId = $record->getKey()),
+                // Fiche besoin imprimable : analyse du besoin exprimé par
+                // l'entreprise. Archivée au passage sur l'offre ET comme preuve
+                // de l'indicateur Qualiopi n°4.
+                Action::make('ficheBesoin')
+                    ->label('Fiche besoin (PDF)')
+                    ->icon('heroicon-o-document-arrow-down')
+                    ->color('gray')
+                    ->action(function (Need $record): StreamedResponse {
+                        $service = app(FicheBesoinService::class);
+                        $service->archiver($record);
+
+                        Notification::make()
+                            ->success()
+                            ->title('Fiche besoin générée')
+                            ->body('Archivée sur l\'offre et rattachée à l\'indicateur Qualiopi n°4.')
+                            ->send();
+
+                        return response()->streamDownload(
+                            fn () => print ($service->pdf($record)),
+                            $service->nomFichier($record),
+                            ['Content-Type' => 'application/pdf'],
+                        );
+                    }),
                 // Besoin déposé par une entreprise via la fiche besoin publique :
                 // un commercial le relit avant qu'il entre dans le recrutement.
                 Action::make('validerDepot')
