@@ -22,7 +22,10 @@
                 Un conseiller vous recontactera prochainement.
             </p>
         @endif
-        <a href="{{ route('entreprise.create') }}"
+        {{-- Retour vers le formulaire du MÊME CFA : le slug arrive par le flash
+             de session (envoi normal) ou par la query (lien « passer l'étape »). --}}
+        @php $slug = session('cfa_slug') ?? request('cfa'); @endphp
+        <a href="{{ route('entreprise.create', $slug ? ['cfa' => $slug] : []) }}"
             class="mt-6 inline-block rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-200">
             Enregistrer une autre entreprise
         </a>

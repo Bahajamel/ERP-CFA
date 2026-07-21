@@ -9,9 +9,9 @@ use App\Models\Company;
 use App\Models\Formation;
 use App\Models\Need;
 use App\Models\Opco;
-use App\Models\Organisation;
 use App\Models\User;
 use App\Rules\TelephoneInternational;
+use App\Support\CfaPublic;
 use App\Support\EntrepriseAnnuaire;
 use App\Support\Indicatifs;
 use App\Support\OpcoDetector;
@@ -30,9 +30,11 @@ use Illuminate\View\View;
  */
 class EntrepriseFormController extends Controller
 {
-    public function create(): View
+    public function create(?string $cfa = null): View
     {
         return view('entreprise.form', [
+            // CFA destinataire : segment d'URL, sinon CFA par défaut (lien historique).
+            'cfa' => CfaPublic::resoudre($cfa),
             'opcos' => Opco::query()->orderBy('nom')->pluck('nom', 'id'),
         ]);
     }
@@ -118,10 +120,15 @@ class EntrepriseFormController extends Controller
             'contact_prenom.regex' => 'Le prénom ne peut contenir que des lettres, espaces, apostrophes et tirets.',
         ]);
 
-        $company = DB::transaction(function () use ($data): Company {
+        // CFA destinataire : celui de la page réellement remplie (champ caché),
+        // sinon le CFA par défaut.
+        $cfa = CfaPublic::depuisRequete($request);
+
+        $company = DB::transaction(function () use ($data, $cfa): Company {
             $company = Company::create([
-                // Formulaire public (hors panel) : rattachement au CFA par défaut.
-                'organisation_id' => Organisation::defaut()?->id,
+                // Formulaire public (hors panel) : Filament n'a pas de tenant ici,
+                // le rattachement au CFA est donc explicite.
+                'organisation_id' => $cfa?->id,
                 'raison_sociale' => $data['raison_sociale'],
                 'siret' => $data['siret'],
                 'secteur' => $data['secteur'] ?? null,
@@ -168,7 +175,10 @@ class EntrepriseFormController extends Controller
 
         return view('entreprise.besoin', [
             'company' => $company,
+            // Catalogue du CFA de l'entreprise. tousLesCfa() puis filtre explicite :
+            // une page publique ne doit pas dépendre du tenant ambiant.
             'formations' => Formation::query()
+                ->tousLesCfa()
                 ->where('organisation_id', $company->organisation_id)
                 ->orderBy('libelle')
                 ->pluck('libelle', 'id'),
@@ -239,7 +249,11 @@ class EntrepriseFormController extends Controller
 
         $request->session()->forget(self::CLE_SESSION);
 
-        return redirect()->route('entreprise.merci')->with('besoin_depose', true);
+        // Le slug suit jusqu'à la page de fin : « enregistrer une autre entreprise »
+        // doit revenir au MÊME CFA, pas au CFA par défaut.
+        return redirect()->route('entreprise.merci')
+            ->with('besoin_depose', true)
+            ->with('cfa_slug', $company->organisation?->slug);
     }
 
     /** Entreprise de l'étape 1, ou null si la session a expiré / a été vidée. */
@@ -247,7 +261,9 @@ class EntrepriseFormController extends Controller
     {
         $id = $request->session()->get(self::CLE_SESSION);
 
-        return $id === null ? null : Company::query()->find($id);
+        // tousLesCfa() : l'entreprise vient d'être créée par ce visiteur à l'étape 1,
+        // aucun tenant ambiant ne doit pouvoir la masquer entre les deux étapes.
+        return $id === null ? null : Company::query()->tousLesCfa()->find($id);
     }
 
     /**

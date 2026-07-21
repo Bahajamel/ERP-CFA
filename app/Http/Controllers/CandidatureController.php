@@ -8,8 +8,8 @@ use App\Enums\DocumentStatut;
 use App\Enums\DocumentType;
 use App\Models\Candidate;
 use App\Models\Formation;
-use App\Models\Organisation;
 use App\Rules\TelephoneInternational;
+use App\Support\CfaPublic;
 use App\Support\Indicatifs;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -39,10 +39,24 @@ class CandidatureController extends Controller
         'attestation_projet' => DocumentType::Autre,
     ];
 
-    public function create(): View
+    public function create(?string $cfa = null): View
     {
+        // CFA destinataire : segment d'URL, sinon CFA par défaut (lien historique).
+        $organisation = CfaPublic::resoudre($cfa);
+
         return view('candidature.form', [
-            'formations' => Formation::query()->orderBy('libelle')->pluck('libelle', 'id'),
+            'cfa' => $organisation,
+            // Le catalogue proposé est celui du CFA visé : sans ce filtre, un
+            // candidat verrait les formations de tous les CFA de la plateforme.
+            //
+            // tousLesCfa() puis filtre explicite : une page publique ne doit pas
+            // dépendre du tenant ambiant (nul en production, mais pas forcément
+            // dans un test ou un futur middleware) — le CFA vient de l'URL, point.
+            'formations' => Formation::query()
+                ->tousLesCfa()
+                ->when($organisation !== null, fn ($q) => $q->where('organisation_id', $organisation->id))
+                ->orderBy('libelle')
+                ->pluck('libelle', 'id'),
         ]);
     }
 
@@ -54,10 +68,15 @@ class CandidatureController extends Controller
 
         $data = $this->valider($request);
 
-        DB::transaction(function () use ($data, $request): void {
+        // CFA destinataire : celui de la page réellement remplie (champ caché),
+        // sinon le CFA par défaut.
+        $cfa = CfaPublic::depuisRequete($request);
+
+        DB::transaction(function () use ($data, $request, $cfa): void {
             $candidate = Candidate::create([
-                // Formulaire public (hors panel) : rattachement au CFA par défaut.
-                'organisation_id' => Organisation::defaut()?->id,
+                // Formulaire public (hors panel) : Filament n'a pas de tenant ici,
+                // le rattachement au CFA est donc explicite.
+                'organisation_id' => $cfa?->id,
                 'nom' => $data['nom'],
                 'prenom' => $data['prenom'],
                 'email' => $data['email'] ?? null,
@@ -77,7 +96,9 @@ class CandidatureController extends Controller
             $this->attacher($candidate, $request->file('attestation_projet'), 'attestation_projet');
         });
 
-        return redirect()->route('candidature.merci');
+        // Le slug suit jusqu'à la page de fin : « déposer une autre candidature »
+        // doit revenir au MÊME CFA, pas au CFA par défaut.
+        return redirect()->route('candidature.merci')->with('cfa_slug', $cfa?->slug);
     }
 
     /**

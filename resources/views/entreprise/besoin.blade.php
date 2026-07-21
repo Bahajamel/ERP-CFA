@@ -105,7 +105,7 @@
                 class="w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 sm:w-auto sm:flex-1">
                 Envoyer mon besoin
             </button>
-            <a href="{{ route('entreprise.merci') }}"
+            <a href="{{ route('entreprise.merci', $company->organisation?->slug ? ['cfa' => $company->organisation->slug] : []) }}"
                 class="w-full rounded-lg px-4 py-2.5 text-center text-sm font-medium text-slate-500 transition hover:text-slate-700 sm:w-auto">
                 Passer cette étape
             </a>

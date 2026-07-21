@@ -7,11 +7,13 @@ use App\Filament\Resources\Companies\CompanyResource;
 use App\Filament\Resources\Companies\Tables\CompaniesTable;
 use App\Filament\Resources\Needs\NeedResource;
 use App\Models\Company;
+use App\Support\CfaPublic;
 use App\Support\CustomFields;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\CreateAction;
 use Filament\Actions\ExportAction;
+use Filament\Facades\Filament;
 use Filament\Forms\Components\Placeholder;
 use Filament\Resources\Pages\ListRecords;
 use Filament\Support\Icons\Heroicon;
@@ -106,7 +108,11 @@ class ListCompanies extends ListRecords
                     ->schema([
                         Placeholder::make('outil')
                             ->hiddenLabel()
-                            ->content(fn () => view('filament.candidature-lien', ['lien' => route('entreprise.create')])),
+                            // Lien du CFA courant : chaque CFA distribue le sien,
+                            // les entreprises lui reviennent directement.
+                            ->content(fn () => view('filament.candidature-lien', [
+                                'lien' => CfaPublic::lien('entreprise.create', Filament::getTenant()),
+                            ])),
                     ]),
                 ExportAction::make()
                     ->label('Exporter')

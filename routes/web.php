@@ -22,9 +22,12 @@ Route::get('/documents-securises/{media}', SecureMediaController::class)
 
 // Formulaire public de candidature (sans accès ERP) : crée un candidat « Dossier
 // incomplet » avec ses pièces (collections média cv / piece_identite / carte_vitale / attestation_projet).
-Route::get('/candidature', [CandidatureController::class, 'create'])->name('candidature.create');
-Route::post('/candidature', [CandidatureController::class, 'store'])->middleware('throttle:6,1')->name('candidature.store');
+// Le CFA destinataire vient du segment {cfa} (slug de l'organisation). Segment
+// absent = CFA par défaut : les liens historiques /candidature restent valides.
+// « merci » est déclaré AVANT « {cfa?} » pour ne pas être pris pour un slug.
 Route::view('/candidature/merci', 'candidature.merci')->name('candidature.merci');
+Route::post('/candidature', [CandidatureController::class, 'store'])->middleware('throttle:6,1')->name('candidature.store');
+Route::get('/candidature/{cfa?}', [CandidatureController::class, 'create'])->name('candidature.create');
 
 // Formulaire public de candidature RATTACHÉ À UN TABLEAU personnalisé (sans accès
 // ERP) : un jeton ouvre un formulaire bâti sur les colonnes du tableau et crée une
@@ -44,16 +47,19 @@ Route::post('/inscription/{token}', [InscriptionController::class, 'store'])
 
 // Formulaire public « entreprise partenaire » (sans accès ERP) : auto-rempli
 // depuis le SIRET (identité + OPCO), crée une entreprise « Prospect » + contact.
-Route::get('/entreprise', [EntrepriseFormController::class, 'create'])->name('entreprise.create');
+// Comme pour la candidature, le CFA vient du segment {cfa} (absent = CFA par
+// défaut). Toutes les routes à segment littéral sont déclarées AVANT « {cfa?} ».
 Route::get('/entreprise/lookup', [EntrepriseFormController::class, 'lookup'])->middleware('throttle:20,1')->name('entreprise.lookup');
-Route::post('/entreprise', [EntrepriseFormController::class, 'store'])->middleware('throttle:6,1')->name('entreprise.store');
 // Étape 2 — fiche besoin : l'entreprise décrit elle-même le poste recherché. Le
 // besoin créé attend une relecture commerciale avant d'entrer dans le matching.
-// L'entreprise du parcours vient de la session (posée à l'étape 1), pas de l'URL.
+// L'entreprise du parcours vient de la session (posée à l'étape 1), pas de l'URL —
+// le CFA se déduit donc de l'entreprise elle-même, sans ambiguïté possible.
 Route::get('/entreprise/besoin', [EntrepriseFormController::class, 'besoin'])->name('entreprise.besoin');
 Route::post('/entreprise/besoin', [EntrepriseFormController::class, 'besoinStore'])
     ->middleware('throttle:6,1')->name('entreprise.besoin.store');
 Route::view('/entreprise/merci', 'entreprise.merci')->name('entreprise.merci');
+Route::post('/entreprise', [EntrepriseFormController::class, 'store'])->middleware('throttle:6,1')->name('entreprise.store');
+Route::get('/entreprise/{cfa?}', [EntrepriseFormController::class, 'create'])->name('entreprise.create');
 
 // Callback des prestataires de signature électronique eIDAS (EPIC-08).
 // Authentifié par secret partagé (config/signature.php), pas par session.

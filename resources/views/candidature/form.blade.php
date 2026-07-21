@@ -32,6 +32,11 @@
 
     <form method="POST" action="{{ route('candidature.store') }}" enctype="multipart/form-data" class="space-y-8">
         @csrf
+        {{-- CFA destinataire : transporté par la page plutôt que par la session,
+             pour qu'ouvrir deux CFA dans deux onglets ne les mélange pas. --}}
+        @if ($cfa)
+            <input type="hidden" name="cfa" value="{{ $cfa->slug }}">
+        @endif
         <div class="hidden" aria-hidden="true">
             <label>Ne rien saisir ici <input type="text" name="website" tabindex="-1" autocomplete="off"></label>
         </div>
