@@ -60,6 +60,35 @@ class EmailTemplate extends Model
     }
 
     /**
+     * Valeurs des variables pour une offre donnée (entreprise, contact, poste…),
+     * telles qu'injectées dans un « mail type ».
+     *
+     * @return array<string, string>
+     */
+    public static function valeursPourOffre(Need $need): array
+    {
+        $contact = $need->contact
+            ?? $need->company?->contactPrincipal->first()
+            ?? $need->company?->contacts->first();
+
+        return [
+            'entreprise' => (string) ($need->company?->raison_sociale ?? ''),
+            'contact' => (string) ($contact?->nom_complet ?? ''),
+            'offre' => (string) ($need->intitule_poste ?? ''),
+            'formation' => (string) ($need->formation?->libelle ?? ''),
+            'lieu' => (string) ($need->localisation ?? ''),
+            'date_demarrage' => $need->date_demarrage?->format('d/m/Y') ?? '',
+            'commercial' => (string) (auth()->user()?->name ?? ''),
+        ];
+    }
+
+    /** Rend ce modèle pour une offre : corps avec variables résolues. */
+    public function corpsPourOffre(Need $need): string
+    {
+        return self::remplacer($this->body, self::valeursPourOffre($need));
+    }
+
+    /**
      * Remplace les variables {{clé}} (tolère les espaces : {{ clé }}) par leurs
      * valeurs. Les clés inconnues sont laissées vides.
      *

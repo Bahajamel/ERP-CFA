@@ -2,10 +2,7 @@
 
 namespace App\Filament\Resources\Needs\Tables;
 
-use App\Enums\InteractionType;
 use App\Enums\NeedStatut;
-use App\Mail\EmailPersonnalise;
-use App\Models\EmailTemplate;
 use App\Models\Need;
 use App\StateMachine\InvalidTransitionException;
 use App\Support\CustomFields;
@@ -13,11 +10,8 @@ use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
-use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
-use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
-use Filament\Schemas\Components\Utilities\Set;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\ViewColumn;
 use Filament\Tables\Enums\FiltersLayout;
@@ -26,8 +20,6 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Mail;
 
 class NeedsTable
 {
@@ -164,9 +156,6 @@ class NeedsTable
                     ->modalContent(fn (Need $record): View => view('filament.matching.proposer-host', ['need' => $record]))
                     ->modalSubmitAction(false)
                     ->modalCancelActionLabel('Fermer'),
-                // Envoyer un e-mail à l'entreprise qui a publié l'offre, à partir d'un
-                // « mail type » (variables pré-remplies) ; l'envoi est journalisé.
-                self::envoyerEmailAction(),
                 // Pas de ViewAction : « Aperçu » ci-dessus remplit déjà ce rôle
                 // (panneau Focus offre), sans quitter la liste.
                 EditAction::make(),
@@ -180,109 +169,6 @@ class NeedsTable
             ->emptyStateIcon('heroicon-o-briefcase')
             ->emptyStateHeading('Aucune offre proposée')
             ->emptyStateDescription('Enregistrez la première offre d\'une entreprise (poste à pourvoir) : le matching pourra ensuite proposer des candidats compatibles.');
-    }
-
-    /**
-     * « Envoyer un e-mail » : écrit à l'entreprise qui a publié l'offre à partir
-     * d'un « mail type ». Le modèle choisi pré-remplit l'objet et le message
-     * (variables résolues depuis l'offre) ; le commercial ajuste puis envoie.
-     * L'envoi est réel et journalisé comme interaction sur l'entreprise.
-     */
-    private static function envoyerEmailAction(): Action
-    {
-        return Action::make('envoyerEmail')
-            ->label('Envoyer un e-mail')
-            ->icon('heroicon-o-envelope')
-            ->color('gray')
-            ->visible(fn (): bool => Auth::user()?->can('access_companies') ?? false)
-            ->modalHeading(fn (Need $record): string => 'E-mail à '.($record->company?->raison_sociale ?? 'l\'entreprise'))
-            ->modalDescription('Choisissez un modèle : l\'objet et le message se pré-remplissent avec les infos de l\'offre. Ajustez, puis envoyez.')
-            ->modalWidth('2xl')
-            ->modalSubmitActionLabel('Envoyer')
-            ->fillForm(fn (Need $record): array => ['destinataire' => self::emailContact($record)])
-            ->schema([
-                Select::make('template_id')
-                    ->label('Modèle d\'e-mail')
-                    ->options(fn (): array => EmailTemplate::query()->actif()->orderBy('name')->pluck('name', 'id')->all())
-                    ->searchable()
-                    ->native(false)
-                    ->live()
-                    ->helperText('Sélectionnez un modèle pour pré-remplir l\'objet et le message.')
-                    ->afterStateUpdated(function ($state, Set $set, Need $record): void {
-                        $modele = EmailTemplate::query()->whereKey($state)->first();
-
-                        if ($modele === null) {
-                            return;
-                        }
-
-                        $vars = self::variablesOffre($record);
-                        $set('objet', EmailTemplate::remplacer($modele->subject, $vars));
-                        $set('corps', EmailTemplate::remplacer($modele->body, $vars));
-                    }),
-                TextInput::make('destinataire')
-                    ->label('Destinataire')
-                    ->email()
-                    ->required()
-                    ->helperText('Contact de l\'entreprise (modifiable).'),
-                TextInput::make('objet')
-                    ->label('Objet')
-                    ->required()
-                    ->maxLength(255),
-                Textarea::make('corps')
-                    ->label('Message')
-                    ->rows(10)
-                    ->required(),
-            ])
-            ->action(function (Need $record, array $data): void {
-                Mail::to($data['destinataire'])->send(new EmailPersonnalise(
-                    $data['objet'],
-                    $data['corps'],
-                    Auth::user()?->name,
-                ));
-
-                // Journalise l'échange dans l'historique de l'entreprise.
-                $record->company?->interactions()->create([
-                    'type' => InteractionType::Email->value,
-                    'date_interaction' => now(),
-                    'resume' => 'E-mail : '.$data['objet'],
-                    'user_id' => Auth::id(),
-                ]);
-
-                Notification::make()->success()
-                    ->title('E-mail envoyé')
-                    ->body('Le message a été envoyé et ajouté à l\'historique de l\'entreprise.')
-                    ->send();
-            });
-    }
-
-    /** E-mail de contact par défaut de l'offre (contact du besoin, sinon contact principal). */
-    private static function emailContact(Need $record): ?string
-    {
-        return $record->contact?->email
-            ?? $record->company?->contactPrincipal->first()?->email
-            ?? $record->company?->contacts->first()?->email;
-    }
-
-    /**
-     * Valeurs des variables d'un « mail type » pour cette offre.
-     *
-     * @return array<string, string>
-     */
-    private static function variablesOffre(Need $record): array
-    {
-        $contact = $record->contact
-            ?? $record->company?->contactPrincipal->first()
-            ?? $record->company?->contacts->first();
-
-        return [
-            'entreprise' => (string) ($record->company?->raison_sociale ?? ''),
-            'contact' => (string) ($contact?->nom_complet ?? ''),
-            'offre' => (string) ($record->intitule_poste ?? ''),
-            'formation' => (string) ($record->formation?->libelle ?? ''),
-            'lieu' => (string) ($record->localisation ?? ''),
-            'date_demarrage' => $record->date_demarrage?->format('d/m/Y') ?? '',
-            'commercial' => (string) (Auth::user()?->name ?? ''),
-        ];
     }
 
     /** Scope rapide courant lu sur la page (null hors ListNeeds). */
