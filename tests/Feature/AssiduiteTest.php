@@ -4,6 +4,7 @@ use App\Enums\PresenceStatut;
 use App\Filament\Pages\Assiduite;
 use App\Filament\Widgets\AssiduiteRepartitionChart;
 use App\Models\Candidate;
+use App\Models\Formation;
 use App\Models\Promotion;
 use App\Models\Seance;
 use App\Models\User;
@@ -196,4 +197,68 @@ it('affiche les listes Formation / Classe et le choix du type de graphe', functi
         ->assertSee('fi-wi-chart-scope', false)
         // Ouverture directe sur une classe précise, pas sur un agrégat.
         ->assertSee($classe->nom_complet);
+});
+
+it('ne propose que les classes de la formation choisie', function () {
+    $formationA = Formation::factory()->create();
+    $formationB = Formation::factory()->create();
+    $classeA = Promotion::factory()->create(['formation_id' => $formationA->id]);
+    $classeB = Promotion::factory()->create(['formation_id' => $formationB->id]);
+
+    expect(array_keys(AssiduiteRepartitionChart::classesDe($formationA->id)))->toBe([$classeA->id])
+        ->and(array_keys(AssiduiteRepartitionChart::classesDe($formationB->id)))->toBe([$classeB->id])
+        // Sans formation : aucune classe (jamais celles d'une autre formation).
+        ->and(AssiduiteRepartitionChart::classesDe(null))->toBe([]);
+});
+
+it('repositionne la classe quand on change de formation', function () {
+    $this->seed(RolePermissionSeeder::class);
+    Filament::setCurrentPanel(Filament::getPanel('admin'));
+    $user = User::factory()->create(['is_active' => true]);
+    $user->syncRoles('Scolarité');
+    $this->actingAs($user);
+
+    $formationB = Formation::factory()->create();
+    $classeB = Promotion::factory()->create(['formation_id' => $formationB->id]);
+    assiduiteJeuDEssai(); // une autre formation, présélectionnée au départ
+
+    Livewire::test(AssiduiteRepartitionChart::class)
+        ->set('filters.formation', $formationB->id)
+        // La classe AFFICHÉE suit la formation, sinon on montrerait les chiffres
+        // d'une classe d'une autre formation.
+        ->assertSee($classeB->nom_complet);
+});
+
+it('ne montre jamais une classe étrangère à la formation choisie', function () {
+    $formationB = Formation::factory()->create();
+    $classeB = Promotion::factory()->create(['formation_id' => $formationB->id]);
+    $classeA = assiduiteJeuDEssai(); // autre formation, avec des émargements
+
+    // Formation B choisie mais classe A encore en mémoire → on retombe sur B.
+    $widget = new AssiduiteRepartitionChart;
+    $widget->filters = ['formation' => $formationB->id, 'promotion' => $classeA->id];
+
+    expect($widget->getHeading())->toBe('Assiduité — '.$classeB->nom_complet);
+});
+
+it('recrée le graphique quand on change de forme (camembert, anneau)', function () {
+    $this->seed(RolePermissionSeeder::class);
+    Filament::setCurrentPanel(Filament::getPanel('admin'));
+    $user = User::factory()->create(['is_active' => true]);
+    $user->syncRoles('Scolarité');
+    $this->actingAs($user);
+
+    assiduiteJeuDEssai();
+
+    // La clé porte le type : c'est elle qui force Chart.js à se recréer malgré
+    // le wire:ignore (sans quoi la forme resterait bloquée sur « barres »).
+    Livewire::test(AssiduiteRepartitionChart::class)
+        ->assertSee('assiduite-repartition-bar', false)
+        ->set('filter', 'pie')
+        ->assertSee('assiduite-repartition-pie', false)
+        ->assertSee('data-chart-type="pie"', false)
+        ->set('filter', 'doughnut')
+        ->assertSee('assiduite-repartition-doughnut', false)
+        ->assertSee('data-chart-type="doughnut"', false)
+        ->assertDontSee('assiduite-repartition-bar', false);
 });

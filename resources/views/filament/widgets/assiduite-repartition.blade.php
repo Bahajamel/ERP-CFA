@@ -57,7 +57,14 @@
                 wire:poll.{{ $pollingInterval }}="updateChartData"
             @endif
         >
+            {{--
+                La clé inclut le TYPE : sans elle, le bloc est en « wire:ignore »
+                et Livewire ne le remplace jamais — Chart.js reste alors sur la
+                forme d'origine (barres) quand on choisit camembert ou anneau.
+                Changer la clé force la destruction/recréation du graphique.
+            --}}
             <div
+                wire:key="assiduite-repartition-{{ $type }}"
                 x-load
                 x-load-src="{{ \Filament\Support\Facades\FilamentAsset::getAlpineComponentSrc('chart', 'filament/widgets') }}"
                 wire:ignore

@@ -89,11 +89,20 @@ class AssiduiteRepartitionChart extends ChartWidget
             ?? $recentes->first();
     }
 
-    /** Classes d'une formation (id => libellé complet). */
-    private static function classesDe(mixed $formationId): array
+    /**
+     * Classes d'UNE formation (id => libellé complet). Sans formation, la liste
+     * est vide : on ne veut jamais proposer les classes d'une autre formation.
+     *
+     * @return array<int, string>
+     */
+    public static function classesDe(mixed $formationId): array
     {
+        if (blank($formationId)) {
+            return [];
+        }
+
         return Promotion::query()
-            ->when(filled($formationId), fn ($q) => $q->where('formation_id', $formationId))
+            ->where('formation_id', $formationId)
             ->orderByDesc('annee_scolaire')
             ->orderBy('libelle')
             ->get()
@@ -161,14 +170,32 @@ class AssiduiteRepartitionChart extends ChartWidget
         return in_array($this->filter, ['pie', 'doughnut'], true) ? $this->filter : 'bar';
     }
 
-    /** Classe affichée : celle choisie, sinon celle présélectionnée. */
+    /**
+     * Classe affichée. La cohérence est garantie ICI plutôt que de dépendre du
+     * seul hook de la liste déroulante : si la classe retenue n'appartient pas
+     * à la formation choisie (cas typique : on vient de changer de formation),
+     * on bascule sur la première classe de cette formation. Sans ce garde-fou,
+     * on afficherait les chiffres d'une classe d'une autre formation.
+     */
     private function classe(): ?Promotion
     {
-        $id = $this->filters['promotion'] ?? null;
+        $formationId = $this->filters['formation'] ?? null;
+        $classe = filled($this->filters['promotion'] ?? null)
+            ? Promotion::find($this->filters['promotion'])
+            : null;
 
-        return filled($id)
-            ? Promotion::find($id)
-            : self::classeParDefaut();
+        if (blank($formationId)) {
+            return $classe ?? self::classeParDefaut();
+        }
+
+        // La classe doit relever de la formation choisie.
+        if ($classe !== null && (int) $classe->formation_id === (int) $formationId) {
+            return $classe;
+        }
+
+        $premiere = array_key_first(self::classesDe($formationId));
+
+        return $premiere !== null ? Promotion::find($premiere) : null;
     }
 
     public function getHeading(): ?string
