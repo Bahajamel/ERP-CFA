@@ -30,6 +30,7 @@ class Company extends Model
             'latitude' => 'float',
             'longitude' => 'float',
             'custom_fields' => 'array',
+            'nombre_salaries' => 'integer',
         ];
     }
 
@@ -52,6 +53,24 @@ class Company extends Model
     public function tuteurs(): HasMany
     {
         return $this->hasMany(CompanyContact::class)->where('is_tuteur', true);
+    }
+
+    /** Représentant(s) légal(aux) de l'entreprise — signataires côté employeur. */
+    public function representantsLegaux(): HasMany
+    {
+        return $this->hasMany(CompanyContact::class)->where('is_representant_legal', true);
+    }
+
+    /** Responsable(s) administratif(s) et financier(s) de l'entreprise. */
+    public function responsablesFinanciers(): HasMany
+    {
+        return $this->hasMany(CompanyContact::class)->where('is_responsable_financier', true);
+    }
+
+    /** Contact(s) de facturation de l'entreprise. */
+    public function contactsFacturation(): HasMany
+    {
+        return $this->hasMany(CompanyContact::class)->where('is_contact_facturation', true);
     }
 
     public function needs(): HasMany

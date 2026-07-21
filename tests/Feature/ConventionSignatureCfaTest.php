@@ -79,8 +79,9 @@ it('appose la signature et le cachet du CFA sur la convention', function () {
     expect($d['cfa_signature_image'])->toStartWith('data:image/png;base64,')
         ->and($d['cfa_cachet_image'])->toStartWith('data:image/png;base64,')
         // Le nom du signataire accompagne la signature : une image seule ne dit
-        // pas qui signe.
-        ->and($d['cfa_representant'])->toBe('Claire Durand (Directrice)');
+        // pas qui signe (nom + qualité, séparés comme dans le modèle Filiz).
+        ->and($d['cfa_representant'])->toBe('Claire Durand')
+        ->and($d['cfa_representant_qualite'])->toBe('Directrice');
 });
 
 it('embarque réellement les deux images dans le PDF', function () {

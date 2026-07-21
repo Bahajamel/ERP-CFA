@@ -60,6 +60,16 @@ class Candidate extends Model implements HasMedia
             'statut' => CandidateStatut::class,
             // Valeurs des colonnes personnalisées du CFA (couche « façon Monday »).
             'custom_fields' => 'array',
+            // NIR : chiffré au repos (donnée sensible, cf. politique pièces sensibles).
+            'num_secu' => 'encrypted',
+            'emancipe' => 'boolean',
+            'ne_en_france' => 'boolean',
+            'rqth' => 'boolean',
+            'aeeh_pch_pps' => 'boolean',
+            'boe' => 'boolean',
+            'sportif_haut_niveau' => 'boolean',
+            'projet_creation_entreprise' => 'boolean',
+            'formation_initiale_precedente' => 'boolean',
         ];
     }
 

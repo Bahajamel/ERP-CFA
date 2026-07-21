@@ -85,16 +85,32 @@ class EntrepriseAnnuaire
             $ferme = ($siege['etat_administratif'] ?? null) === 'F'
                 || ($resultat['etat_administratif'] ?? null) === 'C';
 
+            $dirigeants = $this->dirigeants($resultat['dirigeants'] ?? []);
+            $dirigeant = $dirigeants[0] ?? null;
+
             $cle = json_encode([
                 'raison_sociale' => $nom,
+                'nom_commercial' => $this->nomCommercial($siege),
                 'siret' => $siret,
+                'siren' => $resultat['siren'] ?? null,
                 'secteur' => $secteur,
+                'code_ape_naf' => $resultat['activite_principale'] ?? null,
+                'activite_libelle' => self::libelleNaf($resultat['activite_principale'] ?? null),
+                'code_idcc' => $this->idcc($siege),
+                'forme_juridique' => $this->formeJuridique($resultat['nature_juridique'] ?? null),
+                'dirigeants' => $dirigeants,
+                'numero' => $this->numeroVoie($siege),
+                'voie' => $this->voie($siege, avecNumero: false),
                 'adresse' => $this->voie($siege),
+                'complement_adresse' => $siege['complement_adresse'] ?? null,
                 'code_postal' => $siege['code_postal'] ?? null,
                 'ville' => $ville,
                 'pays' => 'France',
                 'latitude' => isset($siege['latitude']) ? (float) $siege['latitude'] : null,
                 'longitude' => isset($siege['longitude']) ? (float) $siege['longitude'] : null,
+                'dirigeant_nom' => $dirigeant['nom'] ?? null,
+                'dirigeant_prenom' => $dirigeant['prenom'] ?? null,
+                'dirigeant_qualite' => $dirigeant['qualite'] ?? null,
                 'ferme' => $ferme,
                 'date_fermeture' => $siege['date_fermeture'] ?? null,
                 'label' => $nom.($ville ? ' — '.$ville : '').' · SIRET '.$siret.($ferme ? ' · ⚠ Fermé' : ''),
@@ -109,7 +125,7 @@ class EntrepriseAnnuaire
     /**
      * Décode la clé d'une option en fiche entreprise structurée.
      *
-     * @return array{raison_sociale:?string, siret:?string, secteur:?string, adresse:?string, code_postal:?string, ville:?string, pays:?string, latitude:?float, longitude:?float, ferme:?bool, date_fermeture:?string, label:?string}|null
+     * @return array{raison_sociale:?string, nom_commercial:?string, siret:?string, siren:?string, secteur:?string, code_ape_naf:?string, activite_libelle:?string, code_idcc:?string, forme_juridique:?string, dirigeants:array<int, array{nom:?string, prenom:?string, qualite:?string}>, numero:?string, voie:?string, adresse:?string, complement_adresse:?string, code_postal:?string, ville:?string, pays:?string, latitude:?float, longitude:?float, ferme:?bool, date_fermeture:?string, label:?string}|null
      */
     public static function decode(?string $cle): ?array
     {
@@ -168,17 +184,161 @@ class EntrepriseAnnuaire
         return null;
     }
 
-    /** Voie du siège (« 43 AVENUE GABRIELLE »), repli sur l'adresse complète. */
-    private function voie(array $siege): ?string
+    /**
+     * Forme juridique lisible depuis la catégorie juridique INSEE (code à 4
+     * chiffres) : libellé officiel de la nomenclature, avec repli sur la
+     * grande famille (2 premiers chiffres) si le code exact est inconnu. Null
+     * si inconnue — la saisie manuelle reste possible.
+     */
+    private function formeJuridique(?string $code): ?string
+    {
+        if (blank($code)) {
+            return null;
+        }
+
+        return (config('categories_juridiques')[$code] ?? null) ?? match (substr($code, 0, 2)) {
+            '10' => 'Entrepreneur individuel',
+            '54' => 'SARL / EURL',
+            '55', '56' => 'Société anonyme (SA)',
+            '57' => 'Société par actions simplifiée (SAS)',
+            '58' => 'Société en commandite',
+            '62', '63' => 'Société coopérative',
+            '65' => 'Société civile',
+            '92' => 'Association',
+            '93' => 'Fondation',
+            default => null,
+        };
+    }
+
+    /**
+     * Libellé officiel de l'activité principale (NAF rév. 2). Le tableau est
+     * indexé directement : les codes NAF contiennent un point (« 70.10Z »),
+     * que la notation à points de config() prendrait pour un niveau imbriqué.
+     */
+    public static function libelleNaf(?string $code): ?string
+    {
+        return blank($code) ? null : (config('codes_naf')[$code] ?? null);
+    }
+
+    /**
+     * Nom commercial du siège, ou première enseigne déclarée à défaut.
+     * Souvent absent : la plupart des entreprises n'en déclarent pas.
+     */
+    private function nomCommercial(array $siege): ?string
+    {
+        if (filled($siege['nom_commercial'] ?? null)) {
+            return $siege['nom_commercial'];
+        }
+
+        foreach ($siege['liste_enseignes'] ?? [] as $enseigne) {
+            if (filled($enseigne)) {
+                return $enseigne;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Convention collective applicable (IDCC). 9998 (« sans convention ») et
+     * 9999 (« non renseignée ») sont des codes techniques, pas des branches :
+     * ils sont ignorés, comme dans le calcul du NPEC.
+     */
+    private function idcc(array $siege): ?string
+    {
+        foreach ($siege['liste_idcc'] ?? [] as $idcc) {
+            $idcc = trim((string) $idcc);
+
+            if ($idcc !== '' && ! in_array($idcc, ['9998', '9999'], true)) {
+                return $idcc;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Dirigeants personnes physiques (représentants légaux), décomposés en
+     * nom / prénom / qualité (« Président », « Directeur général »…). Les
+     * personnes morales (commissaires aux comptes, holdings) sont écartées :
+     * le CERFA attend un représentant physique. Liste vide si aucun.
+     *
+     * @param  array<int, array<string, mixed>>  $dirigeants
+     * @return array<int, array{nom: ?string, prenom: ?string, qualite: ?string}>
+     */
+    private function dirigeants(array $dirigeants): array
+    {
+        $retenus = [];
+
+        foreach ($dirigeants as $d) {
+            $physique = ($d['type_dirigeant'] ?? null) === 'personne physique'
+                || filled($d['prenoms'] ?? $d['prenom'] ?? null);
+
+            if (! $physique) {
+                continue;
+            }
+
+            $nom = $d['nom'] ?? $d['nom_patronymique'] ?? null;
+            $prenom = $d['prenoms'] ?? $d['prenom'] ?? null;
+
+            if (filled($nom) || filled($prenom)) {
+                $retenus[] = [
+                    'nom' => $nom,
+                    'prenom' => $prenom,
+                    'qualite' => $d['qualite'] ?? null,
+                ];
+            }
+        }
+
+        // Le premier de la liste sert de représentant légal proposé : on place
+        // devant les qualités qui engagent juridiquement la société, sinon un
+        // simple administrateur passerait avant le gérant ou le président.
+        usort($retenus, fn (array $a, array $b): int => $this->rangQualite($a['qualite']) <=> $this->rangQualite($b['qualite']));
+
+        return $retenus;
+    }
+
+    /** Priorité d'une qualité de dirigeant comme représentant légal (0 = plus prioritaire). */
+    private function rangQualite(?string $qualite): int
+    {
+        $q = mb_strtolower((string) $qualite);
+
+        return match (true) {
+            str_contains($q, 'gérant') => 0,
+            str_contains($q, 'président') && str_contains($q, 'conseil') => 2,
+            str_contains($q, 'président') => 1,
+            str_contains($q, 'directeur général') => 3,
+            str_contains($q, 'directeur') => 4,
+            default => 5,
+        };
+    }
+
+    /**
+     * Voie du siège (« 43 AVENUE GABRIELLE »), repli sur l'adresse complète.
+     * Avec `avecNumero: false`, seul le nom de la voie est renvoyé
+     * (« AVENUE GABRIELLE ») pour alimenter une case « Rue » distincte de la
+     * case « Numéro ».
+     */
+    private function voie(array $siege, bool $avecNumero = true): ?string
     {
         $voie = trim(implode(' ', array_filter([
-            $siege['numero_voie'] ?? null,
-            $siege['indice_repetition'] ?? null,
+            $avecNumero ? $this->numeroVoie($siege) : null,
             $siege['type_voie'] ?? null,
             $siege['libelle_voie'] ?? null,
         ])));
 
         return $voie !== '' ? $voie : ($siege['adresse'] ?? null);
+    }
+
+    /** Numéro de voirie du siège, indice de répétition inclus (« 12 B »). */
+    private function numeroVoie(array $siege): ?string
+    {
+        $numero = trim(implode(' ', array_filter([
+            $siege['numero_voie'] ?? null,
+            $siege['indice_repetition'] ?? null,
+        ])));
+
+        return $numero !== '' ? $numero : null;
     }
 
     /** Appel HTTP, avec repli sans vérification SSL en local (poste sans bundle CA). */

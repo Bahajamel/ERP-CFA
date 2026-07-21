@@ -38,6 +38,10 @@ class AdresseBan
 
         $options = [];
 
+        // Numéro éventuellement saisi par l'utilisateur : il sert de repli quand
+        // la BAN ne connaît pas ce numéro et dégrade la réponse au niveau rue.
+        $numeroSaisi = self::numeroEnTete($recherche);
+
         foreach ($reponse->json('features') ?? [] as $feature) {
             $p = $feature['properties'] ?? [];
             $label = $p['label'] ?? null;
@@ -49,8 +53,20 @@ class AdresseBan
             // La BAN renvoie la géométrie en [longitude, latitude].
             $coords = $feature['geometry']['coordinates'] ?? [];
 
+            // « housenumber » et « street » ne sont présents que sur les
+            // résultats de type adresse précise ; « name » les fusionne
+            // (« 59 Rue la Fayette »). On retient le numéro de la BAN en
+            // priorité, sinon celui saisi si elle n'a répondu qu'à la rue.
+            $rue = $p['street'] ?? null;
+            $voie = $rue ?? $p['name'] ?? $label;
+            $numero = $p['housenumber'] ?? ($rue !== null ? $numeroSaisi : null);
+
+            $adresse = trim(implode(' ', array_filter([$numero, $voie])));
+
             $cle = json_encode([
-                'adresse' => trim(($p['name'] ?? $label)),
+                'numero' => $numero,
+                'voie' => $voie,
+                'adresse' => $adresse !== '' ? $adresse : trim($p['name'] ?? $label),
                 'code_postal' => $p['postcode'] ?? null,
                 'ville' => $p['city'] ?? null,
                 'pays' => 'France',
@@ -59,10 +75,28 @@ class AdresseBan
                 'label' => $label,
             ], JSON_UNESCAPED_UNICODE);
 
-            $options[$cle] = $label;
+            // Le numéro repris de la saisie n'apparaît pas dans le libellé BAN :
+            // on le préfixe pour que l'utilisateur voie ce qui sera enregistré.
+            $options[$cle] = $numero !== null && ! str_starts_with($label, $numero)
+                ? $numero.' '.$label
+                : $label;
         }
 
         return $options;
+    }
+
+    /**
+     * Numéro de voirie en tête de la recherche (« 228 rue … » → « 228 »,
+     * « 12 bis avenue … » → « 12 bis »). Un nombre à 5 chiffres est un code
+     * postal, pas un numéro de voirie : il est ignoré.
+     */
+    private static function numeroEnTete(string $recherche): ?string
+    {
+        if (! preg_match('/^\s*(\d{1,4}(?:\s*(?:bis|ter|quater))?)(?=[\s,])/iu', $recherche, $m)) {
+            return null;
+        }
+
+        return preg_replace('/\s+/', ' ', trim($m[1]));
     }
 
     /**
@@ -95,7 +129,11 @@ class AdresseBan
     /**
      * Décode la clé d'une option en adresse structurée.
      *
-     * @return array{adresse:?string, code_postal:?string, ville:?string, pays:?string, latitude:?float, longitude:?float, label:?string}|null
+     * `numero` et `voie` sont séparés (pour les formulaires qui exposent une
+     * case « Numéro ») ; `adresse` reste la voie complète (numéro + rue) pour
+     * ceux qui n'ont qu'un seul champ.
+     *
+     * @return array{numero:?string, voie:?string, adresse:?string, code_postal:?string, ville:?string, pays:?string, latitude:?float, longitude:?float, label:?string}|null
      */
     public static function decode(?string $cle): ?array
     {
