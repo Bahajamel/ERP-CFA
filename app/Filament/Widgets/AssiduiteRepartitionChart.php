@@ -144,8 +144,12 @@ class AssiduiteRepartitionChart extends ChartWidget
                     ->options(fn (Get $get): array => self::classesDe($get('formation')))
                     ->default($defaut?->id)
                     ->selectablePlaceholder(false)
-                    ->searchable()
-                    ->native(false)
+                    // Volontairement en select NATIF (ni searchable, ni native(false)) :
+                    // le variant JS de Filament est rendu sous wire:ignore et garde
+                    // ses options du premier rendu — la liste ne se mettait donc pas
+                    // à jour en changeant de formation. Un select natif réémet ses
+                    // <option> à chaque rendu Livewire. La liste est courte de toute
+                    // façon (les années d'une formation).
                     ->live(),
             ]);
     }

@@ -262,3 +262,28 @@ it('recrée le graphique quand on change de forme (camembert, anneau)', function
         ->assertSee('data-chart-type="doughnut"', false)
         ->assertDontSee('assiduite-repartition-bar', false);
 });
+
+it('met à jour les OPTIONS de la liste Classe quand on change de formation', function () {
+    $this->seed(RolePermissionSeeder::class);
+    Filament::setCurrentPanel(Filament::getPanel('admin'));
+    $user = User::factory()->create(['is_active' => true]);
+    $user->syncRoles('Scolarité');
+    $this->actingAs($user);
+
+    $formationB = Formation::factory()->create();
+    $annee = ['annee_scolaire' => '2025-2026', 'formation_id' => $formationB->id];
+    $premiere = Promotion::factory()->create($annee + ['libelle' => '1ère année']);
+    $deuxieme = Promotion::factory()->create($annee + ['libelle' => '2ème année']);
+
+    $classeAutreFormation = assiduiteJeuDEssai(); // présélectionnée au départ
+
+    Livewire::test(AssiduiteRepartitionChart::class)
+        ->set('filters.formation', $formationB->id)
+        // Les DEUX années de la formation choisie doivent figurer dans la liste.
+        // « 2ème année » n'est pas la classe affichée : si on la voit, c'est
+        // bien qu'elle est proposée en option.
+        ->assertSee($premiere->nom_complet)
+        ->assertSee($deuxieme->nom_complet)
+        // …et aucune classe d'une autre formation.
+        ->assertDontSee($classeAutreFormation->nom_complet);
+});
