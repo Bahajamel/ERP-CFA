@@ -2,7 +2,7 @@
 
 use App\Enums\PresenceStatut;
 use App\Filament\Pages\Assiduite;
-use App\Filament\Widgets\AssiduiteParPromotionChart;
+use App\Filament\Widgets\AssiduiteRepartitionChart;
 use App\Models\Candidate;
 use App\Models\Promotion;
 use App\Models\Seance;
@@ -68,78 +68,105 @@ it('affiche la page assiduité aux rôles scolarité', function () {
 });
 
 /* ------------------------------------------------------------------
- |  Sélecteur de lecture du graphique (barres / courbe / camembert)
+ |  Graphique : choix de la classe (filtre) et de la forme (barres /
+ |  camembert / anneau).
  * ------------------------------------------------------------------ */
 
-/** Appelle une méthode protégée du widget (getData, getType…). */
-function assiduiteWidget(string $vue): AssiduiteParPromotionChart
+/** Widget configuré sur une forme et, éventuellement, une classe. */
+function assiduiteWidget(string $forme = 'bar', ?int $classeId = null): AssiduiteRepartitionChart
 {
-    $widget = new AssiduiteParPromotionChart;
-    $widget->filter = $vue;
+    $widget = new AssiduiteRepartitionChart;
+    $widget->filter = $forme;
+    $widget->filters = ['classe' => $classeId];
 
     return $widget;
 }
 
-function assiduiteAppel(AssiduiteParPromotionChart $widget, string $methode): mixed
+function assiduiteAppel(AssiduiteRepartitionChart $widget, string $methode): mixed
 {
     // PHP 8.1+ : les méthodes protégées sont invocables sans setAccessible().
     return (new ReflectionMethod($widget, $methode))->invoke($widget);
 }
 
-it('propose trois lectures et démarre sur les barres par promotion', function () {
-    $widget = new AssiduiteParPromotionChart;
+/** Une classe avec 1 présent, 1 retard, 1 absence injustifiée. */
+function assiduiteJeuDEssai(): Promotion
+{
+    $promo = Promotion::factory()->create();
+    $c = Candidate::factory()->dansClasse($promo)->create();
 
-    expect(array_keys(assiduiteAppel($widget, 'getFilters')))
-        ->toBe(['promotion', 'evolution', 'motifs'])
-        ->and($widget->filter)->toBe('promotion')          // vue historique conservée
+    foreach ([
+        ['2026-09-01', PresenceStatut::Present],
+        ['2026-09-08', PresenceStatut::Retard],
+        ['2026-09-15', PresenceStatut::AbsentInjustifie],
+    ] as [$date, $statut]) {
+        emarger(Seance::factory()->create(['promotion_id' => $promo->id, 'date' => $date]), $c, $statut);
+    }
+
+    return $promo;
+}
+
+it('propose les trois formes et démarre sur les barres', function () {
+    $widget = new AssiduiteRepartitionChart;
+
+    expect(assiduiteAppel($widget, 'getFilters'))
+        ->toBe(['bar' => 'Barres', 'pie' => 'Camembert', 'doughnut' => 'Anneau'])
+        ->and($widget->filter)->toBe('bar')
         ->and(assiduiteAppel($widget, 'getType'))->toBe('bar');
 });
 
-it('affiche l\'évolution mensuelle en courbe', function () {
-    $promo = Promotion::factory()->create();
-    $c = Candidate::factory()->dansClasse($promo)->create();
-    $seance = Seance::factory()->create([
-        'promotion_id' => $promo->id,
-        'date' => now()->startOfMonth()->addDay()->toDateString(),
-    ]);
-    emarger($seance, $c, PresenceStatut::Present);
+it('rend la même répartition dans les trois formes', function () {
+    assiduiteJeuDEssai();
 
-    $widget = assiduiteWidget('evolution');
-    $data = assiduiteAppel($widget, 'getData');
+    foreach (['bar', 'pie', 'doughnut'] as $forme) {
+        $widget = assiduiteWidget($forme);
 
-    expect(assiduiteAppel($widget, 'getType'))->toBe('line')
-        ->and($data['labels'])->toHaveCount(6)                       // 6 derniers mois
-        ->and(end($data['datasets'][0]['data']))->toBe(100)          // mois courant : 100 %
-        ->and($data['datasets'][0]['data'][0])->toBeNull();          // mois sans émargement → trou
+        expect(assiduiteAppel($widget, 'getType'))->toBe($forme)
+            ->and(assiduiteAppel($widget, 'getData')['datasets'][0]['data'])->toBe([1, 1, 1]);
+    }
 });
 
-it('affiche la répartition des motifs en camembert (parts d\'un tout)', function () {
-    $promo = Promotion::factory()->create();
-    $c = Candidate::factory()->dansClasse($promo)->create();
+it('écarte les motifs à zéro de la répartition', function () {
+    assiduiteJeuDEssai(); // aucune absence justifiée
 
-    $s1 = Seance::factory()->create(['promotion_id' => $promo->id, 'date' => '2026-09-01']);
-    $s2 = Seance::factory()->create(['promotion_id' => $promo->id, 'date' => '2026-09-08']);
-    $s3 = Seance::factory()->create(['promotion_id' => $promo->id, 'date' => '2026-09-15']);
-    emarger($s1, $c, PresenceStatut::Present);
-    emarger($s2, $c, PresenceStatut::AbsentInjustifie);
-    emarger($s3, $c, PresenceStatut::Retard);
+    $data = assiduiteAppel(assiduiteWidget('pie'), 'getData');
 
-    $widget = assiduiteWidget('motifs');
-    $data = assiduiteAppel($widget, 'getData');
-
-    expect(assiduiteAppel($widget, 'getType'))->toBe('doughnut')
-        ->and($data['labels'])->toBe(['Présents', 'Retards / départs anticipés', 'Absences injustifiées'])
-        ->and($data['datasets'][0]['data'])->toBe([1, 1, 1])
-        // « Absences justifiées » à zéro : écarté plutôt qu'affiché en part vide.
+    expect($data['labels'])->toBe(['Présents', 'Retards / départs anticipés', 'Absences injustifiées'])
         ->and($data['labels'])->not->toContain('Absences justifiées');
 });
 
-it('ne rend cliquables que les barres par promotion', function () {
-    expect(assiduiteAppel(assiduiteWidget('motifs'), 'getSegmentUrls'))->toBe([])
-        ->and(assiduiteAppel(assiduiteWidget('evolution'), 'getSegmentUrls'))->toBe([]);
+it('restreint les statistiques à la classe choisie', function () {
+    $classeA = assiduiteJeuDEssai();
+
+    // Une seconde classe, entièrement présente : elle ne doit pas polluer A.
+    $classeB = Promotion::factory()->create();
+    $cB = Candidate::factory()->dansClasse($classeB)->create();
+    emarger(Seance::factory()->create(['promotion_id' => $classeB->id, 'date' => '2026-09-01']), $cB, PresenceStatut::Present);
+
+    $global = assiduiteAppel(assiduiteWidget('bar'), 'getData');
+    $surA = assiduiteAppel(assiduiteWidget('bar', $classeA->id), 'getData');
+    $surB = assiduiteAppel(assiduiteWidget('bar', $classeB->id), 'getData');
+
+    expect(array_sum($global['datasets'][0]['data']))->toBe(4)   // 3 + 1
+        ->and(array_sum($surA['datasets'][0]['data']))->toBe(3)
+        ->and($surB['labels'])->toBe(['Présents'])               // classe B : que des présents
+        ->and($surB['datasets'][0]['data'])->toBe([1]);
 });
 
-it('affiche le sélecteur des trois lectures dans le widget', function () {
+it('affiche le taux de présence du périmètre en description', function () {
+    $classe = assiduiteJeuDEssai(); // présent + retard comptent présents → 2/3
+
+    expect(assiduiteWidget('bar', $classe->id)->getDescription())->toContain('67 %')
+        ->and(assiduiteWidget('bar')->getHeading())->toBe('Répartition — toutes les classes');
+});
+
+it('ne rend les segments cliquables que sur une classe précise', function () {
+    $classe = assiduiteJeuDEssai();
+
+    expect(assiduiteAppel(assiduiteWidget('bar'), 'getSegmentUrls'))->toBe([])
+        ->and(assiduiteAppel(assiduiteWidget('bar', $classe->id), 'getSegmentUrls'))->toHaveCount(3);
+});
+
+it('affiche le sélecteur de forme et le filtre de classe dans le widget', function () {
     $this->seed(RolePermissionSeeder::class);
     Filament::setCurrentPanel(Filament::getPanel('admin'));
 
@@ -147,12 +174,14 @@ it('affiche le sélecteur des trois lectures dans le widget', function () {
     $user->syncRoles('Scolarité');
     $this->actingAs($user);
 
-    Livewire::test(AssiduiteParPromotionChart::class)
+    $classe = assiduiteJeuDEssai();
+
+    Livewire::test(AssiduiteRepartitionChart::class)
         ->assertSuccessful()
-        ->assertSee('Par promotion (barres)')
-        ->assertSee('Évolution mensuelle (courbe)')
-        ->assertSee('Répartition des motifs (camembert)')
-        // Bascule de vue : le titre suit.
-        ->set('filter', 'motifs')
-        ->assertSee('Répartition des présences et absences');
+        ->assertSee('Barres')
+        ->assertSee('Camembert')
+        ->assertSee('Anneau')
+        // Choix d'une classe : le titre suit.
+        ->set('filters.classe', $classe->id)
+        ->assertSee($classe->nom_complet);
 });

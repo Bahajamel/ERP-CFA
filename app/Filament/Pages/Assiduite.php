@@ -4,6 +4,7 @@ namespace App\Filament\Pages;
 
 use App\Filament\Actions\FicheApprenant;
 use App\Filament\Widgets\AssiduiteParPromotionChart;
+use App\Filament\Widgets\AssiduiteRepartitionChart;
 use App\Models\Candidate;
 use App\Models\User;
 use Filament\Forms\Components\DatePicker;
@@ -53,7 +54,10 @@ class Assiduite extends Page implements HasTable
     protected function getHeaderWidgets(): array
     {
         return [
+            // Comparaison entre classes (« laquelle décroche ? »)…
             AssiduiteParPromotionChart::class,
+            // …puis composition d'un périmètre au choix, en barres/camembert/anneau.
+            AssiduiteRepartitionChart::class,
         ];
     }
 
