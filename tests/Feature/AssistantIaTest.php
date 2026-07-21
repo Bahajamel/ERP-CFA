@@ -5,6 +5,7 @@ use App\Filament\Resources\Candidates\CandidateResource;
 use App\Filament\Resources\Contracts\ContractResource;
 use App\Filament\Resources\FaqBots\FaqBotResource;
 use App\Filament\Resources\FaqBots\Pages\EditFaqBot;
+use App\Filament\Resources\FaqBots\Pages\ListFaqBots;
 use App\Filament\Resources\Seances\SeanceResource;
 use App\Livewire\AssistantIa;
 use App\Models\FaqBot;
@@ -278,4 +279,22 @@ it('présente l\'assistant et illustre chacune de ses bulles', function () {
 
     expect(substr_count($composant->call('poser', $entree->id)->html(), 'cfa-ia-mini'))
         ->toBeGreaterThanOrEqual(2);
+});
+
+it('affiche les avatars dans l\'administration des assistants', function () {
+    $this->seed(FaqBotSeeder::class);
+    assistantConnecte('Administrateur');
+
+    // Liste : un portrait par assistant.
+    Livewire::test(ListFaqBots::class)
+        ->assertSuccessful()
+        ->assertSee('avatars/', false);
+
+    // Fiche : aperçu de l'avatar réellement utilisé par le chat.
+    $bot = FaqBot::query()->where('module', 'contrats')->firstOrFail();
+
+    Livewire::test(EditFaqBot::class, ['record' => $bot->getKey()])
+        ->assertSuccessful()
+        ->assertSee('Avatar actuel')
+        ->assertSee($bot->avatar_path, false);
 });

@@ -11,6 +11,7 @@ use BackedEnum;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\ColorPicker;
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -21,8 +22,8 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\ColorColumn;
 use Filament\Tables\Columns\IconColumn;
-use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Columns\ViewColumn;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Auth;
 
@@ -91,8 +92,16 @@ class FaqBotResource extends Resource
                         ->label('Icône (Heroicon)')
                         ->placeholder('heroicon-o-user-group')
                         ->helperText('Utilisée si aucun avatar n\'est fourni.'),
+                    // Aperçu de ce qui s'affiche réellement dans le chat : le
+                    // champ ci-dessous ne sait prévisualiser que les fichiers
+                    // téléversés, pas les avatars livrés dans public/.
+                    Placeholder::make('avatar_actuel')
+                        ->label('Avatar actuel')
+                        ->content(fn (?FaqBot $record) => $record === null
+                            ? '—'
+                            : view('filament.assistant.colonne-avatar', ['bot' => $record])),
                     FileUpload::make('avatar_path')
-                        ->label('Avatar')
+                        ->label('Remplacer l\'avatar')
                         ->image()
                         ->avatar()
                         ->imageEditor()
@@ -123,11 +132,10 @@ class FaqBotResource extends Resource
     {
         return $table
             ->columns([
-                ImageColumn::make('avatar_path')
+                // Même rendu que dans le chat : image fournie, ou dessin de secours.
+                ViewColumn::make('avatar')
                     ->label('')
-                    ->circular()
-                    ->disk(FaqBot::DISQUE_AVATARS)
-                    ->defaultImageUrl(fn (): ?string => null),
+                    ->view('filament.assistant.colonne-avatar'),
                 TextColumn::make('name')
                     ->label('Assistant')
                     ->weight('bold')
