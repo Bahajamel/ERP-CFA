@@ -60,12 +60,25 @@ class FaqBot extends Model
         return $this->hasMany(FaqEntry::class);
     }
 
-    /** URL de l'avatar téléversé, ou null (l'icône prend alors le relais). */
+    /**
+     * URL de l'avatar, ou null (le dessin SVG par défaut prend alors le relais).
+     *
+     * Deux origines possibles : une image livrée avec le projet (déposée dans
+     * public/, ex. « avatars/xxx.png ») ou un fichier téléversé depuis
+     * l'administration. On distingue les deux en regardant si le fichier existe
+     * dans public/.
+     */
     public function avatarUrl(): ?string
     {
-        return filled($this->avatar_path)
-            ? Storage::disk(self::DISQUE_AVATARS)->url($this->avatar_path)
-            : null;
+        if (blank($this->avatar_path)) {
+            return null;
+        }
+
+        if (is_file(public_path($this->avatar_path))) {
+            return asset($this->avatar_path);
+        }
+
+        return Storage::disk(self::DISQUE_AVATARS)->url($this->avatar_path);
     }
 
     /** Icône affichée à défaut d'avatar. */

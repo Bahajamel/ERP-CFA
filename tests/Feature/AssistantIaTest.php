@@ -201,11 +201,12 @@ it('dessine un avatar distinct pour chaque assistant', function () {
     $rendus = collect(['commercial', 'contrats', 'finance', 'scolarite', 'pilotage'])
         ->map(fn (string $module): string => Livewire::test(AssistantIa::class, ['module' => $module])->html());
 
-    // Chaque assistant expose son avatar SVG, à sa propre couleur…
+    // Chaque assistant expose un avatar : l'image fournie dans public/avatars,
+    // ou, à défaut, le dessin SVG de secours.
     foreach ($rendus as $html) {
-        expect($html)->toContain('<svg viewBox="0 0 64 64"');
+        expect($html)->toMatch('/(<img src="[^"]*avatars\/|<svg viewBox="0 0 64 64")/');
     }
 
-    // …et les cinq dessins diffèrent (coupe, lunettes, barbe, chignon).
+    // …et les cinq assistants ne se ressemblent pas.
     expect($rendus->unique())->toHaveCount(5);
 });
