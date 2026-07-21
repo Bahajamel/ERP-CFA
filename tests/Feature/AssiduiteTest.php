@@ -191,6 +191,9 @@ it('affiche les listes Formation / Classe et le choix du type de graphe', functi
         ->assertSee('Anneau')
         ->assertSee('Formation')
         ->assertSee('Classe')
+        // Les listes sont rendues EN CLAIR au-dessus du graphique (conteneur
+        // dédié), et non cachées derrière l'icône entonnoir de Filament.
+        ->assertSee('fi-wi-chart-scope', false)
         // Ouverture directe sur une classe précise, pas sur un agrégat.
         ->assertSee($classe->nom_complet);
 });

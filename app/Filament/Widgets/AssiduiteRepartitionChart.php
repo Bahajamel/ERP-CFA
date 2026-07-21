@@ -41,6 +41,12 @@ class AssiduiteRepartitionChart extends ChartWidget
     use HasClickableChart;
     use HasFiltersSchema;
 
+    /**
+     * Vue dédiée : elle affiche « Formation » et « Classe » EN CLAIR au-dessus du
+     * graphique, au lieu de les cacher derrière l'icône entonnoir de Filament.
+     */
+    protected string $view = 'filament.widgets.assiduite-repartition';
+
     /** Type de graphe (liste déroulante en en-tête). */
     public ?string $filter = 'bar';
 
@@ -100,7 +106,8 @@ class AssiduiteRepartitionChart extends ChartWidget
         $defaut = self::classeParDefaut();
 
         return $schema
-            ->columns(1)
+            // Les deux listes côte à côte : le choix se lit d'un coup d'œil.
+            ->columns(['default' => 1, 'sm' => 2])
             ->components([
                 Select::make('formation')
                     ->label('Formation')
