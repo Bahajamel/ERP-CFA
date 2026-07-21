@@ -164,9 +164,16 @@ class CompanyForm
                                     }
 
                                     $set('raison_sociale', $fiche['raison_sociale']);
+                                    $set('nom_commercial', $fiche['nom_commercial'] ?? null);
                                     $set('siret', $fiche['siret']);
+                                    $set('siren', $fiche['siren'] ?? null);
+                                    $set('forme_juridique', $fiche['forme_juridique'] ?? null);
+                                    $set('code_ape_naf', $fiche['code_ape_naf'] ?? null);
+                                    $set('code_idcc', $fiche['code_idcc'] ?? null);
                                     $set('secteur', $fiche['secteur'] ?? null);
+                                    $set('numero_siege', $fiche['numero'] ?? null);
                                     $set('adresse', $fiche['adresse']);
+                                    $set('complement_adresse', $fiche['complement_adresse'] ?? null);
                                     $set('code_postal', $fiche['code_postal']);
                                     $set('ville', $fiche['ville']);
                                     $set('pays', $fiche['pays'] ?? 'France');
@@ -243,6 +250,25 @@ class CompanyForm
                             TextInput::make('secteur')
                                 ->label("Secteur d'activité")
                                 ->placeholder('ex : Restauration, BTP, Informatique'),
+                            // Identité légale récupérée depuis l'Annuaire des Entreprises :
+                            // sans ces champs, les valeurs remontées par la recherche SIRET
+                            // ne seraient ni affichées ni enregistrées.
+                            TextInput::make('siren')
+                                ->label('SIREN')
+                                ->placeholder('ex : 123 456 789')
+                                ->helperText('9 premiers chiffres du SIRET.'),
+                            TextInput::make('forme_juridique')
+                                ->label('Forme juridique')
+                                ->placeholder('ex : SAS, société par actions simplifiée'),
+                            TextInput::make('code_ape_naf')
+                                ->label('Code APE / NAF')
+                                ->placeholder('ex : 62.01Z')
+                                ->live(onBlur: true)
+                                ->helperText(fn (Get $get): ?string => EntrepriseAnnuaire::libelleNaf($get('code_ape_naf'))),
+                            TextInput::make('code_idcc')
+                                ->label('IDCC (convention collective)')
+                                ->placeholder('ex : 1486')
+                                ->helperText('Identifiant de la branche : sert au calcul du NPEC.'),
                             Select::make('opco_id')
                                 ->label('OPCO')
                                 ->relationship('opco', 'nom')
@@ -293,6 +319,13 @@ class CompanyForm
                                 ->label('Adresse (voie)')
                                 ->placeholder('ex : 5 avenue de la République')
                                 ->columnSpanFull(),
+                            TextInput::make('numero_siege')
+                                ->label('Numéro du siège')
+                                ->placeholder('ex : 228')
+                                ->helperText('Case « N° » du CERFA, séparée de la voie.'),
+                            TextInput::make('complement_adresse')
+                                ->label('Complément d\'adresse')
+                                ->placeholder('ex : Bâtiment B, 3e étage'),
                             TextInput::make('code_postal')
                                 ->label('Code postal')
                                 ->placeholder('ex : 69003'),

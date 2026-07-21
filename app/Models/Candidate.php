@@ -58,6 +58,16 @@ class Candidate extends Model implements HasMedia
             'cv_consentement' => 'boolean',
             'cv_consentement_at' => 'datetime',
             'statut' => CandidateStatut::class,
+            // NIR : chiffré au repos (donnée sensible, cf. politique pièces sensibles).
+            'num_secu' => 'encrypted',
+            'emancipe' => 'boolean',
+            'ne_en_france' => 'boolean',
+            'rqth' => 'boolean',
+            'aeeh_pch_pps' => 'boolean',
+            'boe' => 'boolean',
+            'sportif_haut_niveau' => 'boolean',
+            'projet_creation_entreprise' => 'boolean',
+            'formation_initiale_precedente' => 'boolean',
         ];
     }
 

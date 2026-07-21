@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Enums\ModaliteSuivi;
+use App\Enums\TypeContrat;
 use App\Models\Concerns\BelongsToOrganisation;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -19,11 +21,28 @@ class Promotion extends Model
 
     protected $guarded = [];
 
+    /** Valeur par défaut cohérente quel que soit le SGBD. */
+    protected $attributes = [
+        'type_contrat' => 'apprentissage',
+    ];
+
     protected function casts(): array
     {
         return [
             'date_debut' => 'date',
             'date_fin' => 'date',
+            'type_contrat' => TypeContrat::class,
+            'modalite_suivi' => ModaliteSuivi::class,
+            'duree_formation_heures' => 'integer',
+            'heures_elearning' => 'integer',
+            'heures_classe_virtuelle' => 'integer',
+            'reste_a_charge_zero' => 'boolean',
+            'frais_hebergement' => 'boolean',
+            'frais_restauration' => 'boolean',
+            'frais_equipement' => 'boolean',
+            'frais_mobilite' => 'boolean',
+            'lieu_formation_latitude' => 'decimal:7',
+            'lieu_formation_longitude' => 'decimal:7',
         ];
     }
 
@@ -38,13 +57,45 @@ class Promotion extends Model
         return $this->belongsTo(Formation::class);
     }
 
-    /** Nom affichable : « Formation — 1ère année (2025-2026) ». */
+    /** Responsable pédagogique de la session (utilisateur du CFA). */
+    public function responsable(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'responsable_id');
+    }
+
+    /**
+     * Nom affichable : le nom libre de la session s'il est renseigné
+     * (ex. « TP EPR 12 MOIS JUIN 2025 »), sinon le libellé composé de la cohorte
+     * (« Formation — 1ère année (2025-2026) »).
+     */
     protected function nomComplet(): Attribute
     {
-        return Attribute::get(fn (): string => trim(
-            implode(' — ', array_filter([$this->formation?->libelle, $this->libelle]))
-            .($this->annee_scolaire ? " ({$this->annee_scolaire})" : '')
-        ));
+        return Attribute::get(function (): string {
+            if (filled($this->nom)) {
+                return $this->nom;
+            }
+
+            return trim(
+                implode(' — ', array_filter([$this->formation?->libelle, $this->libelle]))
+                .($this->annee_scolaire ? " ({$this->annee_scolaire})" : '')
+            );
+        });
+    }
+
+    /**
+     * Lieu de formation sur une ligne lisible (numéro voie, CP ville), ou null.
+     */
+    public function lieuFormationLisible(): ?string
+    {
+        $voie = trim(implode(' ', array_filter([$this->lieu_formation_numero, $this->lieu_formation])));
+        $ligne = trim(implode(' ', array_filter([$this->lieu_formation_code_postal, $this->lieu_formation_ville])));
+
+        $complet = trim(implode(', ', array_filter([
+            $voie !== '' ? $voie : null,
+            $ligne !== '' ? $ligne : null,
+        ])));
+
+        return $complet !== '' ? $complet : null;
     }
 
     /** Les apprentis rattachés à cette cohorte (avec leur inscription : matières choisies, invitation). */

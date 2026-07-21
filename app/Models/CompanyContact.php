@@ -18,6 +18,10 @@ class CompanyContact extends Model
         return [
             'is_principal' => 'boolean',
             'is_tuteur' => 'boolean',
+            'is_representant_legal' => 'boolean',
+            'is_responsable_financier' => 'boolean',
+            'is_contact_facturation' => 'boolean',
+            'date_naissance' => 'date',
         ];
     }
 

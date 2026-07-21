@@ -1,6 +1,7 @@
 <?php
 
-use App\Filament\Resources\Contracts\Pages\CreateContract;
+use App\Enums\ContractStatut;
+use App\Filament\Resources\Contracts\Pages\EditContract;
 use App\Models\Candidate;
 use App\Models\Company;
 use App\Models\CompanyContact;
@@ -112,33 +113,47 @@ it('calcule le plancher applicable à une date de référence', function () {
     expect($avant['taux'])->toBe(43);
 });
 
-it('bloque un salaire sous le minimum légal dans le formulaire de contrat', function () {
-    $this->seed(RolePermissionSeeder::class);
-    $this->actingAs(remunerationUser());
-
-    $candidate = Candidate::factory()->create(['date_naissance' => now()->subYears(19)->format('Y-m-d')]);
+/**
+ * La rémunération (barème légal, pré-remplissage et garde du plancher) se
+ * complète sur la fiche du dossier — c.-à-d. la page d'édition. La création
+ * initiale passe désormais par l'assistant en 4 étapes, qui ne collecte pas le
+ * salaire (voir ContractDossierWizardTest).
+ */
+function contratAComplete(Candidate $candidate, ?float $salaire = null): Contract
+{
     $company = Company::factory()->create();
     $tuteur = CompanyContact::factory()->create(['company_id' => $company->id, 'is_tuteur' => true]);
     $formation = Formation::factory()->create();
 
+    return Contract::factory()->create([
+        'candidate_id' => $candidate->id,
+        'company_id' => $company->id,
+        'formation_id' => $formation->id,
+        'tuteur_id' => $tuteur->id,
+        'code_rncp' => 'RNCP34567',
+        'rythme' => '2 j CFA / 3 j entreprise',
+        'date_debut' => now()->addMonths(2)->format('Y-m-d'),
+        'date_fin' => now()->addMonths(26)->format('Y-m-d'),
+        'lieu_formation' => 'CFA de Lyon',
+        'salaire_mensuel_brut' => $salaire,
+        'statut_contrat' => ContractStatut::EnCours,
+    ]);
+}
+
+it('bloque un salaire sous le minimum légal dans la fiche du contrat', function () {
+    $this->seed(RolePermissionSeeder::class);
+    $this->actingAs(remunerationUser());
+
+    $candidate = Candidate::factory()->create(['date_naissance' => now()->subYears(19)->format('Y-m-d')]);
+    $contract = contratAComplete($candidate);
+
     // 19 ans, 1re année → minimum 43 % du SMIC ≈ 802,82 € : 500 € est illégal.
-    Livewire::test(CreateContract::class)
-        ->fillForm([
-            'candidate_id' => $candidate->id,
-            'company_id' => $company->id,
-            'formation_id' => $formation->id,
-            'tuteur_id' => $tuteur->id,
-            'code_rncp' => 'RNCP34567',
-            'rythme' => '2 j CFA / 3 j entreprise',
-            'date_debut' => now()->addMonths(2)->format('Y-m-d'),
-            'date_fin' => now()->addMonths(26)->format('Y-m-d'),
-            'lieu_formation' => 'CFA de Lyon',
-            'salaire_mensuel_brut' => 500,
-        ])
-        ->call('create')
+    Livewire::test(EditContract::class, ['record' => $contract->getRouteKey()])
+        ->fillForm(['salaire_mensuel_brut' => 500])
+        ->call('save')
         ->assertHasFormErrors(['salaire_mensuel_brut']);
 
-    expect(Contract::query()->count())->toBe(0);
+    expect((float) $contract->refresh()->salaire_mensuel_brut)->not->toBe(500.0);
 });
 
 it('accepte un salaire conforme et pré-remplit le minimum légal quand il est vide', function () {
@@ -146,30 +161,16 @@ it('accepte un salaire conforme et pré-remplit le minimum légal quand il est v
     $this->actingAs(remunerationUser());
 
     $candidate = Candidate::factory()->create(['date_naissance' => now()->subYears(19)->format('Y-m-d')]);
-    $company = Company::factory()->create();
-    $tuteur = CompanyContact::factory()->create(['company_id' => $company->id, 'is_tuteur' => true]);
-    $formation = Formation::factory()->create();
+    $contract = contratAComplete($candidate, salaire: null);
 
-    // Salaire non saisi : le pré-remplissage doit poser le minimum légal
-    // (43 % du SMIC en vigueur) dès que l'apprenti et les dates sont connus.
-    Livewire::test(CreateContract::class)
-        ->fillForm([
-            'candidate_id' => $candidate->id,
-            'company_id' => $company->id,
-            'formation_id' => $formation->id,
-            'tuteur_id' => $tuteur->id,
-            'code_rncp' => 'RNCP34567',
-            'rythme' => '2 j CFA / 3 j entreprise',
-            'date_debut' => now()->addMonths(2)->format('Y-m-d'),
-            'date_fin' => now()->addMonths(26)->format('Y-m-d'),
-            'lieu_formation' => 'CFA de Lyon',
-        ])
-        ->call('create')
+    // Salaire non saisi : toucher aux dates déclenche le pré-remplissage du
+    // minimum légal (43 % du SMIC en vigueur), que l'enregistrement conserve.
+    Livewire::test(EditContract::class, ['record' => $contract->getRouteKey()])
+        ->set('data.date_debut', now()->addMonths(2)->format('Y-m-d'))
+        ->call('save')
         ->assertHasNoFormErrors();
 
-    $contract = Contract::query()->sole();
-
-    expect((float) $contract->salaire_mensuel_brut)->toBe(802.82);
+    expect((float) $contract->refresh()->salaire_mensuel_brut)->toBe(802.82);
 });
 
 /*

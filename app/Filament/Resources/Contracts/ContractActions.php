@@ -10,6 +10,7 @@ use App\Enums\DocumentSource;
 use App\Enums\DocumentStatut;
 use App\Enums\DocumentType;
 use App\Enums\SignatureRequestStatut;
+use App\Enums\TypeContrat;
 use App\Jobs\GenererLivrablesJob;
 use App\Livret\LivretRsClient;
 use App\Mail\DocumentsASigner;
@@ -475,6 +476,282 @@ class ContractActions
             ->modalContent(fn (Contract $record) => view('filament.contracts.completude', [
                 'etat' => app(ContractDocumentService::class)->completude($record),
             ]));
+    }
+
+    /* ================================  Onglet Gestion  ============================= */
+
+    /**
+     * Engager le dossier : le fait entrer dans le circuit de signature
+     * (« En cours » → « Manque la signature »). Remplace l'action « Engager sur
+     * Filiz » de l'outil de référence — sans intégration Filiz réelle ici.
+     */
+    public static function engagerDossier(): Action
+    {
+        return Action::make('engagerDossier')
+            ->label('Engager le dossier')
+            ->icon(Heroicon::OutlinedRocketLaunch)
+            ->color('primary')
+            ->requiresConfirmation()
+            ->modalHeading('Engager le dossier')
+            ->modalDescription('Le dossier entrera dans le circuit de signature (statut « Manque la signature »). Continuer ?')
+            ->modalSubmitActionLabel('Engager le dossier')
+            ->visible(fn (Contract $record): bool => ! $record->estAnnule()
+                && (auth()->user()?->can('access_contracts') ?? false)
+                && $record->statut_contrat->canTransitionTo(ContractStatut::ManqueSignature))
+            ->action(function (Contract $record): void {
+                try {
+                    $record->transitionTo(ContractStatut::ManqueSignature);
+                    Notification::make()->title('Le dossier a été engagé avec succès.')->success()->send();
+                } catch (InvalidTransitionException $e) {
+                    Notification::make()->title('Action impossible')->body($e->getMessage())->danger()->send();
+                }
+            });
+    }
+
+    /** Modification rapide de l'étudiant (email, prénom, nom) sans ouvrir l'onglet complet. */
+    public static function modifierEtudiant(): Action
+    {
+        return Action::make('modifierEtudiant')
+            ->label('Modifier les informations de l\'étudiant')
+            ->icon(Heroicon::OutlinedUser)
+            ->color('primary')
+            ->visible(fn (Contract $record): bool => $record->candidate !== null)
+            ->modalHeading('Modifier les informations de l\'étudiant')
+            ->modalSubmitActionLabel('Valider les modifications')
+            ->fillForm(fn (Contract $record): array => [
+                'email' => $record->candidate?->email,
+                'prenom' => $record->candidate?->prenom,
+                'nom' => $record->candidate?->nom,
+            ])
+            ->schema([
+                TextInput::make('email')->label('Adresse mail de l\'étudiant')->email()->required(),
+                TextInput::make('prenom')->label('Prénom de l\'étudiant')->required(),
+                TextInput::make('nom')->label('Nom de l\'étudiant')->required(),
+            ])
+            ->action(function (Contract $record, array $data): void {
+                $record->candidate?->update([
+                    'email' => $data['email'],
+                    'prenom' => $data['prenom'],
+                    'nom' => $data['nom'],
+                ]);
+                Notification::make()->title('Informations de l\'étudiant mises à jour')->success()->send();
+            });
+    }
+
+    /** Modification rapide du contact principal de l'entreprise (email, prénom, nom). */
+    public static function modifierContactEntreprise(): Action
+    {
+        return Action::make('modifierContactEntreprise')
+            ->label('Modifier les informations de l\'entreprise')
+            ->icon(Heroicon::OutlinedBuildingOffice2)
+            ->color('primary')
+            ->visible(fn (Contract $record): bool => $record->company !== null)
+            ->modalHeading('Modifier le contact de l\'entreprise')
+            ->modalSubmitActionLabel('Valider les modifications')
+            ->fillForm(function (Contract $record): array {
+                $contact = $record->company?->contactPrincipal()->first();
+
+                return [
+                    'email' => $contact?->email,
+                    'prenom' => $contact?->prenom,
+                    'nom' => $contact?->nom,
+                ];
+            })
+            ->schema([
+                TextInput::make('email')->label('Adresse email')->email(),
+                TextInput::make('prenom')->label('Prénom'),
+                TextInput::make('nom')->label('Nom'),
+            ])
+            ->action(function (Contract $record, array $data): void {
+                $record->company?->contacts()->updateOrCreate(
+                    ['is_principal' => true],
+                    ['email' => $data['email'], 'prenom' => $data['prenom'], 'nom' => $data['nom']],
+                );
+                Notification::make()->title('Contact entreprise mis à jour')->success()->send();
+            });
+    }
+
+    /** Modification rapide du signataire (représentant légal) de l'entreprise. */
+    public static function modifierSignataire(): Action
+    {
+        return Action::make('modifierSignataire')
+            ->label('Modifier le signataire entreprise')
+            ->icon(Heroicon::OutlinedPencilSquare)
+            ->color('primary')
+            ->visible(fn (Contract $record): bool => $record->company !== null)
+            ->modalHeading('Modifier le signataire de l\'entreprise')
+            ->modalSubmitActionLabel('Valider les modifications')
+            ->fillForm(function (Contract $record): array {
+                $signataire = $record->company?->representantsLegaux()->first();
+
+                return [
+                    'prenom' => $signataire?->prenom,
+                    'nom' => $signataire?->nom,
+                    'email' => $signataire?->email,
+                    'poste' => $signataire?->fonction,
+                ];
+            })
+            ->schema([
+                TextInput::make('prenom')->label('Prénom'),
+                TextInput::make('nom')->label('Nom'),
+                TextInput::make('email')->label('Adresse email')->email(),
+                TextInput::make('poste')->label('Poste occupé'),
+            ])
+            ->action(function (Contract $record, array $data): void {
+                $record->company?->contacts()->updateOrCreate(
+                    ['is_representant_legal' => true],
+                    [
+                        'prenom' => $data['prenom'],
+                        'nom' => $data['nom'],
+                        'email' => $data['email'],
+                        'fonction' => $data['poste'],
+                    ],
+                );
+                Notification::make()->title('Signataire entreprise mis à jour')->success()->send();
+            });
+    }
+
+    /** Déclarer le dossier non conforme (marqueur + motif obligatoire). */
+    public static function declarerNonConforme(): Action
+    {
+        return Action::make('declarerNonConforme')
+            ->label('Déclarer le dossier non conforme')
+            ->icon(Heroicon::OutlinedExclamationCircle)
+            ->color('danger')
+            ->requiresConfirmation()
+            ->modalHeading('Déclarer le dossier non conforme')
+            ->modalDescription('Êtes-vous sûr de vouloir déclarer ce dossier non conforme ? Cette action pourra bloquer la suite du traitement.')
+            ->modalSubmitActionLabel('Déclarer non conforme')
+            ->schema([
+                Textarea::make('motif')->label('Motif de non-conformité')->rows(3)->required()
+                    ->placeholder('ex : pièces d\'identité illisibles, SIRET erroné…'),
+            ])
+            ->visible(fn (Contract $record): bool => ! $record->estNonConforme() && ! $record->estAnnule()
+                && (auth()->user()?->can('access_contracts') ?? false))
+            ->action(function (Contract $record, array $data): void {
+                $record->forceFill([
+                    'non_conforme' => true,
+                    'non_conforme_motif' => $data['motif'],
+                    'non_conforme_at' => now(),
+                ])->save();
+
+                activity('contrat')->performedOn($record)
+                    ->withProperties(['motif' => $data['motif']])
+                    ->log('Dossier déclaré non conforme');
+
+                Notification::make()->title('Dossier déclaré non conforme')->body('Le motif a été enregistré.')->warning()->send();
+            });
+    }
+
+    /** Lever la non-conformité (rétablir le dossier). */
+    public static function leverNonConformite(): Action
+    {
+        return Action::make('leverNonConformite')
+            ->label('Lever la non-conformité')
+            ->icon(Heroicon::OutlinedCheckCircle)
+            ->color('success')
+            ->requiresConfirmation()
+            ->modalDescription('Rétablir la conformité du dossier ?')
+            ->visible(fn (Contract $record): bool => $record->estNonConforme()
+                && (auth()->user()?->can('access_contracts') ?? false))
+            ->action(function (Contract $record): void {
+                $record->forceFill([
+                    'non_conforme' => false,
+                    'non_conforme_motif' => null,
+                    'non_conforme_at' => null,
+                ])->save();
+
+                activity('contrat')->performedOn($record)->log('Non-conformité levée');
+
+                Notification::make()->title('Conformité rétablie')->success()->send();
+            });
+    }
+
+    /**
+     * Annuler le dossier (annulation LOGIQUE, motif obligatoire) : il reste
+     * consultable mais sort du cycle de traitement. La suppression physique
+     * reste possible via l'action « Supprimer » de l'en-tête (corbeille).
+     */
+    public static function annulerDossier(): Action
+    {
+        return Action::make('annulerDossier')
+            ->label('Annuler le dossier')
+            ->icon(Heroicon::OutlinedNoSymbol)
+            ->color('danger')
+            ->requiresConfirmation()
+            ->modalHeading('Annuler le dossier')
+            ->modalDescription('Êtes-vous sûr de vouloir annuler ce dossier ? Il restera consultable mais ne poursuivra plus le cycle de traitement.')
+            ->modalSubmitActionLabel('Annuler le dossier')
+            ->schema([
+                Textarea::make('motif')->label('Motif d\'annulation')->rows(3)->required(),
+            ])
+            ->visible(fn (Contract $record): bool => ! $record->estAnnule()
+                && (auth()->user()?->can('access_contracts') ?? false))
+            ->action(function (Contract $record, array $data): void {
+                $record->forceFill([
+                    'annule_at' => now(),
+                    'annulation_motif' => $data['motif'],
+                ])->save();
+
+                activity('contrat')->performedOn($record)
+                    ->withProperties(['motif' => $data['motif']])
+                    ->log('Dossier annulé');
+
+                Notification::make()->title('Dossier annulé')->body('Le dossier reste consultable.')->warning()->send();
+            });
+    }
+
+    /** Réactiver un dossier annulé (le remettre dans le cycle). */
+    public static function reactiverDossier(): Action
+    {
+        return Action::make('reactiverDossier')
+            ->label('Réactiver le dossier')
+            ->icon(Heroicon::OutlinedArrowPath)
+            ->color('success')
+            ->requiresConfirmation()
+            ->modalDescription('Remettre ce dossier dans le cycle de traitement ?')
+            ->visible(fn (Contract $record): bool => $record->estAnnule()
+                && (auth()->user()?->can('access_contracts') ?? false))
+            ->action(function (Contract $record): void {
+                $record->forceFill(['annule_at' => null, 'annulation_motif' => null])->save();
+
+                activity('contrat')->performedOn($record)->log('Dossier réactivé');
+
+                Notification::make()->title('Dossier réactivé')->success()->send();
+            });
+    }
+
+    /**
+     * Basculer le type de contrat (apprentissage ↔ professionnalisation). Le
+     * changement peut impacter les documents et la rémunération : confirmation
+     * requise. Les données déjà saisies sont conservées.
+     */
+    public static function changerTypeContrat(): Action
+    {
+        return Action::make('changerTypeContrat')
+            ->label(fn (Contract $record): string => $record->type_contrat === TypeContrat::Apprentissage
+                ? 'Passer le dossier en contrat de professionnalisation'
+                : 'Passer le dossier en contrat d\'apprentissage')
+            ->icon(Heroicon::OutlinedArrowsRightLeft)
+            ->color('warning')
+            ->requiresConfirmation()
+            ->modalHeading('Changer le type de contrat')
+            ->modalDescription('Changer le type de contrat peut modifier les informations nécessaires à la génération des documents (CERFA, convention, rémunération, financement). Voulez-vous continuer ?')
+            ->modalSubmitActionLabel('Confirmer le changement')
+            ->visible(fn (Contract $record): bool => ! $record->estAnnule()
+                && (auth()->user()?->can('access_contracts') ?? false))
+            ->action(function (Contract $record): void {
+                $cible = $record->type_contrat === TypeContrat::Apprentissage
+                    ? TypeContrat::Professionnalisation
+                    : TypeContrat::Apprentissage;
+
+                $record->forceFill(['type_contrat' => $cible->value])->save();
+
+                activity('contrat')->performedOn($record)->log('Type de contrat changé : '.$cible->getLabel());
+
+                Notification::make()->title('Type de contrat mis à jour')
+                    ->body('Nouveau type : '.$cible->getLabel().'.')->success()->send();
+            });
     }
 
     /** Notifie la génération d'un document, en listant les champs manquants. */

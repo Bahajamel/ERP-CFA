@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Formations\Schemas;
 
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TagsInput;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -21,9 +22,12 @@ class FormationForm
                 TextInput::make('code_rncp')
                     ->label('Code RNCP')
                     ->placeholder('ex : RNCP34556'),
-                TextInput::make('niveau')
+                Select::make('niveau')
                     ->label('Niveau')
-                    ->placeholder('ex : 3 (CAP), 5 (BTS), 6 (Licence)'),
+                    ->options(config('cerfa_options.niveau_formation'))
+                    ->native(false)
+                    ->searchable()
+                    ->placeholder('Sélectionner un niveau'),
                 TextInput::make('duree_mois')
                     ->label('Durée (mois)')
                     ->placeholder('ex : 24')

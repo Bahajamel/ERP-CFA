@@ -64,8 +64,8 @@ class ContractDocumentService
         $this->exiger($manquants, $contract->tuteur === null, 'Maître d\'apprentissage (tuteur)');
         $this->exiger($manquants, blank($formation?->libelle), 'Intitulé de la formation');
         $this->exiger($manquants, blank($contract->code_rncp) && blank($formation?->code_rncp), 'Code RNCP');
-        $this->exiger($manquants, blank($contract->date_debut), 'Date de début du contrat');
-        $this->exiger($manquants, blank($contract->date_fin), 'Date de fin du contrat');
+        $this->exiger($manquants, blank($contract->dateDebutEffective()), 'Date de début du contrat');
+        $this->exiger($manquants, blank($contract->dateFinEffective()), 'Date de fin du contrat');
         $this->exiger($manquants, blank($contract->salaire_mensuel_brut), 'Salaire mensuel brut');
 
         return $manquants;
@@ -91,8 +91,8 @@ class ContractDocumentService
         $this->exiger($manquants, blank($co?->siret), 'SIRET de l\'entreprise');
         $this->exiger($manquants, blank($formation?->libelle), 'Intitulé de la formation');
         $this->exiger($manquants, blank($contract->code_rncp) && blank($formation?->code_rncp), 'Code RNCP');
-        $this->exiger($manquants, blank($contract->date_debut), 'Date de début du contrat');
-        $this->exiger($manquants, blank($contract->date_fin), 'Date de fin du contrat');
+        $this->exiger($manquants, blank($contract->dateDebutEffective()), 'Date de début du contrat');
+        $this->exiger($manquants, blank($contract->dateFinEffective()), 'Date de fin du contrat');
         $this->exiger($manquants, blank($contract->lieuFormationLisible()), 'Lieu principal de formation');
         $this->exiger($manquants, $contract->opcoFile?->opco === null && $co?->opco === null, 'OPCO (opérateur de compétences)');
 

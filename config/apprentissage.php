@@ -24,4 +24,15 @@ return [
         '2026-06-01' => 1867.02,
     ],
 
+    /*
+    | Montants repères des frais annexes finançables par l'OPCO (plafonds
+    | réglementaires). Affichés comme repères dans l'onglet Contrat ; jamais
+    | codés en dur dans la logique métier. À ajuster selon la réglementation.
+    */
+    'frais_annexes' => [
+        'hebergement_par_nuit' => 6,
+        'restauration_par_repas' => 3,
+        'premier_equipement' => 500,
+    ],
+
 ];

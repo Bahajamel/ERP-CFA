@@ -5,7 +5,9 @@ namespace App\Models;
 use App\Enums\ContractSignatureStatut;
 use App\Enums\ContractStatut;
 use App\Enums\DocumentType;
+use App\Enums\ModaliteSuivi;
 use App\Enums\OpcoStatut;
+use App\Enums\TypeContrat;
 use App\Models\Concerns\BelongsToOrganisation;
 use App\Parcours\CycleApprenant;
 use App\StateMachine\ManagesState;
@@ -41,9 +43,10 @@ class Contract extends Model implements HasMedia
 
     protected $guarded = [];
 
-    /** Statut par défaut d'un nouveau contrat (cohérent quel que soit le SGBD). */
+    /** Valeurs par défaut d'un nouveau contrat (cohérentes quel que soit le SGBD). */
     protected $attributes = [
         'statut_contrat' => 'en_cours',
+        'type_contrat' => 'apprentissage',
     ];
 
     /**
@@ -90,14 +93,120 @@ class Contract extends Model implements HasMedia
         return [
             'date_debut' => 'date',
             'date_fin' => 'date',
+            'date_signature' => 'date',
+            'duree_hebdo_heures' => 'integer',
             'salaire_mensuel_brut' => 'decimal:2',
             'cout_formation' => 'decimal:2',
             'duree_formation_heures' => 'integer',
+            'nombre_organismes_formation' => 'integer',
+            'heures_elearning' => 'integer',
+            'heures_classe_virtuelle' => 'integer',
+            'reste_a_charge_zero' => 'boolean',
+            'second_maitre' => 'boolean',
+            'regime_assurance_chomage' => 'boolean',
+            'financement_cnfpt' => 'boolean',
+            'facturation_emails' => 'array',
+            // Onglet Contrat — termes du contrat
+            'derogation' => 'boolean',
+            'duree_hebdo_minutes' => 'integer',
+            'avantage_repas' => 'decimal:2',
+            'avantage_logement' => 'decimal:2',
+            'autres_avantages' => 'boolean',
+            'travail_dangereux' => 'boolean',
+            // Onglet Contrat — calendrier & rémunération
+            'date_debut_contrat' => 'date',
+            'date_fin_contrat' => 'date',
+            'date_fin_periode_essai' => 'date',
+            'date_conclusion' => 'date',
+            'date_debut_formation_pratique' => 'date',
+            'smc' => 'boolean',
+            'pourcentage_smic' => 'decimal:2',
+            'remuneration_annuelle' => 'array',
+            // Onglet Contrat — données financières / OPCO
+            'npec_annuel' => 'decimal:2',
+            'npec_journalier' => 'decimal:2',
+            'nombre_jours_contrat' => 'integer',
+            'engagement_opco_total' => 'decimal:2',
+            // Onglet Contrat — reste à charge entreprise
+            'reste_a_charge_montant' => 'decimal:2',
+            'participation_obligatoire' => 'decimal:2',
+            'participation_cfa' => 'decimal:2',
+            'net_a_payer' => 'decimal:2',
+            'calendrier_financement' => 'array',
+            // Onglet Contrat — frais annexes
+            'frais_hebergement' => 'boolean',
+            'frais_restauration' => 'boolean',
+            'frais_equipement' => 'boolean',
+            'frais_mobilite' => 'boolean',
+            // Onglet Gestion — marqueurs et réglages
+            'non_conforme' => 'boolean',
+            'non_conforme_at' => 'datetime',
+            'annule_at' => 'datetime',
+            'relances_activees' => 'boolean',
+            'facturation_opco' => 'boolean',
             'lieu_formation_latitude' => 'decimal:7',
             'lieu_formation_longitude' => 'decimal:7',
+            'modalite_suivi' => ModaliteSuivi::class,
+            'type_contrat' => TypeContrat::class,
             'statut_signature' => ContractSignatureStatut::class,
             'statut_contrat' => ContractStatut::class,
         ];
+    }
+
+    /** Le dossier est-il déclaré non conforme (marqueur de gestion) ? */
+    public function estNonConforme(): bool
+    {
+        return (bool) $this->non_conforme;
+    }
+
+    /** Le dossier est-il annulé (annulation logique, reste consultable) ? */
+    public function estAnnule(): bool
+    {
+        return $this->annule_at !== null;
+    }
+
+    /**
+     * Statut de relecture des documents (badge de l'onglet Gestion), déduit de
+     * l'état du dossier — sans nouvelle colonne de statut.
+     *
+     * @return array{label: string, color: string}
+     */
+    public function relectureStatut(): array
+    {
+        if ($this->estAnnule()) {
+            return ['label' => 'Annulé', 'color' => 'danger'];
+        }
+
+        if ($this->estNonConforme()) {
+            return ['label' => 'Non conforme', 'color' => 'danger'];
+        }
+
+        if (in_array($this->statut_contrat, [ContractStatut::Complet, ContractStatut::ACorriger], true)) {
+            return ['label' => 'Validé', 'color' => 'success'];
+        }
+
+        if ($this->aDocumentContractuel()) {
+            return ['label' => 'À vérifier', 'color' => 'warning'];
+        }
+
+        return ['label' => 'En cours', 'color' => 'info'];
+    }
+
+    /**
+     * Date de début effective du contrat : la date de début du CONTRAT (onglet
+     * Contrat) si renseignée, sinon la date de début de FORMATION (onglet
+     * Étudiant) — repli pour les anciens dossiers. Utilisée par le CERFA, la
+     * convention et le calcul de rémunération.
+     */
+    public function dateDebutEffective(): mixed
+    {
+        return $this->date_debut_contrat ?? $this->date_debut;
+    }
+
+    /** Date de fin effective du contrat (contrat, sinon formation). */
+    public function dateFinEffective(): mixed
+    {
+        return $this->date_fin_contrat ?? $this->date_fin;
     }
 
     /**
@@ -178,9 +287,33 @@ class Contract extends Model implements HasMedia
         return $this->belongsTo(Formation::class);
     }
 
+    /** Promotion (session de formation) rattachée au contrat. */
+    public function promotion(): BelongsTo
+    {
+        return $this->belongsTo(Promotion::class);
+    }
+
+    /** Responsable pédagogique de la formation (utilisateur du CFA). */
+    public function responsablePedagogique(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'responsable_pedagogique_id');
+    }
+
     public function tuteur(): BelongsTo
     {
         return $this->belongsTo(CompanyContact::class, 'tuteur_id');
+    }
+
+    /** Responsable interne du dossier (utilisateur du CFA). */
+    public function responsable(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'responsable_id');
+    }
+
+    /** Second maître d'apprentissage (contact de l'entreprise), s'il existe. */
+    public function tuteur2(): BelongsTo
+    {
+        return $this->belongsTo(CompanyContact::class, 'tuteur2_id');
     }
 
     public function opcoFile(): HasOne

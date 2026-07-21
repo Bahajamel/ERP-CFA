@@ -1,6 +1,5 @@
 <?php
 
-use App\Filament\Resources\Promotions\Pages\CreatePromotion;
 use App\Filament\Resources\Promotions\Pages\EditPromotion;
 use App\Filament\Resources\Promotions\Pages\ListPromotions;
 use App\Models\Candidate;
@@ -24,29 +23,6 @@ beforeEach(function () {
     $this->actingAs($user);
 });
 
-it('rattache les apprenants sélectionnés dès la création de la classe', function () {
-    $formation = Formation::factory()->create();
-    $apprentis = Candidate::factory()->count(3)->create(['formation_visee_id' => $formation->id]);
-    $horsClasse = Candidate::factory()->create(['formation_visee_id' => $formation->id]);
-
-    Livewire::test(CreatePromotion::class)
-        ->fillForm([
-            'formation_annee' => $formation->id.'|1', // « Formation — 1ère année »
-            'annee_scolaire' => '2025-2026',
-            'apprentis_ids' => $apprentis->pluck('id')->all(),
-        ])
-        ->call('create')
-        ->assertHasNoFormErrors();
-
-    $promo = Promotion::firstWhere('libelle', '1ère année');
-
-    expect($promo)->not->toBeNull()
-        ->and($promo->libelle)->toBe('1ère année')
-        ->and($promo->apprentis()->count())->toBe(3)
-        ->and($apprentis->every(fn (Candidate $c) => $c->promotions()->whereKey($promo->id)->exists()))->toBeTrue()
-        ->and($horsClasse->promotions()->count())->toBe(0);
-});
-
 it('met à jour la composition (ajout + retrait) à l\'édition de la classe', function () {
     $promo = Promotion::factory()->create();
     $initiaux = Candidate::factory()->count(2)->dansClasse($promo)->create();
@@ -63,25 +39,6 @@ it('met à jour la composition (ajout + retrait) à l\'édition de la classe', f
     expect($initiaux[0]->promotions()->whereKey($promo->id)->exists())->toBeTrue()
         ->and($initiaux[1]->promotions()->count())->toBe(0)
         ->and($nouveau->promotions()->whereKey($promo->id)->exists())->toBeTrue();
-});
-
-it('refuse de créer une cohorte en double (même formation, année et année scolaire)', function () {
-    $formation = Formation::factory()->create();
-    Promotion::factory()->create([
-        'formation_id' => $formation->id,
-        'libelle' => '1ère année',
-        'annee_scolaire' => '2025-2026',
-    ]);
-
-    Livewire::test(CreatePromotion::class)
-        ->fillForm([
-            'formation_annee' => $formation->id.'|1',
-            'annee_scolaire' => '2025-2026',
-        ])
-        ->call('create')
-        ->assertHasFormErrors();
-
-    expect(Promotion::where('formation_id', $formation->id)->count())->toBe(1);
 });
 
 it('refuse un apprenant d\'un autre niveau (un 1ère année ne rejoint pas une classe de 2ème année)', function () {
@@ -102,15 +59,17 @@ it('ne propose que la cohorte du niveau (pas les apprenants d\'une autre année)
     Candidate::factory()->dansClasse($premiereAnnee)->create(['nom' => 'CohortePremiere']);
     Candidate::factory()->create(['nom' => 'NouveauSansClasse', 'formation_visee_id' => $formation->id]);
 
-    // Création d'une classe de 2ème année : la cohorte de 1ère année est exclue.
-    Livewire::test(CreatePromotion::class)
-        ->fillForm(['formation_annee' => $formation->id.'|2'])
+    // Classe de 2ème année : la cohorte de 1ère année est exclue de sa liste.
+    $deuxiemeAnnee = Promotion::factory()->create(['formation_id' => $formation->id, 'libelle' => '2ème année']);
+    Livewire::test(EditPromotion::class, ['record' => $deuxiemeAnnee->getRouteKey()])
         ->assertSee('NouveauSansClasse')
         ->assertDontSee('CohortePremiere');
 
-    // Création d'une autre matière de 1ère année : la cohorte de 1ère année est proposée.
-    Livewire::test(CreatePromotion::class)
-        ->fillForm(['formation_annee' => $formation->id.'|1'])
+    // Autre classe de 1ère année : la cohorte de 1ère année est proposée.
+    $autrePremiere = Promotion::factory()->create([
+        'formation_id' => $formation->id, 'libelle' => '1ère année', 'nom' => 'Autre 1A',
+    ]);
+    Livewire::test(EditPromotion::class, ['record' => $autrePremiere->getRouteKey()])
         ->assertSee('CohortePremiere')
         ->assertSee('NouveauSansClasse');
 });
@@ -169,8 +128,8 @@ it('ne propose dans la liste que les apprenants compatibles avec la formation de
     Candidate::factory()->create(['nom' => 'SansFormation', 'formation_visee_id' => null]);
     Candidate::factory()->create(['nom' => 'Incompatible']); // autre formation (factory)
 
-    Livewire::test(CreatePromotion::class)
-        ->fillForm(['formation_id' => $formation->id])
+    $promo = Promotion::factory()->create(['formation_id' => $formation->id, 'libelle' => '1ère année']);
+    Livewire::test(EditPromotion::class, ['record' => $promo->getRouteKey()])
         ->assertSee('Compatible')
         ->assertSee('SansFormation')
         ->assertDontSee('Incompatible');
