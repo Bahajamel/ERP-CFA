@@ -5,6 +5,14 @@
 @section('subheading', 'Renseignez votre SIRET : nous pré-remplissons vos informations et votre OPCO automatiquement.')
 
 @section('content')
+    @include('entreprise.partials.etapes', ['etape' => 1])
+
+    @if (session('expire'))
+        <div class="mb-6 rounded-lg bg-amber-50 p-4 text-sm text-amber-800 ring-1 ring-amber-600/10">
+            {{ session('expire') }}
+        </div>
+    @endif
+
     <p class="mb-6 text-sm text-slate-500">Les champs marqués <span class="font-semibold text-rose-500">*</span> sont obligatoires.</p>
 
     @if ($errors->any())
@@ -18,6 +26,11 @@
 
     <form method="POST" action="{{ route('entreprise.store') }}" class="space-y-8">
         @csrf
+        {{-- CFA destinataire : transporté par la page plutôt que par la session,
+             pour qu'ouvrir deux CFA dans deux onglets ne les mélange pas. --}}
+        @if ($cfa)
+            <input type="hidden" name="cfa" value="{{ $cfa->slug }}">
+        @endif
         <div class="hidden" aria-hidden="true">
             <label>Ne rien saisir <input type="text" name="website" tabindex="-1" autocomplete="off"></label>
         </div>
@@ -81,8 +94,11 @@
 
         <button type="submit"
             class="w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
-            Devenir partenaire
+            Continuer&nbsp;→
         </button>
+        <p class="text-center text-xs text-slate-400">
+            Étape suivante : décrire le poste que vous souhaitez pourvoir (facultatif).
+        </p>
     </form>
 
     <script>

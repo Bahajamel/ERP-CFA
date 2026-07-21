@@ -23,6 +23,12 @@ enum DocumentType: string implements HasLabel
     case Examen = 'examen';
     case Facture = 'facture';
     case DocumentQualite = 'document_qualite';
+    /**
+     * Analyse du besoin exprimé par une entreprise pour une offre.
+     * Sert aussi de preuve à l'indicateur Qualiopi n°4 (« Le prestataire
+     * analyse le besoin du bénéficiaire en lien avec l'entreprise »).
+     */
+    case FicheBesoin = 'fiche_besoin';
     case Autre = 'autre';
 
     /**
@@ -70,6 +76,7 @@ enum DocumentType: string implements HasLabel
             self::Examen => 'Examen (copie / sujet)',
             self::Facture => 'Facture',
             self::DocumentQualite => 'Document qualité',
+            self::FicheBesoin => 'Fiche besoin (analyse du besoin entreprise)',
             self::Autre => 'Autre',
         };
     }

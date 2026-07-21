@@ -15,7 +15,9 @@
             Votre dossier et vos pièces ont bien été transmis au CFA.<br>
             Vous serez recontacté(e) par email ou téléphone.
         </p>
-        <a href="{{ route('candidature.create') }}"
+        {{-- Retour vers le formulaire du MÊME CFA (slug flashé par le contrôleur). --}}
+        @php $slug = session('cfa_slug') ?? request('cfa'); @endphp
+        <a href="{{ route('candidature.create', $slug ? ['cfa' => $slug] : []) }}"
             class="mt-6 inline-block rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-200">
             Déposer une autre candidature
         </a>

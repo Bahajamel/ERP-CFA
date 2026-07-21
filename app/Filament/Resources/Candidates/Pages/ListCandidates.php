@@ -8,11 +8,13 @@ use App\Filament\Resources\Candidates\Tables\CandidatesTable;
 use App\Filament\Resources\CustomTables\CustomTableResource;
 use App\Models\Candidate;
 use App\Models\CustomTable;
+use App\Support\CfaPublic;
 use App\Support\CustomFields;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\CreateAction;
 use Filament\Actions\ExportAction;
+use Filament\Facades\Filament;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Pages\ListRecords;
@@ -118,7 +120,11 @@ class ListCandidates extends ListRecords
                     ->schema([
                         Placeholder::make('outil')
                             ->hiddenLabel()
-                            ->content(fn () => view('filament.candidature-lien', ['lien' => route('candidature.create')])),
+                            // Lien du CFA courant : chaque CFA distribue le sien,
+                            // les candidatures lui reviennent directement.
+                            ->content(fn () => view('filament.candidature-lien', [
+                                'lien' => CfaPublic::lien('candidature.create', Filament::getTenant()),
+                            ])),
                     ]),
                 ExportAction::make()
                     ->label('Exporter')

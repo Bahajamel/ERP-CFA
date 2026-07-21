@@ -11,11 +11,21 @@
                 <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
             </svg>
         </div>
-        <p class="mt-4 text-slate-600">
-            Votre entreprise et votre contact ont bien été transmis au CFA.<br>
-            Un conseiller vous recontactera prochainement.
-        </p>
-        <a href="{{ route('entreprise.create') }}"
+        @if (session('besoin_depose'))
+            <p class="mt-4 text-slate-600">
+                Votre entreprise et votre besoin ont bien été transmis au CFA.<br>
+                Un conseiller étudie votre demande et vous proposera des candidats.
+            </p>
+        @else
+            <p class="mt-4 text-slate-600">
+                Votre entreprise et votre contact ont bien été transmis au CFA.<br>
+                Un conseiller vous recontactera prochainement.
+            </p>
+        @endif
+        {{-- Retour vers le formulaire du MÊME CFA : le slug arrive par le flash
+             de session (envoi normal) ou par la query (lien « passer l'étape »). --}}
+        @php $slug = session('cfa_slug') ?? request('cfa'); @endphp
+        <a href="{{ route('entreprise.create', $slug ? ['cfa' => $slug] : []) }}"
             class="mt-6 inline-block rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-200">
             Enregistrer une autre entreprise
         </a>

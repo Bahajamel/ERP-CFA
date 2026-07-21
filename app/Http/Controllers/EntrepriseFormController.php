@@ -3,13 +3,19 @@
 namespace App\Http\Controllers;
 
 use App\Enums\CompanyStatut;
+use App\Enums\NeedOrigine;
+use App\Enums\NeedStatut;
 use App\Models\Company;
+use App\Models\Formation;
+use App\Models\Need;
 use App\Models\Opco;
-use App\Models\Organisation;
+use App\Models\User;
 use App\Rules\TelephoneInternational;
+use App\Support\CfaPublic;
 use App\Support\EntrepriseAnnuaire;
 use App\Support\Indicatifs;
 use App\Support\OpcoDetector;
+use Filament\Notifications\Notification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -24,9 +30,11 @@ use Illuminate\View\View;
  */
 class EntrepriseFormController extends Controller
 {
-    public function create(): View
+    public function create(?string $cfa = null): View
     {
         return view('entreprise.form', [
+            // CFA destinataire : segment d'URL, sinon CFA par défaut (lien historique).
+            'cfa' => CfaPublic::resoudre($cfa),
             'opcos' => Opco::query()->orderBy('nom')->pluck('nom', 'id'),
         ]);
     }
@@ -112,10 +120,15 @@ class EntrepriseFormController extends Controller
             'contact_prenom.regex' => 'Le prénom ne peut contenir que des lettres, espaces, apostrophes et tirets.',
         ]);
 
-        DB::transaction(function () use ($data): void {
+        // CFA destinataire : celui de la page réellement remplie (champ caché),
+        // sinon le CFA par défaut.
+        $cfa = CfaPublic::depuisRequete($request);
+
+        $company = DB::transaction(function () use ($data, $cfa): Company {
             $company = Company::create([
-                // Formulaire public (hors panel) : rattachement au CFA par défaut.
-                'organisation_id' => Organisation::defaut()?->id,
+                // Formulaire public (hors panel) : Filament n'a pas de tenant ici,
+                // le rattachement au CFA est donc explicite.
+                'organisation_id' => $cfa?->id,
                 'raison_sociale' => $data['raison_sociale'],
                 'siret' => $data['siret'],
                 'secteur' => $data['secteur'] ?? null,
@@ -132,8 +145,150 @@ class EntrepriseFormController extends Controller
                 'fonction' => $data['contact_fonction'] ?? null,
                 'is_principal' => true,
             ]);
+
+            return $company;
         });
 
-        return redirect()->route('entreprise.merci');
+        // Étape 2 : la fiche besoin. L'entreprise est retenue en session plutôt
+        // qu'en clair dans l'URL — rien de nouveau n'est exposé publiquement, et
+        // la durée de vie de session sert d'expiration.
+        session([self::CLE_SESSION => $company->id]);
+
+        return redirect()->route('entreprise.besoin');
+    }
+
+    /* ----------------------------------------------------------------
+     |  Étape 2 — fiche besoin (l'entreprise décrit le poste recherché).
+     * ---------------------------------------------------------------- */
+
+    /** Entreprise en cours de parcours (étape 1 validée), retenue en session. */
+    private const CLE_SESSION = 'entreprise_partenaire_id';
+
+    public function besoin(Request $request): View|RedirectResponse
+    {
+        $company = $this->entrepriseDuParcours($request);
+
+        if ($company === null) {
+            return redirect()->route('entreprise.create')
+                ->with('expire', 'Votre session a expiré. Merci de renseigner à nouveau votre entreprise.');
+        }
+
+        return view('entreprise.besoin', [
+            'company' => $company,
+            // Catalogue du CFA de l'entreprise. tousLesCfa() puis filtre explicite :
+            // une page publique ne doit pas dépendre du tenant ambiant.
+            'formations' => Formation::query()
+                ->tousLesCfa()
+                ->where('organisation_id', $company->organisation_id)
+                ->orderBy('libelle')
+                ->pluck('libelle', 'id'),
+        ]);
+    }
+
+    public function besoinStore(Request $request): RedirectResponse
+    {
+        if (filled($request->input('website'))) {
+            return redirect()->route('entreprise.merci');
+        }
+
+        $company = $this->entrepriseDuParcours($request);
+
+        if ($company === null) {
+            return redirect()->route('entreprise.create')
+                ->with('expire', 'Votre session a expiré. Merci de renseigner à nouveau votre entreprise.');
+        }
+
+        // Assainissement des champs texte (même défense en profondeur qu'à l'étape 1).
+        $request->merge(
+            collect($request->only(['intitule_poste', 'rythme', 'localisation', 'prerequis']))
+                ->map(function ($valeur) {
+                    if (! is_string($valeur)) {
+                        return null;
+                    }
+
+                    $propre = trim(strip_tags($valeur));
+
+                    return $propre === '' ? null : $propre;
+                })
+                ->all()
+        );
+
+        $data = $request->validate([
+            'intitule_poste' => ['required', 'string', 'max:255'],
+            'formation_id' => ['nullable', 'integer', 'exists:formations,id'],
+            'nb_postes' => ['required', 'integer', 'min:1', 'max:99'],
+            'date_demarrage' => ['nullable', 'date', 'after_or_equal:today'],
+            'rythme' => ['nullable', 'string', 'max:255'],
+            'localisation' => ['nullable', 'string', 'max:255'],
+            'prerequis' => ['nullable', 'string', 'max:5000'],
+        ], [
+            'intitule_poste.required' => 'Indiquez l\'intitulé du poste recherché.',
+            'date_demarrage.after_or_equal' => 'La date de démarrage ne peut pas être dans le passé.',
+        ]);
+
+        $need = Need::create([
+            // Hors contexte CFA : on rattache le besoin au même CFA que l'entreprise.
+            'organisation_id' => $company->organisation_id,
+            'company_id' => $company->id,
+            // contactPrincipal() est un HasMany malgré son nom : on prend le premier.
+            'contact_id' => $company->contacts()->where('is_principal', true)->value('id'),
+            'intitule_poste' => $data['intitule_poste'],
+            'formation_id' => $data['formation_id'] ?? null,
+            'nb_postes' => $data['nb_postes'],
+            'date_demarrage' => $data['date_demarrage'] ?? null,
+            'rythme' => $data['rythme'] ?? null,
+            'localisation' => $data['localisation'] ?? $company->adresse,
+            'prerequis' => $data['prerequis'] ?? null,
+            'statut' => NeedStatut::Cree,
+            // Déposée par l'entreprise : reste hors des offres actives tant qu'un
+            // commercial ne l'a pas relue (cf. Need::scopeOuverts).
+            'origine' => NeedOrigine::Entreprise,
+        ]);
+
+        $this->notifierCommerciaux($need, $company);
+
+        $request->session()->forget(self::CLE_SESSION);
+
+        // Le slug suit jusqu'à la page de fin : « enregistrer une autre entreprise »
+        // doit revenir au MÊME CFA, pas au CFA par défaut.
+        return redirect()->route('entreprise.merci')
+            ->with('besoin_depose', true)
+            ->with('cfa_slug', $company->organisation?->slug);
+    }
+
+    /** Entreprise de l'étape 1, ou null si la session a expiré / a été vidée. */
+    private function entrepriseDuParcours(Request $request): ?Company
+    {
+        $id = $request->session()->get(self::CLE_SESSION);
+
+        // tousLesCfa() : l'entreprise vient d'être créée par ce visiteur à l'étape 1,
+        // aucun tenant ambiant ne doit pouvoir la masquer entre les deux étapes.
+        return $id === null ? null : Company::query()->tousLesCfa()->find($id);
+    }
+
+    /**
+     * Prévient les commerciaux du CFA qu'un besoin attend leur relecture
+     * (notification en base, visible dans la cloche de l'ERP).
+     */
+    private function notifierCommerciaux(Need $need, Company $company): void
+    {
+        $destinataires = User::query()
+            ->when(
+                $company->organisation_id !== null,
+                fn ($q) => $q->whereHas('organisations', fn ($o) => $o->whereKey($company->organisation_id)),
+            )
+            ->get()
+            ->filter(fn (User $user): bool => $user->can('access_needs'));
+
+        if ($destinataires->isEmpty()) {
+            return;
+        }
+
+        Notification::make()
+            ->title('Nouveau besoin à valider : '.$need->intitule_poste)
+            ->body($company->raison_sociale.' vient de déposer un besoin via le formulaire entreprise.')
+            ->icon('heroicon-o-inbox-arrow-down')
+            ->info()
+            ->sendToDatabase($destinataires);
     }
 }
