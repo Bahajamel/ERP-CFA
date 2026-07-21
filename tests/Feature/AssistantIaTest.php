@@ -91,7 +91,7 @@ it('affiche l\'assistant de la section consultée, avec son accueil', function (
 
     Livewire::test(AssistantIa::class, ['module' => 'contrats'])
         ->assertSuccessful()
-        ->assertSee('Assistant Contrats & OPCO')
+        ->assertSee('Nadia')
         ->assertSee('CERFA');
 });
 
@@ -139,8 +139,8 @@ it('retombe sur l\'assistant de repli si la partie est interdite', function () {
     // Page Finance, mais sans droit d'accès à la finance.
 
     Livewire::test(AssistantIa::class, ['module' => 'finance'])
-        ->assertSee('Assistant Pilotage')
-        ->assertDontSee('Assistant Finance');
+        ->assertSee('Léa')
+        ->assertDontSee('Karim');
 });
 
 it('le annonce clairement quand aucune réponse ne correspond', function () {

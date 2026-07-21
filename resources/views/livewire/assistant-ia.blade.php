@@ -9,17 +9,15 @@
     Toute la teinte vient de la variable CSS « --ia », alimentée par la couleur
     de l'assistant : une seule feuille de style pour cinq identités.
 --}}
-@if ($bot === null)
-    {{-- Aucun assistant installé (seeder non joué) : on n'affiche rien. --}}
-    <div wire:key="assistant-absent"></div>
-@else
-<div
-    class="cfa-ia"
-    style="--ia: {{ $bot->color }};"
-    x-data="{ open: false, reduit: false }"
-    @keydown.escape.window="open = false"
-    @assistant-ouvrir.window="open = true"
->
+{{--
+    IMPORTANT : une seule balise racine, ouverte sur UNE ligne, et jamais
+    conditionnée par un @if. Sinon Livewire n'identifie pas l'élément racine du
+    composant et pose ses attributs (wire:id…) sur la balise suivante — ici le
+    <style> — ce qui rend tout le composant inerte : plus aucun wire:click ne
+    fonctionne. Le cas « aucun assistant » se traite DANS la racine.
+--}}
+<div class="cfa-ia" x-data="{ open: false, reduit: false }" @keydown.escape.window="open = false" @assistant-ouvrir.window="open = true" style="--ia: {{ $bot?->color ?? '#6366f1' }};">
+@if ($bot !== null)
     <style>
         [x-cloak] { display: none !important; }
 
@@ -348,5 +346,5 @@
             </div>
         </div>
     </div>
-</div>
 @endif
+</div>
