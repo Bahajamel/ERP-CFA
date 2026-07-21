@@ -65,9 +65,26 @@ class AssiduiteRepartitionChart extends ChartWidget
 
     private const C_CRITIQUE = '#ef4444';     // absences injustifiées
 
+    /**
+     * Nom de l'évènement annonçant la classe affichée : la page d'assiduité s'y
+     * abonne pour ne lister, en dessous, que les apprentis de cette classe.
+     */
+    public const EVENEMENT_CLASSE = 'assiduite-classe-changee';
+
     public static function canView(): bool
     {
         return auth()->user()?->can('access_attendance') ?? false;
+    }
+
+    /**
+     * À chaque changement de formation ou de classe, on prévient la page pour
+     * que le tableau du dessous suive la même classe que le graphique.
+     */
+    public function updatedFilters(): void
+    {
+        $this->cachedData = null; // comportement d'origine (HasFiltersSchema)
+
+        $this->dispatch(self::EVENEMENT_CLASSE, classeId: $this->classe()?->id);
     }
 
     /* ============================================================

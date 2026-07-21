@@ -13,10 +13,10 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Filters\Filter;
-use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
+use Livewire\Attributes\On;
 
 /**
  * Consultation de l'assiduité (P1-14-4) : taux de présence par apprenti, avec
@@ -41,6 +41,29 @@ class Assiduite extends Page implements HasTable
 
     /** @var array<string, array{renseignees: int, presents: int, absences_injustifiees: int, taux: int|null}> */
     private array $cache = [];
+
+    /**
+     * Classe affichée, pilotée par le graphique du haut : le tableau ne liste
+     * que les apprentis de CETTE classe. Une seule sélection commande tout
+     * l'écran (pas de second filtre « Classe » qui pourrait le contredire).
+     */
+    public ?int $classeId = null;
+
+    public function mount(): void
+    {
+        // Même classe par défaut que le graphique, pour que les deux
+        // s'accordent dès l'ouverture.
+        $this->classeId = AssiduiteRepartitionChart::classeParDefaut()?->id;
+    }
+
+    /** Le graphique a changé de classe : le tableau suit. */
+    #[On(AssiduiteRepartitionChart::EVENEMENT_CLASSE)]
+    public function changerClasse(?int $classeId = null): void
+    {
+        $this->classeId = $classeId;
+        $this->cache = [];
+        $this->resetTable();
+    }
 
     public static function canAccess(): bool
     {
@@ -74,7 +97,13 @@ class Assiduite extends Page implements HasTable
     public function table(Table $table): Table
     {
         return $table
-            ->query(Candidate::query()->whereHas('promotions')->with('promotions'))
+            // Uniquement les apprentis de la classe choisie au-dessus.
+            ->query(fn (): Builder => Candidate::query()
+                ->whereHas('promotions', fn (Builder $q) => $q->when(
+                    $this->classeId !== null,
+                    fn (Builder $p) => $p->whereKey($this->classeId),
+                ))
+                ->with('promotions'))
             ->columns([
                 TextColumn::make('nom_complet')
                     ->label('Apprenti')
@@ -113,12 +142,8 @@ class Assiduite extends Page implements HasTable
                     ->alignCenter(),
             ])
             ->filters([
-                SelectFilter::make('promotions')
-                    ->label('Classe')
-                    ->relationship('promotions', 'libelle', fn ($query) => $query->with('formation'))
-                    ->getOptionLabelFromRecordUsing(fn ($record) => $record->nom_complet)
-                    ->searchable()
-                    ->preload(),
+                // Pas de filtre « Classe » ici : elle se choisit une seule fois,
+                // dans le graphique du dessus, qui commande aussi ce tableau.
                 Filter::make('periode')
                     ->schema([
                         DatePicker::make('du')->label('Du')->displayFormat('d/m/Y'),

@@ -287,3 +287,48 @@ it('met à jour les OPTIONS de la liste Classe quand on change de formation', fu
         // …et aucune classe d'une autre formation.
         ->assertDontSee($classeAutreFormation->nom_complet);
 });
+
+/** Connecte un profil scolarité (les tests de page en ont besoin). */
+function assiduiteConnecte(): void
+{
+    test()->seed(RolePermissionSeeder::class);
+    Filament::setCurrentPanel(Filament::getPanel('admin'));
+    $user = User::factory()->create(['is_active' => true]);
+    $user->syncRoles('Scolarité');
+    test()->actingAs($user);
+}
+
+it('ne liste que les apprentis de la classe choisie', function () {
+    assiduiteConnecte();
+
+    $classeA = Promotion::factory()->create();
+    $lea = Candidate::factory()->dansClasse($classeA)->create(['nom' => 'Martin', 'prenom' => 'Léa']);
+
+    $classeB = Promotion::factory()->create();
+    $karim = Candidate::factory()->dansClasse($classeB)->create(['nom' => 'Benali', 'prenom' => 'Karim']);
+
+    Livewire::test(Assiduite::class)
+        ->call('changerClasse', $classeA->id)
+        ->assertCanSeeTableRecords([$lea])
+        ->assertCanNotSeeTableRecords([$karim])
+        // Le graphique change de classe → le tableau suit.
+        ->call('changerClasse', $classeB->id)
+        ->assertCanSeeTableRecords([$karim])
+        ->assertCanNotSeeTableRecords([$lea]);
+});
+
+it('ouvre le tableau sur la classe présélectionnée du graphique', function () {
+    assiduiteConnecte();
+
+    // Classe avec émargements → c'est elle que le graphique présélectionne.
+    $emargee = assiduiteJeuDEssai();
+    $inscrit = Candidate::factory()->dansClasse($emargee)->create(['nom' => 'Doe', 'prenom' => 'Jane']);
+
+    $autre = Promotion::factory()->create(['annee_scolaire' => '2030-2031']);
+    $ailleurs = Candidate::factory()->dansClasse($autre)->create(['nom' => 'Roy', 'prenom' => 'Sam']);
+
+    Livewire::test(Assiduite::class)
+        ->assertSet('classeId', $emargee->id)
+        ->assertCanSeeTableRecords([$inscrit])
+        ->assertCanNotSeeTableRecords([$ailleurs]);
+});
