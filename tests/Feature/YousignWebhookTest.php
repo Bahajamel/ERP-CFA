@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\ContractSignatureStatut;
 use App\Enums\SignatureRequestStatut;
 use App\Models\Contract;
 use App\Models\SignatureRequest;
@@ -140,5 +141,5 @@ it('clôt le contrat quand toutes les parties ont signé', function () {
 
     expect($enveloppe->fresh()->statut)->toBe(SignatureRequestStatut::Signee)
         ->and($enveloppe->fresh()->contract->statut_signature)
-        ->toBe(\App\Enums\ContractSignatureStatut::Signe);
+        ->toBe(ContractSignatureStatut::Signe);
 });

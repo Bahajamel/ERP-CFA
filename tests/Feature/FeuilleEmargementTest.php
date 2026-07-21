@@ -1,7 +1,11 @@
 <?php
 
 use App\Enums\DocumentType;
+use App\Filament\Resources\Seances\Pages\EditSeance;
 use App\Filament\Resources\Seances\Pages\ListSeances;
+use App\Filament\Resources\Seances\RelationManagers\PresencesRelationManager;
+use App\Models\Formation;
+use App\Models\Promotion;
 use App\Models\Seance;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
@@ -69,9 +73,9 @@ it('crée une nouvelle version à chaque dépôt sans effacer la précédente', 
 it('dépose la feuille depuis la section Émargement (près des apprenants)', function () {
     $seance = Seance::factory()->create();
 
-    Livewire::test(\App\Filament\Resources\Seances\RelationManagers\PresencesRelationManager::class, [
+    Livewire::test(PresencesRelationManager::class, [
         'ownerRecord' => $seance,
-        'pageClass' => \App\Filament\Resources\Seances\Pages\EditSeance::class,
+        'pageClass' => EditSeance::class,
     ])
         ->callAction(TestAction::make('feuilleEmargement')->table(), data: [
             'fichier' => scanFeuille('emargement-depuis-emargement.pdf'),
@@ -84,12 +88,12 @@ it('dépose la feuille depuis la section Émargement (près des apprenants)', fu
 });
 
 it('filtre les séances par formation et par année', function () {
-    $cda = \App\Models\Formation::factory()->create(['libelle' => 'CDA']);
-    $bts = \App\Models\Formation::factory()->create(['libelle' => 'BTS MCO']);
+    $cda = Formation::factory()->create(['libelle' => 'CDA']);
+    $bts = Formation::factory()->create(['libelle' => 'BTS MCO']);
 
-    $cda1 = \App\Models\Promotion::factory()->create(['formation_id' => $cda->id, 'libelle' => '1ère année']);
-    $cda2 = \App\Models\Promotion::factory()->create(['formation_id' => $cda->id, 'libelle' => '2ème année']);
-    $bts1 = \App\Models\Promotion::factory()->create(['formation_id' => $bts->id, 'libelle' => '1ère année']);
+    $cda1 = Promotion::factory()->create(['formation_id' => $cda->id, 'libelle' => '1ère année']);
+    $cda2 = Promotion::factory()->create(['formation_id' => $cda->id, 'libelle' => '2ème année']);
+    $bts1 = Promotion::factory()->create(['formation_id' => $bts->id, 'libelle' => '1ère année']);
 
     Seance::factory()->create(['promotion_id' => $cda1->id, 'libelle' => 'SeanceCda1']);
     Seance::factory()->create(['promotion_id' => $cda2->id, 'libelle' => 'SeanceCda2']);
@@ -110,8 +114,8 @@ it('filtre les séances par formation et par année', function () {
 });
 
 it('affiche la liste des séances groupée par formation, comme la liste des classes', function () {
-    $formation = \App\Models\Formation::factory()->create(['libelle' => 'BTS Groupement Séances']);
-    $classe = \App\Models\Promotion::factory()->create(['formation_id' => $formation->id, 'libelle' => '1ère année']);
+    $formation = Formation::factory()->create(['libelle' => 'BTS Groupement Séances']);
+    $classe = Promotion::factory()->create(['formation_id' => $formation->id, 'libelle' => '1ère année']);
     Seance::factory()->create(['promotion_id' => $classe->id, 'libelle' => 'MatiereGroupee']);
 
     Livewire::test(ListSeances::class)

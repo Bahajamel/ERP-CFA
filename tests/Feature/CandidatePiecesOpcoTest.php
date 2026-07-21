@@ -4,7 +4,9 @@ use App\Filament\Resources\Candidates\Pages\CreateCandidate;
 use App\Models\Candidate;
 use App\Models\Opco;
 use App\Models\User;
+use App\Support\EntrepriseAnnuaire;
 use App\Support\OpcoDetector;
+use Database\Seeders\OpcoSeeder;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -135,18 +137,18 @@ it('détecte l\'OPCO via France Compétences et le rattache au référentiel exi
 });
 
 it('seede le référentiel officiel des 11 OPCO', function () {
-    $this->seed(Database\Seeders\OpcoSeeder::class);
+    $this->seed(OpcoSeeder::class);
 
     expect(Opco::query()->count())->toBe(11)
         ->and(Opco::query()->where('nom', 'OPCO Mobilités')->exists())->toBeTrue();
 
     // Idempotent : relancer ne crée pas de doublon.
-    $this->seed(Database\Seeders\OpcoSeeder::class);
+    $this->seed(OpcoSeeder::class);
     expect(Opco::query()->count())->toBe(11);
 });
 
 it('rattache les libellés longs de France Compétences à l\'OPCO canonique', function () {
-    $this->seed(Database\Seeders\OpcoSeeder::class);
+    $this->seed(OpcoSeeder::class);
 
     Http::fake([
         'api.francecompetences.fr/*' => Http::response([
@@ -165,7 +167,7 @@ it('rattache les libellés longs de France Compétences à l\'OPCO canonique', f
 });
 
 it('rattache « Uniformation, l\'Opco de la Cohésion sociale » au canonique', function () {
-    $this->seed(Database\Seeders\OpcoSeeder::class);
+    $this->seed(OpcoSeeder::class);
 
     Http::fake([
         'api.francecompetences.fr/*' => Http::response([
@@ -226,10 +228,10 @@ it('recherche une entreprise par nom et encode sa fiche complète', function () 
         ]),
     ]);
 
-    $options = app(App\Support\EntrepriseAnnuaire::class)->options('MIVA');
+    $options = app(EntrepriseAnnuaire::class)->options('MIVA');
     expect($options)->toHaveCount(1);
 
-    $fiche = App\Support\EntrepriseAnnuaire::decode(array_key_first($options));
+    $fiche = EntrepriseAnnuaire::decode(array_key_first($options));
 
     expect($fiche['raison_sociale'])->toBe('MIVA')
         ->and($fiche['siret'])->toBe('48953331500011')
@@ -242,8 +244,8 @@ it('recherche une entreprise par nom et encode sa fiche complète', function () 
 });
 
 it('renvoie une liste vide pour une recherche d\'entreprise trop courte', function () {
-    expect(app(App\Support\EntrepriseAnnuaire::class)->options('ab'))->toBe([])
-        ->and(App\Support\EntrepriseAnnuaire::decode(null))->toBeNull();
+    expect(app(EntrepriseAnnuaire::class)->options('ab'))->toBe([])
+        ->and(EntrepriseAnnuaire::decode(null))->toBeNull();
 });
 
 it('ne lance pas de détection sur un SIRET invalide', function () {

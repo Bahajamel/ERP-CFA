@@ -4,12 +4,14 @@ use App\Enums\PresenceStatut;
 use App\Filament\Pages\EmploiDuTemps;
 use App\Filament\Resources\Seances\Pages\CreateSeance;
 use App\Filament\Resources\Seances\Pages\EditSeance;
+use App\Filament\Resources\Seances\RelationManagers\PresencesRelationManager;
 use App\Models\Candidate;
 use App\Models\Formation;
 use App\Models\Promotion;
 use App\Models\Seance;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
+use Filament\Actions\Testing\TestAction;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -102,12 +104,12 @@ it('gère les participants depuis la section Émargement (liste à cocher par s�
 
     $seance = Seance::factory()->create(['promotion_id' => $classe->id, 'libelle' => 'Option Web']);
 
-    Livewire::test(\App\Filament\Resources\Seances\RelationManagers\PresencesRelationManager::class, [
+    Livewire::test(PresencesRelationManager::class, [
         'ownerRecord' => $seance,
         'pageClass' => EditSeance::class,
     ])
         ->callAction(
-            \Filament\Actions\Testing\TestAction::make('gererParticipants')->table(),
+            TestAction::make('gererParticipants')->table(),
             data: ['participants_ids' => [$garde->id, $ajoute->id]],
         )
         ->assertHasNoActionErrors();

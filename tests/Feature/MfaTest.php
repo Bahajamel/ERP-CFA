@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\User;
+use Database\Seeders\RolePermissionSeeder;
 use Filament\Auth\MultiFactor\App\AppAuthentication;
 use Filament\Auth\MultiFactor\App\Contracts\HasAppAuthentication;
 use Filament\Auth\MultiFactor\App\Contracts\HasAppAuthenticationRecovery;
@@ -21,7 +22,7 @@ it('déclare le fournisseur de double authentification par application sur le pa
 });
 
 it('impose la MFA aux administrateurs, pas aux autres rôles', function () {
-    $this->seed(\Database\Seeders\RolePermissionSeeder::class);
+    $this->seed(RolePermissionSeeder::class);
     $panel = Filament::getPanel('admin');
 
     $admin = User::factory()->create();

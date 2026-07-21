@@ -1,5 +1,7 @@
 <?php
 
+use App\Enums\ContractSignatureStatut;
+use App\Enums\ContractStatut;
 use App\Enums\DocumentType;
 use App\Filament\Resources\Candidates\CandidateResource;
 use App\Filament\Resources\Companies\CompanyResource;
@@ -61,8 +63,8 @@ it('trouve un dossier OPCO via l\'apprenti du contrat', function () {
     $candidate = Candidate::factory()->create(['nom' => 'Wexford', 'prenom' => 'Tom']);
     $contract = Contract::factory()->create([
         'candidate_id' => $candidate->id,
-        'statut_contrat' => App\Enums\ContractStatut::Complet,
-        'statut_signature' => App\Enums\ContractSignatureStatut::Signe,
+        'statut_contrat' => ContractStatut::Complet,
+        'statut_signature' => ContractSignatureStatut::Signe,
     ]);
     OpcoFile::factory()->create(['contract_id' => $contract->id]);
 

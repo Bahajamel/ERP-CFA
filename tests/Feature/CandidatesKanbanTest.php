@@ -3,6 +3,7 @@
 use App\Enums\CandidateStatut;
 use App\Filament\Resources\Candidates\Pages\CandidatesKanban;
 use App\Models\Candidate;
+use App\Models\Entretien;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Filament\Facades\Filament;
@@ -34,7 +35,7 @@ it('groupe les candidats par statut dans les colonnes', function () {
 it('déplace une carte vers un statut autorisé (transition appliquée)', function () {
     $candidate = Candidate::factory()->create(['statut' => CandidateStatut::EntretienPrevu]);
     // « Accepté » exige un entretien réalisé (cycle apprenant).
-    \App\Models\Entretien::factory()->realise()->create(['candidate_id' => $candidate->id]);
+    Entretien::factory()->realise()->create(['candidate_id' => $candidate->id]);
 
     Livewire::test(CandidatesKanban::class)
         ->call('moveCard', $candidate->id, CandidateStatut::Accepte->value)

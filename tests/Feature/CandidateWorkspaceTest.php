@@ -1,9 +1,11 @@
 <?php
 
 use App\Enums\CandidateStatut;
+use App\Enums\MatchingStatut;
 use App\Filament\Resources\Candidates\Pages\ListCandidates;
 use App\Filament\Resources\Candidates\Tables\CandidatesTable;
 use App\Models\Candidate;
+use App\Models\Matching;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -122,9 +124,9 @@ it('propose un entretien pour un nouveau candidat', function () {
 it('ne propose PAS un entretien pour un candidat accepté déjà en matching', function () {
     $this->seed(RolePermissionSeeder::class);
     $c = Candidate::factory()->create(['statut' => CandidateStatut::Accepte]);
-    \App\Models\Matching::factory()->create([
+    Matching::factory()->create([
         'candidate_id' => $c->id,
-        'statut' => \App\Enums\MatchingStatut::EnRecherche,
+        'statut' => MatchingStatut::EnRecherche,
     ]);
 
     $focus = $c->parcoursFocus();

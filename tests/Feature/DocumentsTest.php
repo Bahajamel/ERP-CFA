@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\DocumentStatut;
 use App\Enums\DocumentType;
 use App\Filament\Resources\Documents\DocumentResource;
 use App\Models\Document;
@@ -36,7 +37,7 @@ it('réserve la GED aux rôles disposant de access_documents', function () {
 it('crée une nouvelle version chaînée et bascule la version courante', function () {
     $v1 = Document::factory()->create(['version' => 1, 'type' => DocumentType::Autre]);
 
-    $v2 = $v1->creerNouvelleVersion(['statut' => \App\Enums\DocumentStatut::Recu]);
+    $v2 = $v1->creerNouvelleVersion(['statut' => DocumentStatut::Recu]);
 
     expect($v2->version)->toBe(2)
         ->and($v2->previous_version_id)->toBe($v1->id)

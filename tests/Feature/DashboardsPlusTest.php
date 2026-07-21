@@ -10,7 +10,7 @@ uses(RefreshDatabase::class);
 // ---------------------------------------------------------------------------
 
 it('affiche 2 courbes en mode comparaison N-1, 1 seule sinon', function () {
-    $chart = new ContratsSignesParMoisChart();
+    $chart = new ContratsSignesParMoisChart;
 
     $chart->filter = 'comparer';
     $avecCompare = Closure::bind(fn () => $this->getData(), $chart, $chart)();
@@ -22,7 +22,7 @@ it('affiche 2 courbes en mode comparaison N-1, 1 seule sinon', function () {
 });
 
 it('propose les filtres de période sur la courbe', function () {
-    $chart = new ContratsSignesParMoisChart();
+    $chart = new ContratsSignesParMoisChart;
     $filtres = Closure::bind(fn () => $this->getFilters(), $chart, $chart)();
 
     expect($filtres)->toHaveKeys(['simple', 'comparer']);

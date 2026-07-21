@@ -6,6 +6,7 @@ use App\Filament\Widgets\PrioritesDuJourWidget;
 use App\Models\Contract;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
+use Filament\Auth\MultiFactor\App\AppAuthentication;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 
@@ -45,7 +46,7 @@ it('rend le dashboard complet avec le cockpit', function () {
     // Le MFA est obligatoire pour les admins : on l'active pour accéder au panel
     // sans être redirigé vers sa mise en place.
     $admin = cockpitAdmin();
-    $admin->saveAppAuthenticationSecret(\Filament\Auth\MultiFactor\App\AppAuthentication::make()->generateSecret());
+    $admin->saveAppAuthenticationSecret(AppAuthentication::make()->generateSecret());
     $this->actingAs($admin);
 
     // En multi-tenant, le dashboard vit sous /admin/{cfa} : on cible l'URL du tenant courant.

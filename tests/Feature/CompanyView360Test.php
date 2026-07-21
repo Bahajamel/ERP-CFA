@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\CandidateStatut;
 use App\Enums\MatchingStatut;
 use App\Enums\NeedStatut;
 use App\Filament\Resources\Companies\Pages\ViewCompany;
@@ -42,7 +43,7 @@ it('affiche la vue 360° avec besoins, candidats proposés et contrats', functio
         'intitule_poste' => 'Développeur web alternant',
         'statut' => NeedStatut::CandidatRetenu,
     ]);
-    $candidate = Candidate::factory()->create(['nom' => 'Petit', 'prenom' => 'Lucas', 'statut' => \App\Enums\CandidateStatut::Accepte]);
+    $candidate = Candidate::factory()->create(['nom' => 'Petit', 'prenom' => 'Lucas', 'statut' => CandidateStatut::Accepte]);
     Matching::factory()->for($need)->create([
         'candidate_id' => $candidate->id,
         'statut' => MatchingStatut::Accepte,

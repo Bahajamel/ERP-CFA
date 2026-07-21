@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\ContractSignatureStatut;
+use App\Enums\ContractStatut;
 use App\Enums\OpcoStatut;
 use App\Filament\Resources\OpcoFiles\OpcoFileResource;
 use App\Models\Contract;
@@ -9,6 +10,7 @@ use App\Models\User;
 use App\StateMachine\InvalidTransitionException;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Validation\ValidationException;
 
 uses(RefreshDatabase::class);
 
@@ -24,8 +26,8 @@ function dossierOpco(OpcoStatut $statut, ContractSignatureStatut $signature = Co
     $contract = Contract::factory()->create([
         'statut_signature' => $signature,
         'statut_contrat' => $signature === ContractSignatureStatut::Signe
-            ? \App\Enums\ContractStatut::Complet
-            : \App\Enums\ContractStatut::ManqueSignature,
+            ? ContractStatut::Complet
+            : ContractStatut::ManqueSignature,
     ]);
 
     return OpcoFile::factory()->create([
@@ -39,7 +41,7 @@ it('interdit la création même du dossier OPCO si le contrat n\'est pas signé'
     // Cycle apprenant : la garde intervient dès la création du dossier,
     // plus seulement à la transition « Prêt au dépôt ».
     expect(fn () => dossierOpco(OpcoStatut::APreparer, ContractSignatureStatut::NonSigne))
-        ->toThrow(Illuminate\Validation\ValidationException::class);
+        ->toThrow(ValidationException::class);
 });
 
 it('autorise « Prêt au dépôt » si le contrat est signé', function () {

@@ -1,6 +1,8 @@
 <?php
 
 use App\Enums\DocumentType;
+use App\Filament\Resources\Promotions\Pages\EditPromotion;
+use App\Filament\Resources\Promotions\RelationManagers\ApprentisRelationManager;
 use App\Models\Candidate;
 use App\Models\Evaluation;
 use App\Models\Formation;
@@ -11,6 +13,7 @@ use Database\Seeders\RolePermissionSeeder;
 use Filament\Actions\Testing\TestAction;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 
@@ -90,7 +93,7 @@ it('importe un bulletin externe en GED, versionné après un bulletin généré'
     app(BulletinGenerator::class)->archiver($apprenant->fresh());
 
     // v2 : bulletin importé (fichier déposé sur le disque public).
-    $chemin = \Illuminate\Http\UploadedFile::fake()
+    $chemin = UploadedFile::fake()
         ->createWithContent('officiel.pdf', "%PDF-1.4\nbulletin importé\n%%EOF")
         ->store('imports', 'public');
 
@@ -109,9 +112,9 @@ it('ouvre le pop-up scolarité avec les actions bulletin (fiche apprenant)', fun
     Evaluation::factory()->create(['candidate_id' => $apprenant->id, 'promotion_id' => $classe->id, 'matiere' => 'Développement web', 'note' => 14]);
 
     // Le pop-up (avec ses actions de pied : ajouter note, bulletin, import) se monte sans erreur.
-    Livewire::test(\App\Filament\Resources\Promotions\RelationManagers\ApprentisRelationManager::class, [
+    Livewire::test(ApprentisRelationManager::class, [
         'ownerRecord' => $classe,
-        'pageClass' => \App\Filament\Resources\Promotions\Pages\EditPromotion::class,
+        'pageClass' => EditPromotion::class,
     ])
         ->mountAction(TestAction::make('ficheApprenant')->table($apprenant))
         ->assertActionMounted(TestAction::make('ficheApprenant')->table($apprenant));

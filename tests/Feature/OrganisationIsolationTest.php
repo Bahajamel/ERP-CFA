@@ -5,6 +5,7 @@ use App\Models\Company;
 use App\Models\Organisation;
 use App\Models\Task;
 use Filament\Facades\Filament;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -110,7 +111,7 @@ it('refuse deux fois le même SIRET à l’intérieur d’un même CFA', functio
     dansLeCfa($cfa, fn () => Company::factory()->create(['siret' => $siret]));
 
     dansLeCfa($cfa, fn () => Company::factory()->create(['siret' => $siret]));
-})->throws(Illuminate\Database\QueryException::class);
+})->throws(QueryException::class);
 
 it('offre une échappatoire explicite pour requêter tous les CFA depuis un contexte CFA', function () {
     $cfaA = Organisation::factory()->create();

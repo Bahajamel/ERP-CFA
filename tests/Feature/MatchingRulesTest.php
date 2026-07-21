@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\CandidateStatut;
 use App\Enums\MatchingStatut;
 use App\Enums\NeedStatut;
 use App\Models\Candidate;
@@ -22,7 +23,7 @@ function besoinOuvert(): Need
 
 it('crée un matching « En recherche » entre un candidat accepté et un besoin', function () {
     $need = besoinOuvert();
-    $candidate = Candidate::factory()->create(['statut' => \App\Enums\CandidateStatut::Accepte]);
+    $candidate = Candidate::factory()->create(['statut' => CandidateStatut::Accepte]);
 
     $matching = Matching::create([
         'need_id' => $need->id,
@@ -36,7 +37,7 @@ it('crée un matching « En recherche » entre un candidat accepté et un besoin
 
 it('empêche de proposer deux fois le même candidat sur le même besoin', function () {
     $need = besoinOuvert();
-    $candidate = Candidate::factory()->create(['statut' => \App\Enums\CandidateStatut::Accepte]);
+    $candidate = Candidate::factory()->create(['statut' => CandidateStatut::Accepte]);
     Matching::create(['need_id' => $need->id, 'candidate_id' => $candidate->id, 'statut' => MatchingStatut::EnRecherche]);
 
     expect(fn () => Matching::create([
@@ -51,7 +52,7 @@ it('empêche de proposer deux fois le même candidat sur le même besoin', funct
 it('passe en « Proposition envoyée » lorsque le CV est marqué envoyé', function () {
     $matching = Matching::create([
         'need_id' => besoinOuvert()->id,
-        'candidate_id' => Candidate::factory()->create(['statut' => \App\Enums\CandidateStatut::Accepte])->id,
+        'candidate_id' => Candidate::factory()->create(['statut' => CandidateStatut::Accepte])->id,
         'statut' => MatchingStatut::EnRecherche,
         'cv_envoye' => false,
     ]);
@@ -64,7 +65,7 @@ it('passe en « Proposition envoyée » lorsque le CV est marqué envoyé', func
 it('empêche « Proposition envoyée » si le CV n\'est pas marqué envoyé', function () {
     $matching = Matching::create([
         'need_id' => besoinOuvert()->id,
-        'candidate_id' => Candidate::factory()->create(['statut' => \App\Enums\CandidateStatut::Accepte])->id,
+        'candidate_id' => Candidate::factory()->create(['statut' => CandidateStatut::Accepte])->id,
         'statut' => MatchingStatut::EnRecherche,
         'cv_envoye' => false,
     ]);
@@ -79,7 +80,7 @@ it('empêche « Proposition envoyée » si le CV n\'est pas marqué envoyé', fu
 it('passe en « Entretien entreprise » avec une date d\'entretien', function () {
     $matching = Matching::create([
         'need_id' => besoinOuvert()->id,
-        'candidate_id' => Candidate::factory()->create(['statut' => \App\Enums\CandidateStatut::Accepte])->id,
+        'candidate_id' => Candidate::factory()->create(['statut' => CandidateStatut::Accepte])->id,
         'statut' => MatchingStatut::EnRecherche,
     ]);
 
@@ -91,7 +92,7 @@ it('passe en « Entretien entreprise » avec une date d\'entretien', function ()
 it('empêche « Entretien entreprise » sans date d\'entretien', function () {
     $matching = Matching::create([
         'need_id' => besoinOuvert()->id,
-        'candidate_id' => Candidate::factory()->create(['statut' => \App\Enums\CandidateStatut::Accepte])->id,
+        'candidate_id' => Candidate::factory()->create(['statut' => CandidateStatut::Accepte])->id,
         'statut' => MatchingStatut::EnRecherche,
         'date_entretien' => null,
     ]);
@@ -105,7 +106,7 @@ it('empêche « Entretien entreprise » sans date d\'entretien', function () {
 it('refuse un matching avec un motif de refus', function () {
     $matching = Matching::create([
         'need_id' => besoinOuvert()->id,
-        'candidate_id' => Candidate::factory()->create(['statut' => \App\Enums\CandidateStatut::Accepte])->id,
+        'candidate_id' => Candidate::factory()->create(['statut' => CandidateStatut::Accepte])->id,
         'statut' => MatchingStatut::EnRecherche,
     ]);
 
@@ -117,7 +118,7 @@ it('refuse un matching avec un motif de refus', function () {
 it('empêche un refus sans motif ni commentaire', function () {
     $matching = Matching::create([
         'need_id' => besoinOuvert()->id,
-        'candidate_id' => Candidate::factory()->create(['statut' => \App\Enums\CandidateStatut::Accepte])->id,
+        'candidate_id' => Candidate::factory()->create(['statut' => CandidateStatut::Accepte])->id,
         'statut' => MatchingStatut::EnRecherche,
     ]);
 
@@ -130,7 +131,7 @@ it('empêche un refus sans motif ni commentaire', function () {
 it('accepte un matching sur un besoin ouvert', function () {
     $matching = Matching::create([
         'need_id' => besoinOuvert()->id,
-        'candidate_id' => Candidate::factory()->create(['statut' => \App\Enums\CandidateStatut::Accepte])->id,
+        'candidate_id' => Candidate::factory()->create(['statut' => CandidateStatut::Accepte])->id,
         'statut' => MatchingStatut::PropositionEnvoyee,
     ]);
 
@@ -152,7 +153,7 @@ it('empêche l\'acceptation si le besoin est clôturé', function () {
 it('journalise les évolutions du matching (activity log)', function () {
     $matching = Matching::create([
         'need_id' => besoinOuvert()->id,
-        'candidate_id' => Candidate::factory()->create(['statut' => \App\Enums\CandidateStatut::Accepte])->id,
+        'candidate_id' => Candidate::factory()->create(['statut' => CandidateStatut::Accepte])->id,
         'statut' => MatchingStatut::EnRecherche,
         'cv_envoye' => true,
     ]);
@@ -166,7 +167,7 @@ it('journalise les évolutions du matching (activity log)', function () {
 
 it('refuse la création d\'un matching pour un candidat non accepté', function () {
     $need = besoinOuvert();
-    $candidat = Candidate::factory()->create(['statut' => \App\Enums\CandidateStatut::EntretienPrevu]);
+    $candidat = Candidate::factory()->create(['statut' => CandidateStatut::EntretienPrevu]);
 
     expect(fn () => Matching::create([
         'need_id' => $need->id,
@@ -177,7 +178,7 @@ it('refuse la création d\'un matching pour un candidat non accepté', function 
 
 it('refuse la création d\'un matching pour un candidat refusé', function () {
     $need = besoinOuvert();
-    $candidat = Candidate::factory()->create(['statut' => \App\Enums\CandidateStatut::Refuse]);
+    $candidat = Candidate::factory()->create(['statut' => CandidateStatut::Refuse]);
 
     expect(fn () => Matching::create([
         'need_id' => $need->id,
