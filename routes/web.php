@@ -47,6 +47,12 @@ Route::post('/inscription/{token}', [InscriptionController::class, 'store'])
 Route::get('/entreprise', [EntrepriseFormController::class, 'create'])->name('entreprise.create');
 Route::get('/entreprise/lookup', [EntrepriseFormController::class, 'lookup'])->middleware('throttle:20,1')->name('entreprise.lookup');
 Route::post('/entreprise', [EntrepriseFormController::class, 'store'])->middleware('throttle:6,1')->name('entreprise.store');
+// Étape 2 — fiche besoin : l'entreprise décrit elle-même le poste recherché. Le
+// besoin créé attend une relecture commerciale avant d'entrer dans le matching.
+// L'entreprise du parcours vient de la session (posée à l'étape 1), pas de l'URL.
+Route::get('/entreprise/besoin', [EntrepriseFormController::class, 'besoin'])->name('entreprise.besoin');
+Route::post('/entreprise/besoin', [EntrepriseFormController::class, 'besoinStore'])
+    ->middleware('throttle:6,1')->name('entreprise.besoin.store');
 Route::view('/entreprise/merci', 'entreprise.merci')->name('entreprise.merci');
 
 // Callback des prestataires de signature électronique eIDAS (EPIC-08).

@@ -44,6 +44,10 @@ class NeedsKanban extends Page
     public function getColumns(): array
     {
         $grouped = Need::query()
+            // Le pipeline ne montre que les offres entrées dans le circuit : un
+            // besoin déposé par une entreprise attend sa relecture commerciale
+            // (il apparaît dans la liste, sous « offres à valider »).
+            ->publiees()
             ->with(['company', 'formation'])
             ->withCount('matchings')
             ->orderByDesc('created_at')

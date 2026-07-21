@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\CandidateStatut;
 use App\Enums\MatchingStatut;
+use App\Enums\NeedOrigine;
 use App\Enums\NeedStatut;
 use App\Matching\CompatibilityScorer;
 use App\Models\Concerns\BelongsToOrganisation;
@@ -25,6 +26,15 @@ class Need extends Model
 
     protected $guarded = [];
 
+    /**
+     * Le défaut de `origine` vit aussi côté modèle, pas seulement en base : sans
+     * lui, une offre tout juste créée porte `origine = null` jusqu'au premier
+     * refresh() et attendValidation() raisonnerait sur une valeur absente.
+     */
+    protected $attributes = [
+        'origine' => 'interne',
+    ];
+
     protected function casts(): array
     {
         return [
@@ -35,6 +45,8 @@ class Need extends Model
             'longitude' => 'float',
             'rayon_km' => 'integer',
             'statut' => NeedStatut::class,
+            'origine' => NeedOrigine::class,
+            'validee_at' => 'datetime',
             'custom_fields' => 'array',
         ];
     }
@@ -63,13 +75,71 @@ class Need extends Model
         return max(0, (int) $this->nb_postes - $pourvus);
     }
 
-    /** Besoins ouverts : hors statuts terminaux (P0-04-4). */
+    /**
+     * Besoins ouverts : hors statuts terminaux (P0-04-4) ET hors offres déposées
+     * par une entreprise qu'aucun commercial n'a encore relues.
+     *
+     * Ce second filtre est le garde-fou de la fiche besoin publique : tant que
+     * l'offre n'est pas validée elle ne doit générer aucune proposition de
+     * candidat ni apparaître dans le pipeline. Les offres saisies par le CFA
+     * (origine « interne », le défaut) ne sont jamais concernées.
+     */
     public function scopeOuverts(Builder $query): Builder
     {
-        return $query->whereNotIn(
-            'statut',
-            array_map(fn (NeedStatut $s): string => $s->value, self::STATUTS_CLOS),
-        );
+        return $query
+            ->whereNotIn(
+                'statut',
+                array_map(fn (NeedStatut $s): string => $s->value, self::STATUTS_CLOS),
+            )
+            ->publiees();
+    }
+
+    /**
+     * Offres déposées par une entreprise et pas encore relues par un commercial.
+     *
+     * Une offre rejetée passe en « Annulé » sans jamais être validée : le statut
+     * terminal la sort de la file d'attente, sinon elle y resterait pour toujours.
+     */
+    public function scopeEnAttenteDeValidation(Builder $query): Builder
+    {
+        return $query
+            ->where('origine', NeedOrigine::Entreprise->value)
+            ->whereNull('validee_at')
+            ->whereNotIn(
+                'statut',
+                array_map(fn (NeedStatut $s): string => $s->value, self::STATUTS_CLOS),
+            );
+    }
+
+    /**
+     * Offres entrées dans le circuit de recrutement : tout sauf les dépôts
+     * d'entreprise en attente de relecture. Les offres saisies par le CFA le
+     * sont d'emblée.
+     */
+    public function scopePubliees(Builder $query): Builder
+    {
+        return $query->whereNot(fn (Builder $q): Builder => $q->enAttenteDeValidation());
+    }
+
+    /** L'offre attend-elle une relecture commerciale ? */
+    public function attendValidation(): bool
+    {
+        return $this->origine === NeedOrigine::Entreprise
+            && $this->validee_at === null
+            && ! $this->estCloture();
+    }
+
+    /**
+     * Valide l'offre déposée par l'entreprise : elle rejoint les offres actives
+     * (matching, pipeline). Idempotent — revalider ne redate pas la validation.
+     */
+    public function validerDepotEntreprise(): void
+    {
+        if (! $this->attendValidation()) {
+            return;
+        }
+
+        $this->forceFill(['validee_at' => now()])->save();
     }
 
     /**

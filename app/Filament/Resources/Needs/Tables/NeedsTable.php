@@ -114,6 +114,50 @@ class NeedsTable
                     ->icon('heroicon-o-eye')
                     ->color('gray')
                     ->action(fn (Need $record, $livewire) => $livewire->focusId = $record->getKey()),
+                // Besoin déposé par une entreprise via la fiche besoin publique :
+                // un commercial le relit avant qu'il entre dans le recrutement.
+                Action::make('validerDepot')
+                    ->label('Valider le besoin')
+                    ->icon('heroicon-o-check-circle')
+                    ->color('success')
+                    ->visible(fn (Need $record): bool => $record->attendValidation())
+                    ->requiresConfirmation()
+                    ->modalHeading(fn (Need $record): string => "Valider le besoin « {$record->intitule_poste} » ?")
+                    ->modalDescription('L\'offre rejoindra les offres actives : elle entrera dans le pipeline et pourra recevoir des propositions de candidats.')
+                    ->modalSubmitActionLabel('Valider')
+                    ->action(function (Need $record, $livewire): void {
+                        $record->validerDepotEntreprise();
+                        $livewire->resetTable();
+
+                        Notification::make()
+                            ->success()
+                            ->title('Besoin validé')
+                            ->body('L\'offre est désormais active et visible dans le pipeline.')
+                            ->send();
+                    }),
+                Action::make('rejeterDepot')
+                    ->label('Rejeter le besoin')
+                    ->icon('heroicon-o-x-mark')
+                    ->color('danger')
+                    ->visible(fn (Need $record): bool => $record->attendValidation())
+                    ->requiresConfirmation()
+                    ->modalHeading(fn (Need $record): string => "Rejeter le besoin « {$record->intitule_poste} » ?")
+                    ->modalDescription('L\'offre passera en « Annulé » et n\'entrera pas dans le recrutement. Cette action ne se défait pas.')
+                    ->schema([
+                        Textarea::make('comment')
+                            ->label('Motif du rejet')
+                            ->placeholder('ex : demande incomplète, doublon, hors périmètre du CFA')
+                            ->required(),
+                    ])
+                    ->action(function (Need $record, array $data, $livewire): void {
+                        try {
+                            $record->transitionTo(NeedStatut::Annule, $data['comment']);
+                            $livewire->resetTable();
+                            Notification::make()->success()->title('Besoin rejeté')->send();
+                        } catch (InvalidTransitionException $e) {
+                            Notification::make()->danger()->title('Rejet refusé')->body($e->getMessage())->send();
+                        }
+                    }),
                 // Le statut suit désormais l'activité des candidats (cf.
                 // Need::synchroniserDepuisMatchings) : plus de sélecteur de statut.
                 // Reste le seul cas qu'aucune automatisation ne peut deviner —
@@ -201,6 +245,9 @@ class NeedsTable
                 'statut',
                 array_map(fn (NeedStatut $s): string => $s->value, Need::STATUTS_CLOS),
             ),
+            // Besoins déposés par les entreprises via la fiche besoin publique,
+            // en attente de relecture commerciale.
+            'a_valider' => $query->enAttenteDeValidation(),
             default => null,
         };
     }

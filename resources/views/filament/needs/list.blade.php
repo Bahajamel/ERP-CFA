@@ -3,6 +3,21 @@
 
     {{-- Filtres rapides « orientés action » (cliquables) --}}
     <div class="cfa-cand-quick">
+        {{-- Besoins déposés par les entreprises (fiche besoin publique) : affiché
+             uniquement quand il y en a, pour ne pas encombrer la barre le reste
+             du temps. Ces offres n'entrent dans le matching qu'une fois validées. --}}
+        @if ($qc['a_valider'] > 0)
+            <button type="button" wire:click="setQuickScope('a_valider')"
+                class="cfa-quick {{ $quickScope === 'a_valider' ? 'actif' : '' }}" style="--q:#8b5cf6"
+                aria-pressed="{{ $quickScope === 'a_valider' ? 'true' : 'false' }}">
+                <span class="cfa-quick-ico">@svg('heroicon-o-inbox-arrow-down', 'w-5 h-5')</span>
+                <span class="cfa-quick-txt">
+                    <b>{{ $qc['a_valider'] }} besoin{{ $qc['a_valider'] > 1 ? 's' : '' }} à valider</b>
+                    <small>Déposés par des entreprises</small>
+                </span>
+            </button>
+        @endif
+
         <button type="button" wire:click="setQuickScope('a_pourvoir')"
             class="cfa-quick {{ $quickScope === 'a_pourvoir' ? 'actif' : '' }}" style="--q:#f59e0b"
             aria-pressed="{{ $quickScope === 'a_pourvoir' ? 'true' : 'false' }}">

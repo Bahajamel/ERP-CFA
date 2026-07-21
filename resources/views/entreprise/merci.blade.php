@@ -11,10 +11,17 @@
                 <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
             </svg>
         </div>
-        <p class="mt-4 text-slate-600">
-            Votre entreprise et votre contact ont bien été transmis au CFA.<br>
-            Un conseiller vous recontactera prochainement.
-        </p>
+        @if (session('besoin_depose'))
+            <p class="mt-4 text-slate-600">
+                Votre entreprise et votre besoin ont bien été transmis au CFA.<br>
+                Un conseiller étudie votre demande et vous proposera des candidats.
+            </p>
+        @else
+            <p class="mt-4 text-slate-600">
+                Votre entreprise et votre contact ont bien été transmis au CFA.<br>
+                Un conseiller vous recontactera prochainement.
+            </p>
+        @endif
         <a href="{{ route('entreprise.create') }}"
             class="mt-6 inline-block rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-200">
             Enregistrer une autre entreprise

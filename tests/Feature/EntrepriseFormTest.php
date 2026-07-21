@@ -61,7 +61,8 @@ it('crée une entreprise « Prospect » avec son contact principal', function ()
         'contact_nom' => 'Dupont',
         'contact_email' => 'contact@acme.test',
         'contact_fonction' => 'RH',
-    ])->assertRedirect(route('entreprise.merci'));
+        // L'étape 1 enchaîne désormais sur la fiche besoin (étape 2).
+    ])->assertRedirect(route('entreprise.besoin'));
 
     $company = Company::where('siret', '12345678900011')->first();
 
@@ -83,7 +84,7 @@ it('refuse les caractères dangereux dans le contact (anti-XSS) et nettoie la ra
 
     // Avec un contact valide, la raison sociale est enregistrée sans balises.
     $payload['contact_nom'] = 'Dupont';
-    $this->post(route('entreprise.store'), $payload)->assertRedirect(route('entreprise.merci'));
+    $this->post(route('entreprise.store'), $payload)->assertRedirect(route('entreprise.besoin'));
 
     expect(Company::where('siret', '12345678900011')->value('raison_sociale'))
         ->toBe('ACME alert(1) SA');
