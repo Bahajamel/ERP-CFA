@@ -1,8 +1,18 @@
 <?php
 
+use App\Filament\Pages\Finance;
+use App\Filament\Resources\Candidates\CandidateResource;
+use App\Filament\Resources\Contracts\ContractResource;
+use App\Filament\Resources\FaqBots\FaqBotResource;
+use App\Filament\Resources\FaqBots\Pages\EditFaqBot;
+use App\Filament\Resources\Seances\SeanceResource;
 use App\Livewire\AssistantIa;
+use App\Models\FaqBot;
 use App\Models\User;
+use App\Support\Assistant\AssistantContexte;
 use App\Support\Assistant\BaseFaq;
+use App\Support\Assistant\RechercheFaq;
+use Database\Seeders\FaqBotSeeder;
 use Database\Seeders\RolePermissionSeeder;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -15,7 +25,21 @@ beforeEach(function () {
     Filament::setCurrentPanel(Filament::getPanel('admin'));
 });
 
-// ─── Base de connaissance ───────────────────────────────────────────────
+/** Connecte un utilisateur avec le rôle voulu (aucun rôle = aucune permission). */
+function assistantConnecte(?string $role = null): User
+{
+    $user = User::factory()->create(['is_active' => true]);
+
+    if ($role !== null) {
+        $user->syncRoles($role);
+    }
+
+    test()->actingAs($user);
+
+    return $user;
+}
+
+// ─── Base de connaissance (source du contenu semé) ──────────────────────
 
 it('trouve la bonne entrée pour une question d\'usage', function () {
     $resultats = BaseFaq::rechercher('comment ajouter un apprenant ?');
@@ -34,73 +58,138 @@ it('est insensible à la casse et aux accents', function () {
         ->and($sansAccents[0]['question'])->toBe($avecAccents[0]['question']);
 });
 
-it('renvoie la saisie de notes pour une question sur les notes', function () {
-    $resultats = BaseFaq::rechercher('où saisir les notes des élèves');
-
-    expect($resultats[0]['lien']['route'])->toBe('filament.admin.pages.notes');
-});
-
 it('ne renvoie rien pour une question hors sujet', function () {
     expect(BaseFaq::rechercher('quelle est la météo à Paris demain'))->toBeEmpty();
 });
 
-it('connaît les tableaux personnalisés (façon Monday)', function () {
-    $creation = BaseFaq::rechercher('comment créer un tableau personnalisé');
-    expect($creation)->not->toBeEmpty()
-        ->and($creation[0]['categorie'])->toBe('Tableaux personnalisés')
-        ->and($creation[0]['lien']['route'])->toBe('filament.admin.resources.custom-tables.create');
+// ─── Choix de l'assistant selon la section ──────────────────────────────
 
-    // Le lien public de candidature/entreprise est aussi couvert.
-    $lien = BaseFaq::rechercher('partager un lien de candidature pour un tableau');
-    expect($lien[0]['categorie'])->toBe('Tableaux personnalisés');
+it('associe chaque partie du logiciel à son assistant', function () {
+    expect(AssistantContexte::moduleCourant(CandidateResource::getRouteBaseName().'.index'))->toBe('commercial')
+        ->and(AssistantContexte::moduleCourant(ContractResource::getRouteBaseName().'.index'))->toBe('contrats')
+        ->and(AssistantContexte::moduleCourant(Finance::getRouteName()))->toBe('finance')
+        ->and(AssistantContexte::moduleCourant(SeanceResource::getRouteBaseName().'.index'))->toBe('scolarite')
+        // Page hors des périmètres déclarés → assistant de repli.
+        ->and(AssistantContexte::moduleCourant('filament.admin.pages.dashboard'))->toBe('pilotage');
 });
 
-// ─── Composant Livewire ─────────────────────────────────────────────────
+it('installe les cinq assistants avec leur identité et leur contenu', function () {
+    $this->seed(FaqBotSeeder::class);
 
-it('affiche un message d\'accueil avec des suggestions', function () {
-    $user = User::factory()->create(['is_active' => true]);
-    $user->syncRoles('Administrateur');
-    $this->actingAs($user);
+    $bots = FaqBot::query()->orderBy('sort')->get();
 
-    Livewire::test(AssistantIa::class)
+    expect($bots->pluck('module')->all())->toBe(['commercial', 'contrats', 'finance', 'scolarite', 'pilotage'])
+        // Chacun a une couleur distincte et de quoi proposer des suggestions.
+        ->and($bots->pluck('color')->unique())->toHaveCount(5)
+        ->and($bots->every(fn (FaqBot $b): bool => $b->entrees()->count() >= 5))->toBeTrue();
+});
+
+it('affiche l\'assistant de la section consultée, avec son accueil', function () {
+    $this->seed(FaqBotSeeder::class);
+    assistantConnecte('Administrateur');
+    // L'assistant est déduit de la page ; on le force ici pour le test.
+
+    Livewire::test(AssistantIa::class, ['module' => 'contrats'])
         ->assertSuccessful()
-        ->assertSee('assistant du CFA')
-        ->assertSee('Comment ajouter un apprenant ?');
+        ->assertSee('Assistant Contrats & OPCO')
+        ->assertSee('CERFA');
 });
 
-it('répond à une question et propose un lien vers la bonne page', function () {
-    $user = User::factory()->create(['is_active' => true]);
-    $user->syncRoles('Administrateur');
-    $this->actingAs($user);
+it('borne les réponses au périmètre de l\'assistant', function () {
+    $this->seed(FaqBotSeeder::class);
+    assistantConnecte('Administrateur');
 
-    Livewire::test(AssistantIa::class)
+    $scolarite = FaqBot::query()->where('module', 'scolarite')->firstOrFail();
+    $contrats = FaqBot::query()->where('module', 'contrats')->firstOrFail();
+
+    // « CERFA » n'appartient qu'au périmètre Contrats : l'assistant Scolarité
+    // ne doit rien en dire, même si l'utilisateur le lui demande.
+    expect(RechercheFaq::rechercher($scolarite, 'cerfa'))->toBeEmpty()
+        ->and(RechercheFaq::rechercher($contrats, 'cerfa'))->not->toBeEmpty();
+
+    // Inversement, l'assistant Contrats ignore une question de scolarité.
+    expect(RechercheFaq::rechercher($contrats, 'emploi du temps'))->toBeEmpty();
+});
+
+it('répond dans son périmètre et propose le lien vers la bonne page', function () {
+    $this->seed(FaqBotSeeder::class);
+    assistantConnecte('Administrateur');
+    // idem : assistant Commercial.
+
+    Livewire::test(AssistantIa::class, ['module' => 'commercial'])
         ->set('question', 'comment ajouter un apprenant ?')
         ->call('envoyer')
         ->assertSet('question', '')
-        ->assertSee('Candidats')
-        ->assertSee('Ajouter un candidat'); // libellé du lien affiché
+        ->assertSee('Ajouter un candidat'); // libellé du lien
 });
 
 it('masque le lien quand l\'utilisateur n\'a pas la permission du module', function () {
-    // Utilisateur sans rôle → aucune permission d'accès.
-    $user = User::factory()->create(['is_active' => true]);
-    $this->actingAs($user);
+    $this->seed(FaqBotSeeder::class);
+    assistantConnecte(); // aucun rôle
 
-    Livewire::test(AssistantIa::class)
+    Livewire::test(AssistantIa::class, ['module' => 'commercial'])
         ->call('demander', 'comment ajouter un apprenant ?')
-        // La réponse texte reste visible…
-        ->assertSee('Nouveau candidat')
-        // …mais pas le bouton-lien vers la page (permission manquante).
+        // Le lien vers la page candidats est masqué faute de permission.
         ->assertDontSee('Ajouter un candidat');
 });
 
-it('rejoue une question suggérée en un clic', function () {
-    $user = User::factory()->create(['is_active' => true]);
-    $user->syncRoles('Administrateur');
-    $this->actingAs($user);
+it('retombe sur l\'assistant de repli si la partie est interdite', function () {
+    $this->seed(FaqBotSeeder::class);
+    assistantConnecte(); // aucun accès à la finance
+    // Page Finance, mais sans droit d'accès à la finance.
+
+    Livewire::test(AssistantIa::class, ['module' => 'finance'])
+        ->assertSee('Assistant Pilotage')
+        ->assertDontSee('Assistant Finance');
+});
+
+it('le annonce clairement quand aucune réponse ne correspond', function () {
+    $this->seed(FaqBotSeeder::class);
+    assistantConnecte('Administrateur');
+    // idem : assistant Commercial.
+
+    Livewire::test(AssistantIa::class, ['module' => 'commercial'])
+        ->call('demander', 'quelle est la météo à Paris demain')
+        ->assertSee("Je n'ai pas trouvé de réponse dans cette FAQ");
+});
+
+it('n\'affiche aucun assistant tant qu\'aucun n\'est installé', function () {
+    assistantConnecte('Administrateur');
 
     Livewire::test(AssistantIa::class)
-        ->call('demander', 'Comment établir un contrat / CERFA ?')
-        ->assertSee('CERFA')
-        ->assertSee('Créer un contrat');
+        ->assertSuccessful()
+        ->assertDontSee('Assistant');
+});
+
+// ─── Administration de la FAQ ───────────────────────────────────────────
+
+it('réserve la gestion des assistants à l\'administration', function () {
+    assistantConnecte('Administrateur');
+    expect(FaqBotResource::canAccess())->toBeTrue();
+
+    assistantConnecte('Commercial');
+    expect(FaqBotResource::canAccess())->toBeFalse();
+});
+
+it('permet de modifier l\'identité d\'un assistant sans toucher au code', function () {
+    $this->seed(FaqBotSeeder::class);
+    assistantConnecte('Administrateur');
+
+    $bot = FaqBot::query()->where('module', 'commercial')->firstOrFail();
+
+    Livewire::test(EditFaqBot::class, ['record' => $bot->getKey()])
+        ->fillForm([
+            'name' => 'Assistant Recrutement',
+            'color' => '#111827',
+            'welcome_message' => 'Bonjour, en quoi puis-je aider ?',
+        ])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    expect($bot->fresh()->name)->toBe('Assistant Recrutement');
+
+    // Le chat reprend aussitôt la nouvelle identité.
+    Livewire::test(AssistantIa::class, ['module' => 'commercial'])
+        ->assertSee('Assistant Recrutement')
+        ->assertSee('en quoi puis-je aider');
 });

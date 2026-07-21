@@ -2,33 +2,63 @@
 
 namespace App\Livewire;
 
-use App\Support\Assistant\BaseFaq;
-use Illuminate\Support\Facades\Auth;
+use App\Models\FaqBot;
+use App\Models\FaqEntry;
+use App\Support\Assistant\AssistantContexte;
+use App\Support\Assistant\RechercheFaq;
 use Illuminate\View\View;
 use Livewire\Component;
 
 /**
- * Assistant d'aide « Demander à l'IA » : un chatbot local qui répond aux
- * questions d'usage du logiciel à partir d'une base de connaissance interne
- * ([BaseFaq]) et renvoie vers la bonne page de l'ERP. Aucune donnée ne sort,
- * aucune API externe : les réponses sont curées et validées.
+ * Assistant FAQ de la partie du logiciel où se trouve l'utilisateur.
+ *
+ * Il n'y a pas UN chatbot global mais plusieurs assistants spécialisés
+ * (Commercial, Contrats & OPCO, Finance, Scolarité, Pilotage) : celui qui
+ * s'affiche est déterminé par la page consultée ({@see AssistantContexte}), et
+ * ses réponses sont bornées à son propre périmètre.
+ *
+ * Aucune IA, aucun appel externe : les réponses sont des entrées de FAQ rédigées
+ * par le CFA et modifiables depuis l'administration.
  */
 class AssistantIa extends Component
 {
+    /** Assistant affiché (null = aucun assistant installé → rien ne s'affiche). */
+    public ?int $botId = null;
+
     /** Historique de la conversation (messages utilisateur + assistant). */
     public array $messages = [];
 
     /** Saisie courante. */
     public string $question = '';
 
-    public function mount(): void
+    /**
+     * @param  ?string  $module  force un assistant précis ; par défaut, il est
+     *                           déduit de la page consultée.
+     */
+    public function mount(?string $module = null): void
     {
+        $bot = $module !== null
+            ? AssistantContexte::botPourModule($module)
+            : AssistantContexte::botCourant();
+
+        if ($bot === null) {
+            return;
+        }
+
+        $this->botId = $bot->id;
+
         $this->messages[] = [
             'role' => 'bot',
-            'texte' => "Bonjour 👋 Je suis l'assistant du CFA. Posez-moi une question sur l'utilisation du logiciel (ajouter un apprenant, générer un CERFA, saisir des notes…) et je vous guide vers la bonne page.",
+            'texte' => $bot->welcome_message,
             'liens' => [],
-            'suggestions' => BaseFaq::suggestions(),
+            'suggestions' => RechercheFaq::suggestions($bot),
         ];
+    }
+
+    /** L'assistant courant, rechargé à chaque requête Livewire. */
+    public function getBotProperty(): ?FaqBot
+    {
+        return $this->botId !== null ? FaqBot::find($this->botId) : null;
     }
 
     /** Envoie la question saisie. */
@@ -36,7 +66,7 @@ class AssistantIa extends Component
     {
         $texte = trim($this->question);
 
-        if ($texte === '') {
+        if ($texte === '' || $this->bot === null) {
             return;
         }
 
@@ -54,45 +84,45 @@ class AssistantIa extends Component
         $this->envoyer();
     }
 
-    /** Construit la réponse de l'assistant pour un message donné. */
+    /**
+     * Construit la réponse : la meilleure entrée de CET assistant, plus les
+     * suivantes proposées en « Voir aussi ».
+     */
     private function repondre(string $message): array
     {
-        $resultats = BaseFaq::rechercher($message);
+        $bot = $this->bot;
+        $resultats = RechercheFaq::rechercher($bot, $message);
 
-        if ($resultats === []) {
+        if ($resultats->isEmpty()) {
             return [
                 'role' => 'bot',
-                'texte' => "Je n'ai pas trouvé de réponse précise à cette question. Voici les sujets sur lesquels je peux vous aider :",
+                'texte' => "Je n'ai pas trouvé de réponse dans cette FAQ. Essayez de reformuler, ou contactez un administrateur. Voici les sujets que je couvre :",
                 'liens' => [],
-                'suggestions' => BaseFaq::suggestions(),
+                'suggestions' => RechercheFaq::suggestions($bot),
             ];
         }
 
-        $principal = array_shift($resultats);
+        /** @var FaqEntry $principal */
+        $principal = $resultats->shift();
 
         return [
             'role' => 'bot',
-            'texte' => $principal['reponse'],
-            'liens' => array_values(array_filter([$this->resoudreLien($principal['lien'] ?? null)])),
-            // Les autres résultats deviennent des suggestions « Voir aussi » cliquables.
-            'suggestions' => array_map(fn (array $e): string => $e['question'], $resultats),
+            'texte' => $principal->answer,
+            'liens' => array_values(array_filter([$this->resoudreLien($principal)])),
+            // Les autres résultats deviennent des questions liées, cliquables.
+            'suggestions' => $resultats->pluck('question')->all(),
         ];
     }
 
     /**
-     * Transforme le lien d'une entrée en URL affichable, en respectant les
-     * permissions : si l'utilisateur n'a pas accès au module, le lien est masqué
-     * (la réponse texte, elle, reste affichée).
+     * Lien vers la page concernée. Masqué si l'utilisateur n'a pas la permission
+     * (la réponse texte, elle, reste affichée), ou si la route n'existe pas.
      */
-    private function resoudreLien(?array $lien): ?array
+    private function resoudreLien(FaqEntry $entree): ?array
     {
-        if ($lien === null) {
-            return null;
-        }
+        $lien = $entree->lien();
 
-        $permission = $lien['permission'] ?? null;
-
-        if ($permission !== null && ! Auth::user()?->can($permission)) {
+        if ($lien === null || ! app('router')->has($lien['route'])) {
             return null;
         }
 
@@ -101,6 +131,6 @@ class AssistantIa extends Component
 
     public function render(): View
     {
-        return view('livewire.assistant-ia');
+        return view('livewire.assistant-ia', ['bot' => $this->bot]);
     }
 }
