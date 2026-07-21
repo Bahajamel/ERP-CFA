@@ -49,6 +49,9 @@ class AssistantIa extends Component
 
         $this->messages[] = [
             'role' => 'bot',
+            // « accueil » : ses suggestions s'affichent sous « Questions rapides »
+            // (les suivantes, elles, sous « Questions liées »).
+            'type' => 'accueil',
             'texte' => $bot->welcome_message,
             'liens' => [],
             'suggestions' => RechercheFaq::suggestions($bot),
@@ -70,7 +73,7 @@ class AssistantIa extends Component
             return;
         }
 
-        $this->messages[] = ['role' => 'user', 'texte' => $texte, 'liens' => [], 'suggestions' => []];
+        $this->messages[] = ['role' => 'user', 'type' => 'question', 'texte' => $texte, 'liens' => [], 'suggestions' => []];
         $this->messages[] = $this->repondre($texte);
         $this->question = '';
 
@@ -96,6 +99,8 @@ class AssistantIa extends Component
         if ($resultats->isEmpty()) {
             return [
                 'role' => 'bot',
+                // Aucune réponse : on repropose les questions fréquentes.
+                'type' => 'vide',
                 'texte' => "Je n'ai pas trouvé de réponse dans cette FAQ. Essayez de reformuler, ou contactez un administrateur. Voici les sujets que je couvre :",
                 'liens' => [],
                 'suggestions' => RechercheFaq::suggestions($bot),
@@ -107,6 +112,9 @@ class AssistantIa extends Component
 
         return [
             'role' => 'bot',
+            // « reponse » : affichée sous le libellé « Réponse », suivie des
+            // questions liées.
+            'type' => 'reponse',
             'texte' => $principal->answer,
             'liens' => array_values(array_filter([$this->resoudreLien($principal)])),
             // Les autres résultats deviennent des questions liées, cliquables.
