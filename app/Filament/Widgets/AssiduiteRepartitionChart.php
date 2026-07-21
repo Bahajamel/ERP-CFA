@@ -5,26 +5,33 @@ namespace App\Filament\Widgets;
 use App\Enums\PresenceStatut;
 use App\Filament\Resources\Seances\SeanceResource;
 use App\Filament\Widgets\Concerns\HasClickableChart;
+use App\Models\Formation;
 use App\Models\Presence;
 use App\Models\Promotion;
 use Filament\Forms\Components\Select;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Support\RawJs;
 use Filament\Widgets\ChartWidget;
 use Filament\Widgets\ChartWidget\Concerns\HasFiltersSchema;
 
 /**
- * Répartition de l'assiduité, avec deux réglages indépendants :
+ * Assiduité d'UNE classe à la fois — jamais un agrégat de toutes les formations,
+ * qui ne veut rien dire pour un responsable pédagogique.
  *
- *  - le PÉRIMÈTRE (panneau « Filtrer ») : toutes les classes, ou une classe précise ;
- *  - la FORME (liste déroulante en en-tête) : barres, camembert ou anneau.
+ * Trois réglages :
+ *  - Formation (liste déroulante) ;
+ *  - Classe de cette formation (dans ce CFA, une « classe » est une promotion :
+ *    formation + groupe + année scolaire, ex. « Bachelor RH — Groupe A (2025-2026) ») ;
+ *  - Type de graphe : barres, camembert ou anneau.
  *
- * Complète {@see AssiduiteParPromotionChart}, qui compare les classes entre elles :
- * ici on regarde DE QUOI est faite l'assiduité d'un périmètre (présents, retards,
- * absences justifiées ou non).
+ * Une classe est présélectionnée à l'ouverture (la plus récente qui a des séances
+ * émargées) : l'écran affiche donc tout de suite quelque chose de lisible.
  *
- * C'est justement cette donnée — des parts d'un tout, qui somment à 100 % — qui rend
- * les trois formes légitimes. Un taux par classe, lui, ne se met pas en camembert.
+ * La donnée est la RÉPARTITION des séances émargées (présents, retards, absences
+ * justifiées ou non). Ce sont des parts d'un tout, qui somment à 100 % : c'est ce
+ * qui rend les trois formes également valables.
  *
  * Palette validée pour les daltonismes ET les deux thèmes (clair/sombre) via
  * scripts/validate_palette.js — ne pas modifier ces teintes sans revalider.
@@ -34,10 +41,10 @@ class AssiduiteRepartitionChart extends ChartWidget
     use HasClickableChart;
     use HasFiltersSchema;
 
-    /** Forme du graphique (liste déroulante en en-tête). */
+    /** Type de graphe (liste déroulante en en-tête). */
     public ?string $filter = 'bar';
 
-    protected static ?int $sort = 8;
+    protected static ?int $sort = 7;
 
     protected int|string|array $columnSpan = 'full';
 
@@ -58,28 +65,77 @@ class AssiduiteRepartitionChart extends ChartWidget
     }
 
     /* ============================================================
-     |  Réglages : périmètre (classe) et forme
+     |  Sélection : formation → classe
      * ============================================================ */
 
-    /** Panneau de filtres : la classe (promotion) sur laquelle porter la lecture. */
+    /**
+     * Classe présélectionnée : la plus récente qui a effectivement des séances
+     * émargées (sinon la plus récente tout court). Évite d'ouvrir sur un
+     * graphique vide.
+     */
+    public static function classeParDefaut(): ?Promotion
+    {
+        $recentes = Promotion::query()->orderByDesc('annee_scolaire')->orderByDesc('id');
+
+        return (clone $recentes)
+            ->whereHas('seances.presences', fn ($q) => $q->where('statut', '!=', PresenceStatut::NonRenseigne->value))
+            ->first()
+            ?? $recentes->first();
+    }
+
+    /** Classes d'une formation (id => libellé complet). */
+    private static function classesDe(mixed $formationId): array
+    {
+        return Promotion::query()
+            ->when(filled($formationId), fn ($q) => $q->where('formation_id', $formationId))
+            ->orderByDesc('annee_scolaire')
+            ->orderBy('libelle')
+            ->get()
+            ->pluck('nom_complet', 'id')
+            ->all();
+    }
+
     public function filtersSchema(Schema $schema): Schema
     {
-        return $schema->components([
-            Select::make('classe')
-                ->label('Classe')
-                ->placeholder('Toutes les classes')
-                ->options(fn (): array => Promotion::query()
-                    ->orderBy('libelle')
-                    ->get()
-                    ->pluck('nom_complet', 'id')
-                    ->all())
-                ->searchable()
-                ->native(false),
-        ]);
+        $defaut = self::classeParDefaut();
+
+        return $schema
+            ->columns(1)
+            ->components([
+                Select::make('formation')
+                    ->label('Formation')
+                    ->options(fn (): array => Formation::query()
+                        ->whereHas('promotions')
+                        ->orderBy('libelle')
+                        ->pluck('libelle', 'id')
+                        ->all())
+                    ->default($defaut?->formation_id)
+                    ->selectablePlaceholder(false)
+                    ->searchable()
+                    ->native(false)
+                    ->live()
+                    // Changer de formation sans changer de classe afficherait
+                    // l'assiduité d'une classe d'une autre formation : on
+                    // repositionne sur la première classe de la formation choisie.
+                    ->afterStateUpdated(fn (Set $set, $state) => $set(
+                        'promotion',
+                        array_key_first(self::classesDe($state)),
+                    )),
+
+                Select::make('promotion')
+                    ->label('Classe')
+                    ->helperText('Une classe = une promotion (groupe + année scolaire).')
+                    ->options(fn (Get $get): array => self::classesDe($get('formation')))
+                    ->default($defaut?->id)
+                    ->selectablePlaceholder(false)
+                    ->searchable()
+                    ->native(false)
+                    ->live(),
+            ]);
     }
 
     /**
-     * Formes proposées. Les trois sont valables ici : la donnée est une
+     * Types de graphe proposés. Les trois sont valables ici : la donnée est une
      * répartition (parts d'un tout).
      *
      * @return array<string, string>
@@ -98,30 +154,28 @@ class AssiduiteRepartitionChart extends ChartWidget
         return in_array($this->filter, ['pie', 'doughnut'], true) ? $this->filter : 'bar';
     }
 
-    /** Classe sélectionnée (id de promotion), ou null pour « toutes ». */
-    private function classeId(): ?int
+    /** Classe affichée : celle choisie, sinon celle présélectionnée. */
+    private function classe(): ?Promotion
     {
-        $id = $this->filters['classe'] ?? null;
+        $id = $this->filters['promotion'] ?? null;
 
-        return filled($id) ? (int) $id : null;
+        return filled($id)
+            ? Promotion::find($id)
+            : self::classeParDefaut();
     }
 
     public function getHeading(): ?string
     {
-        $classe = $this->classeId();
-
-        return $classe === null
-            ? 'Répartition — toutes les classes'
-            : 'Répartition — '.(Promotion::find($classe)?->nom_complet ?? 'classe');
+        return 'Assiduité — '.($this->classe()?->nom_complet ?? 'aucune classe');
     }
 
-    /** Le taux de présence du périmètre est donné en clair sous le titre. */
+    /** Le taux de présence de la classe est donné en clair sous le titre. */
     public function getDescription(): ?string
     {
-        $taux = $this->tauxDuPerimetre();
+        $taux = $this->tauxDeLaClasse();
 
         return $taux === null
-            ? 'Aucune séance émargée sur ce périmètre'
+            ? 'Aucune séance émargée pour cette classe'
             : "Taux de présence : {$taux} % — répartition des séances émargées";
     }
 
@@ -129,21 +183,23 @@ class AssiduiteRepartitionChart extends ChartWidget
      |  Données
      * ============================================================ */
 
-    /** Présences émargées du périmètre courant (hors « non renseigné »). */
+    /** Présences émargées de la classe affichée (hors « non renseigné »). */
     private function presencesEmargees()
     {
-        $classe = $this->classeId();
+        $classe = $this->classe();
 
         return Presence::query()
             ->where('statut', '!=', PresenceStatut::NonRenseigne->value)
+            // Aucune classe (base vide) : on ne remonte rien plutôt que tout.
+            ->when($classe === null, fn ($q) => $q->whereRaw('1 = 0'))
             ->when($classe !== null, fn ($q) => $q->whereHas(
                 'seance',
-                fn ($s) => $s->where('promotion_id', $classe),
+                fn ($s) => $s->where('promotion_id', $classe->id),
             ));
     }
 
-    /** Taux de présence (%) du périmètre, null si rien n'est émargé. */
-    private function tauxDuPerimetre(): ?int
+    /** Taux de présence (%) de la classe, null si rien n'est émargé. */
+    private function tauxDeLaClasse(): ?int
     {
         $renseignees = $this->presencesEmargees()->count();
 
@@ -159,7 +215,7 @@ class AssiduiteRepartitionChart extends ChartWidget
     }
 
     /**
-     * Répartition des séances émargées du périmètre. Les motifs à zéro sont
+     * Répartition des séances émargées de la classe. Les motifs à zéro sont
      * écartés : une part invisible n'apporte rien à la lecture.
      */
     protected function getData(): array
@@ -198,21 +254,17 @@ class AssiduiteRepartitionChart extends ChartWidget
      |  Rendu
      * ============================================================ */
 
-    /**
-     * Drill-down : quand une classe est choisie, chaque segment mène à ses
-     * séances (émargement). Sur « toutes les classes », il n'y a pas de cible
-     * unique — les segments ne sont pas cliquables.
-     */
+    /** Chaque segment mène à l'émargement de la classe affichée. */
     protected function getSegmentUrls(): array
     {
-        $classe = $this->classeId();
+        $classe = $this->classe();
 
         if ($classe === null) {
             return [];
         }
 
         $url = SeanceResource::getUrl('index', [
-            'filters' => ['promotion_id' => ['value' => $classe]],
+            'filters' => ['promotion_id' => ['value' => $classe->id]],
         ]);
 
         return array_fill(0, count($this->getData()['labels']), $url);

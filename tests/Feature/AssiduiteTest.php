@@ -72,12 +72,12 @@ it('affiche la page assiduité aux rôles scolarité', function () {
  |  camembert / anneau).
  * ------------------------------------------------------------------ */
 
-/** Widget configuré sur une forme et, éventuellement, une classe. */
+/** Widget configuré sur un type de graphe et, éventuellement, une classe. */
 function assiduiteWidget(string $forme = 'bar', ?int $classeId = null): AssiduiteRepartitionChart
 {
     $widget = new AssiduiteRepartitionChart;
     $widget->filter = $forme;
-    $widget->filters = ['classe' => $classeId];
+    $widget->filters = ['promotion' => $classeId];
 
     return $widget;
 }
@@ -134,39 +134,47 @@ it('écarte les motifs à zéro de la répartition', function () {
         ->and($data['labels'])->not->toContain('Absences justifiées');
 });
 
-it('restreint les statistiques à la classe choisie', function () {
-    $classeA = assiduiteJeuDEssai();
+it('n\'agrège jamais plusieurs classes : chaque classe a ses propres chiffres', function () {
+    $classeA = assiduiteJeuDEssai();                       // 3 séances émargées
 
-    // Une seconde classe, entièrement présente : elle ne doit pas polluer A.
+    // Une seconde classe, dans une autre formation, entièrement présente.
     $classeB = Promotion::factory()->create();
     $cB = Candidate::factory()->dansClasse($classeB)->create();
     emarger(Seance::factory()->create(['promotion_id' => $classeB->id, 'date' => '2026-09-01']), $cB, PresenceStatut::Present);
 
-    $global = assiduiteAppel(assiduiteWidget('bar'), 'getData');
     $surA = assiduiteAppel(assiduiteWidget('bar', $classeA->id), 'getData');
     $surB = assiduiteAppel(assiduiteWidget('bar', $classeB->id), 'getData');
 
-    expect(array_sum($global['datasets'][0]['data']))->toBe(4)   // 3 + 1
-        ->and(array_sum($surA['datasets'][0]['data']))->toBe(3)
-        ->and($surB['labels'])->toBe(['Présents'])               // classe B : que des présents
+    // Chaque vue reste sur sa classe : jamais 4 (= 3 + 1).
+    expect(array_sum($surA['datasets'][0]['data']))->toBe(3)
+        ->and($surB['labels'])->toBe(['Présents'])
         ->and($surB['datasets'][0]['data'])->toBe([1]);
 });
 
-it('affiche le taux de présence du périmètre en description', function () {
+it('présélectionne une classe qui a des émargements', function () {
+    // Une classe sans aucun émargement, et une qui en a.
+    Promotion::factory()->create(['annee_scolaire' => '2030-2031']);
+    $emargee = assiduiteJeuDEssai();
+
+    expect(AssiduiteRepartitionChart::classeParDefaut()?->id)->toBe($emargee->id);
+});
+
+it('affiche la classe et son taux de présence en en-tête', function () {
     $classe = assiduiteJeuDEssai(); // présent + retard comptent présents → 2/3
 
-    expect(assiduiteWidget('bar', $classe->id)->getDescription())->toContain('67 %')
-        ->and(assiduiteWidget('bar')->getHeading())->toBe('Répartition — toutes les classes');
+    $widget = assiduiteWidget('bar', $classe->id);
+
+    expect($widget->getHeading())->toBe('Assiduité — '.$classe->nom_complet)
+        ->and($widget->getDescription())->toContain('67 %');
 });
 
-it('ne rend les segments cliquables que sur une classe précise', function () {
+it('rend les segments cliquables vers l\'émargement de la classe', function () {
     $classe = assiduiteJeuDEssai();
 
-    expect(assiduiteAppel(assiduiteWidget('bar'), 'getSegmentUrls'))->toBe([])
-        ->and(assiduiteAppel(assiduiteWidget('bar', $classe->id), 'getSegmentUrls'))->toHaveCount(3);
+    expect(assiduiteAppel(assiduiteWidget('bar', $classe->id), 'getSegmentUrls'))->toHaveCount(3);
 });
 
-it('affiche le sélecteur de forme et le filtre de classe dans le widget', function () {
+it('affiche les listes Formation / Classe et le choix du type de graphe', function () {
     $this->seed(RolePermissionSeeder::class);
     Filament::setCurrentPanel(Filament::getPanel('admin'));
 
@@ -181,7 +189,8 @@ it('affiche le sélecteur de forme et le filtre de classe dans le widget', funct
         ->assertSee('Barres')
         ->assertSee('Camembert')
         ->assertSee('Anneau')
-        // Choix d'une classe : le titre suit.
-        ->set('filters.classe', $classe->id)
+        ->assertSee('Formation')
+        ->assertSee('Classe')
+        // Ouverture directe sur une classe précise, pas sur un agrégat.
         ->assertSee($classe->nom_complet);
 });
