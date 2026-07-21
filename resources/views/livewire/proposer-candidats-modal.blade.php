@@ -260,6 +260,19 @@
                     </div>
 
                     <div>
+                        <div class="pc-field-lbl">Mail type</div>
+                        <select class="pc-textarea" wire:model.live="templateId">
+                            <option value="">Message par défaut</option>
+                            @foreach ($this->modelesEmail as $id => $nom)
+                                <option value="{{ $id }}">{{ $nom }}</option>
+                            @endforeach
+                        </select>
+                        <div class="pc-help">
+                            Choisissez un modèle : le message ci-dessous est rempli avec les infos de l'offre (entreprise, poste, formation…).
+                        </div>
+                    </div>
+
+                    <div>
                         <div class="pc-field-lbl">Message de présentation</div>
                         <textarea class="pc-textarea" rows="6" wire:model="message"></textarea>
                     </div>

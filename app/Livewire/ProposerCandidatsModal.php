@@ -5,6 +5,7 @@ namespace App\Livewire;
 use App\Filament\Resources\Needs\NeedResource;
 use App\Matching\PropositionService;
 use App\Models\Candidate;
+use App\Models\EmailTemplate;
 use App\Models\Need;
 use App\Models\User;
 use Filament\Notifications\Notification;
@@ -40,6 +41,9 @@ class ProposerCandidatsModal extends Component
     public string $commentaire = '';
 
     public string $message = '';
+
+    /** Mail type sélectionné (null = message par défaut). */
+    public ?int $templateId = null;
 
     public int $limite = 6;
 
@@ -229,6 +233,37 @@ class ProposerCandidatsModal extends Component
     private function erreur(string $titre, string $corps): void
     {
         Notification::make()->danger()->title($titre)->body($corps)->send();
+    }
+
+    /**
+     * Mails types disponibles (actifs) du CFA, pour pré-remplir le message.
+     *
+     * @return array<int, string>
+     */
+    #[Computed]
+    public function modelesEmail(): array
+    {
+        return EmailTemplate::query()->actif()->orderBy('name')->pluck('name', 'id')->all();
+    }
+
+    /**
+     * Choix d'un mail type : le message de présentation est remplacé par le corps
+     * du modèle, variables résolues depuis l'offre. Revenir à « aucun » restaure
+     * le message par défaut.
+     */
+    public function updatedTemplateId(mixed $value): void
+    {
+        $need = $this->need;
+        $modele = filled($value) ? EmailTemplate::query()->whereKey($value)->first() : null;
+
+        if ($modele === null || $need === null) {
+            $this->templateId = null;
+            $this->message = $this->messageParDefaut();
+
+            return;
+        }
+
+        $this->message = $modele->corpsPourOffre($need);
     }
 
     private function messageParDefaut(): string
