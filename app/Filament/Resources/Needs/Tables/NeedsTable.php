@@ -37,7 +37,20 @@ class NeedsTable
         return $table
             ->modifyQueryUsing(function (Builder $query, $livewire): void {
                 $query->with(['company', 'formation'])->withCount('matchings');
-                self::appliquerScopeRapide($query, self::scopeDe($livewire));
+
+                $scope = self::scopeDe($livewire);
+                self::appliquerScopeRapide($query, $scope);
+
+                // Vue par défaut = ce qui est en cours. Une offre annulée ou
+                // pourvue n'a plus rien à y faire : elle encombre la liste sans
+                // appeler d'action. Elle reste accessible par le bloc « offres
+                // clôturées » et par le filtre « Statut ».
+                if (self::doitMasquerLesCloturees($livewire, $scope)) {
+                    $query->whereNotIn(
+                        'statut',
+                        array_map(fn (NeedStatut $s): string => $s->value, Need::STATUTS_CLOS),
+                    );
+                }
             })
             ->columns(CustomFields::appliquerReglages([
                 ViewColumn::make('identite')
@@ -153,7 +166,11 @@ class NeedsTable
                         try {
                             $record->transitionTo(NeedStatut::Annule, $data['comment']);
                             $livewire->resetTable();
-                            Notification::make()->success()->title('Besoin rejeté')->send();
+                            Notification::make()
+                                ->success()
+                                ->title('Besoin rejeté')
+                                ->body('Il quitte la liste et rejoint les offres clôturées.')
+                                ->send();
                         } catch (InvalidTransitionException $e) {
                             Notification::make()->danger()->title('Rejet refusé')->body($e->getMessage())->send();
                         }
@@ -180,10 +197,16 @@ class NeedsTable
                             ->placeholder('ex : l\'entreprise a gelé son recrutement')
                             ->required(),
                     ])
-                    ->action(function (Need $record, array $data): void {
+                    ->action(function (Need $record, array $data, $livewire): void {
                         try {
                             $record->transitionTo(NeedStatut::Annule, $data['comment']);
-                            Notification::make()->success()->title('Offre annulée')->send();
+                            $livewire->resetTable();
+
+                            Notification::make()
+                                ->success()
+                                ->title('Offre annulée')
+                                ->body('Elle quitte la liste et rejoint les offres clôturées.')
+                                ->send();
                         } catch (InvalidTransitionException $e) {
                             Notification::make()->danger()->title('Annulation refusée')->body($e->getMessage())->send();
                         }
@@ -213,6 +236,35 @@ class NeedsTable
             ->emptyStateIcon('heroicon-o-briefcase')
             ->emptyStateHeading('Aucune offre proposée')
             ->emptyStateDescription('Enregistrez la première offre d\'une entreprise (poste à pourvoir) : le matching pourra ensuite proposer des candidats compatibles.');
+    }
+
+    /**
+     * Faut-il masquer les offres clôturées (pourvues, annulées, archivées) ?
+     *
+     * Oui par défaut — mais jamais quand l'utilisateur les a explicitement
+     * demandées, sinon la liste mentirait :
+     *   - bloc « offres clôturées » : c'est précisément ce qu'il montre ;
+     *   - filtre « Statut » réglé sur un statut clos : choix explicite.
+     */
+    private static function doitMasquerLesCloturees($livewire, ?string $scope): bool
+    {
+        if ($scope === 'cloturees') {
+            return false;
+        }
+
+        $statut = (is_object($livewire) && property_exists($livewire, 'tableFilters'))
+            ? ($livewire->tableFilters['statut']['value'] ?? null)
+            : null;
+
+        if (blank($statut)) {
+            return true;
+        }
+
+        return ! in_array(
+            $statut,
+            array_map(fn (NeedStatut $s): string => $s->value, Need::STATUTS_CLOS),
+            true,
+        );
     }
 
     /** Scope rapide courant lu sur la page (null hors ListNeeds). */

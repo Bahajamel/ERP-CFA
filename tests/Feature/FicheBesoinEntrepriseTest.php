@@ -269,6 +269,60 @@ describe('liste des offres', function () {
             ->and($depot->fresh()->attendValidation())->toBeFalse();
     });
 
+    it('masque les offres clôturées de la vue par défaut', function () {
+        $enCours = Need::factory()->create(['statut' => NeedStatut::ProfilsEnvoyes]);
+        $annulee = Need::factory()->create(['statut' => NeedStatut::Annule]);
+        $pourvue = Need::factory()->create(['statut' => NeedStatut::Pourvu]);
+
+        Livewire::test(ListNeeds::class)
+            ->assertCanSeeTableRecords([$enCours])
+            ->assertCanNotSeeTableRecords([$annulee, $pourvue]);
+    });
+
+    it('rend les offres clôturées accessibles par le bloc dédié', function () {
+        $enCours = Need::factory()->create(['statut' => NeedStatut::ProfilsEnvoyes]);
+        $annulee = Need::factory()->create(['statut' => NeedStatut::Annule]);
+
+        Livewire::test(ListNeeds::class)
+            ->call('setQuickScope', 'cloturees')
+            ->assertCanSeeTableRecords([$annulee])
+            ->assertCanNotSeeTableRecords([$enCours]);
+    });
+
+    it('rend les offres clôturées accessibles par le filtre Statut', function () {
+        $annulee = Need::factory()->create(['statut' => NeedStatut::Annule]);
+
+        // Choix explicite de l'utilisateur : le masquage par défaut doit céder.
+        Livewire::test(ListNeeds::class)
+            ->filterTable('statut', NeedStatut::Annule->value)
+            ->assertCanSeeTableRecords([$annulee]);
+    });
+
+    it('fait disparaître l\'offre de la liste après annulation', function () {
+        $need = Need::factory()->create(['statut' => NeedStatut::Cree]);
+
+        Livewire::test(ListNeeds::class)
+            ->assertCanSeeTableRecords([$need])
+            ->callTableAction('annuler', $need, ['comment' => 'Recrutement gelé'])
+            ->assertCanNotSeeTableRecords([$need]);
+
+        expect($need->fresh()->statut)->toBe(NeedStatut::Annule);
+    });
+
+    it('fait disparaître le besoin rejeté de la liste', function () {
+        $depot = Need::factory()->create([
+            'statut' => NeedStatut::Cree,
+            'origine' => NeedOrigine::Entreprise,
+            'validee_at' => null,
+        ]);
+
+        Livewire::test(ListNeeds::class)
+            ->call('setQuickScope', 'a_valider')
+            ->assertCanSeeTableRecords([$depot])
+            ->callTableAction('rejeterDepot', $depot, ['comment' => 'Hors périmètre'])
+            ->assertCanNotSeeTableRecords([$depot]);
+    });
+
     it('n\'affiche pas les besoins en attente dans le pipeline', function () {
         $depot = Need::factory()->create([
             'statut' => NeedStatut::Cree,
