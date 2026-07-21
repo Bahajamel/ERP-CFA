@@ -45,4 +45,10 @@ class Formation extends Model
     {
         return $this->hasMany(Contract::class);
     }
+
+    /** Les cohortes (« classes ») ouvertes sur cette formation. */
+    public function promotions(): HasMany
+    {
+        return $this->hasMany(Promotion::class);
+    }
 }

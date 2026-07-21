@@ -5,6 +5,7 @@ use App\Enums\PresenceStatut;
 use App\Filament\Pages\Assiduite;
 use App\Filament\Resources\Seances\Pages\ListSeances;
 use App\Filament\Widgets\AssiduiteParPromotionChart;
+use App\Filament\Widgets\AssiduiteRepartitionChart;
 use App\Filament\Widgets\ContratsSignesParMoisChart;
 use App\Filament\Widgets\ConversionFunnelChart;
 use App\Models\Candidate;
@@ -105,7 +106,10 @@ it('embarque le graphique d\'assiduité en tête de la page Assiduité', functio
 
     Livewire::test(Assiduite::class)
         ->assertSuccessful()
-        ->assertSeeLivewire(AssiduiteParPromotionChart::class);
+        // La page montre UNE classe à la fois (Formation → Classe), et non plus
+        // l'agrégat de toutes les formations : c'est le widget « Répartition ».
+        ->assertSeeLivewire(AssiduiteRepartitionChart::class)
+        ->assertDontSeeLivewire(AssiduiteParPromotionChart::class);
 });
 
 it('le clic mène à la liste des séances filtrée sur la classe (deep-link)', function () {
@@ -130,7 +134,7 @@ it('calcule le taux de présence par promotion', function () {
 
     connecteAvecRole('Direction');
 
-    $widget = new AssiduiteParPromotionChart();
+    $widget = new AssiduiteParPromotionChart;
     $data = Closure::bind(fn () => $this->getData(), $widget, $widget)();
 
     expect($data['labels'])->toContain($promo->libelle)
