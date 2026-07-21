@@ -89,6 +89,19 @@
         .cfa-ia-msg { display: flex; flex-direction: column; }
         .cfa-ia-msg--user { align-items: flex-end; }
 
+        /* Bulle de l'assistant précédée de son portrait, façon messagerie. */
+        .cfa-ia-ligne { display: flex; align-items: flex-end; gap: .5rem; }
+        .cfa-ia-mini {
+            flex: none; width: 1.9rem; height: 1.9rem; border-radius: 9999px;
+            overflow: hidden; background: #fff; display: grid; place-items: center;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, .18);
+        }
+        .cfa-ia-mini img, .cfa-ia-mini svg { width: 100%; height: 100%; object-fit: cover; }
+        .cfa-ia-ligne .cfa-ia-bubble { max-width: 85%; }
+        /* Ce qui suit la bulle (lien, questions) s'aligne sous le texte, pas
+           sous le portrait. */
+        .cfa-ia-apres { margin-left: 2.4rem; }
+
         /* ── Bulles ──────────────────────────────────────────────────── */
         .cfa-ia-bubble {
             padding: .75rem .9rem; border-radius: .75rem; font-size: .85rem; line-height: 1.5;
@@ -286,14 +299,21 @@
                                 <div class="cfa-ia-label cfa-ia-label--ia">Réponse</div>
                             @endif
 
-                            <div @class([
-                                'cfa-ia-bubble',
-                                'cfa-ia-bubble--reponse' => $type === 'reponse',
-                            ])>{{ $message['texte'] }}</div>
+                            {{-- Portrait de l'assistant à côté de sa bulle, comme
+                                 dans une messagerie. --}}
+                            <div class="cfa-ia-ligne">
+                                <span class="cfa-ia-mini">
+                                    @include('filament.assistant.figure', ['bot' => $bot])
+                                </span>
+                                <div @class([
+                                    'cfa-ia-bubble',
+                                    'cfa-ia-bubble--reponse' => $type === 'reponse',
+                                ])>{{ $message['texte'] }}</div>
+                            </div>
 
                             {{-- Lien vers la page concernée --}}
                             @if (! empty($message['liens']))
-                                <div style="margin-top:.5rem; display:flex; flex-direction:column;">
+                                <div class="cfa-ia-apres" style="margin-top:.5rem; display:flex; flex-direction:column;">
                                     @foreach ($message['liens'] as $lien)
                                         <a href="{{ $lien['url'] }}" class="cfa-ia-link" wire:navigate>
                                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -307,7 +327,7 @@
 
                             {{-- Questions rapides (accueil) ou liées (après réponse) --}}
                             @if (! empty($message['suggestions']))
-                                <div style="margin-top:.75rem;">
+                                <div class="cfa-ia-apres" style="margin-top:.75rem;">
                                     <div class="cfa-ia-label">
                                         {{ $type === 'reponse' ? 'Questions liées' : 'Questions rapides' }}
                                     </div>
@@ -333,7 +353,7 @@
 
                             {{-- Champ de recherche, sous le message d'accueil --}}
                             @if ($type === 'accueil')
-                                <div class="cfa-ia-search" style="margin-top:.75rem;">
+                                <div class="cfa-ia-search cfa-ia-apres" style="margin-top:.75rem;">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
                                         <circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>
                                     </svg>

@@ -29,7 +29,7 @@ class FaqBotSeeder extends Seeder
             'icon' => 'heroicon-o-user-group',
             'color' => '#2563EB',
             'avatar_path' => 'avatars/man-avatar-profile-picture-isolated-background-avatar-profile-picture-man_1293239-4853.avif',
-            'welcome_message' => 'Bonjour, je suis Marc 👋 Je peux vous aider sur les candidats, les entreprises, les offres, le matching et les admissions. Posez votre question ou choisissez un sujet ci-dessous.',
+            'welcome_message' => 'Bonjour, je suis Marc 👋 Je suis votre assistant pour la partie Commercial. Je peux vous aider sur les candidats, les entreprises, les offres, le matching et les admissions. Posez votre question ou choisissez un sujet ci-dessous.',
             'sort' => 1,
         ],
         'contrats' => [
@@ -38,7 +38,7 @@ class FaqBotSeeder extends Seeder
             'icon' => 'heroicon-o-document-check',
             'color' => '#7C3AED',
             'avatar_path' => 'avatars/147252382-social-media-avatar-profile-a-woman-woman-with-glasses-office-worker-vector-trendy-minimal-style.jpg',
-            'welcome_message' => 'Bonjour, je suis Nadia 👋 Je peux vous aider sur les contrats, le CERFA, les signatures, les dossiers OPCO et les ruptures.',
+            'welcome_message' => 'Bonjour, je suis Nadia 👋 Je suis votre assistante pour la partie Contrats & OPCO. Je peux vous aider sur les contrats, le CERFA, les signatures, les dossiers OPCO et les ruptures.',
             'sort' => 2,
         ],
         'finance' => [
@@ -47,7 +47,7 @@ class FaqBotSeeder extends Seeder
             'icon' => 'heroicon-o-banknotes',
             'color' => '#059669',
             'avatar_path' => 'avatars/pngtree-business-man-avatar-on-isolate-png-image_13805756.png',
-            'welcome_message' => 'Bonjour, je suis Karim 👋 Je peux vous aider sur les factures, les paiements, les montants attendus ou bloqués et les relances.',
+            'welcome_message' => 'Bonjour, je suis Karim 👋 Je suis votre assistant pour la partie Finance. Je peux vous aider sur les factures, les paiements, les montants attendus ou bloqués et les relances.',
             'sort' => 3,
         ],
         'scolarite' => [
@@ -56,7 +56,7 @@ class FaqBotSeeder extends Seeder
             'icon' => 'heroicon-o-academic-cap',
             'color' => '#F97316',
             'avatar_path' => 'avatars/male-face-avatar-icon-set-flat-design-social-media-profiles_1281173-3806.avif',
-            'welcome_message' => "Bonjour, je suis Thomas 👋 Je peux vous aider sur les formations, les classes, les séances, les notes, l'assiduité et l'emploi du temps.",
+            'welcome_message' => "Bonjour, je suis Thomas 👋 Je suis votre assistant pour la partie Scolarité. Je peux vous aider sur les formations, les classes, les séances, les notes, l'assiduité et l'emploi du temps.",
             'sort' => 4,
         ],
         'pilotage' => [
@@ -65,7 +65,7 @@ class FaqBotSeeder extends Seeder
             'icon' => 'heroicon-o-bell-alert',
             'color' => '#EF4444',
             'avatar_path' => 'avatars/images.jfif',
-            'welcome_message' => 'Bonjour, je suis Léa 👋 Je peux vous aider sur les tâches, les alertes, les documents, la qualité et le paramétrage du logiciel.',
+            'welcome_message' => 'Bonjour, je suis Léa 👋 Je suis votre assistante pour la partie Pilotage. Je peux vous aider sur les tâches, les alertes, les documents, la qualité et le paramétrage du logiciel.',
             'sort' => 5,
         ],
     ];

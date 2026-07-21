@@ -259,3 +259,23 @@ it('rend des boutons de question sans texte échappé dans l\'appel', function (
     expect($html)->toMatch('/wire:click="poser\(\d+\)"/')
         ->and($html)->not->toContain('wire:click="demander(');
 });
+
+it('présente l\'assistant et illustre chacune de ses bulles', function () {
+    $this->seed(FaqBotSeeder::class);
+    assistantConnecte('Administrateur');
+
+    $composant = Livewire::test(AssistantIa::class, ['module' => 'commercial']);
+
+    // L'accueil décline le prénom ET la partie couverte.
+    $composant->assertSee('je suis Marc')
+        ->assertSee('votre assistant pour la partie Commercial')
+        // Le portrait accompagne la bulle, comme dans une messagerie.
+        ->assertSee('cfa-ia-mini', false);
+
+    // Après une réponse, la nouvelle bulle porte elle aussi son portrait.
+    $entree = FaqBot::query()->where('module', 'commercial')->firstOrFail()
+        ->entrees()->firstOrFail();
+
+    expect(substr_count($composant->call('poser', $entree->id)->html(), 'cfa-ia-mini'))
+        ->toBeGreaterThanOrEqual(2);
+});
