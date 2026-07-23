@@ -1,0 +1,15 @@
+@extends('vitrine.layout')
+
+@section('content')
+    @include('vitrine.partials.hero')
+    @include('vitrine.partials.reassurance')
+    @include('vitrine.partials.problematique')
+    @include('vitrine.partials.modules')
+    @include('vitrine.partials.produit')
+    @include('vitrine.partials.pour-qui')
+    @include('vitrine.partials.securite')
+    @include('vitrine.partials.integrations')
+    @include('vitrine.partials.benefices')
+    @include('vitrine.partials.demonstration')
+    @include('vitrine.partials.faq')
+@endsection

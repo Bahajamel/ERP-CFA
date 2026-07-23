@@ -12,9 +12,7 @@ class ExampleTest extends TestCase
      */
     public function test_the_application_returns_a_successful_response(): void
     {
-        // La racine redirige vers le panneau d'administration (l'application).
-        $response = $this->get('/');
-
-        $response->assertRedirect('/admin');
+        // La racine sert désormais le site vitrine public (plus de redirection).
+        $this->get('/')->assertOk();
     }
 }
