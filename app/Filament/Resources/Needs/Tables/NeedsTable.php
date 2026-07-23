@@ -3,6 +3,8 @@
 namespace App\Filament\Resources\Needs\Tables;
 
 use App\Enums\NeedStatut;
+use App\Models\CompanyContact;
+use App\Models\Formation;
 use App\Models\Need;
 use App\Services\FicheBesoinService;
 use App\StateMachine\InvalidTransitionException;
@@ -11,7 +13,9 @@ use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\ViewColumn;
@@ -132,13 +136,67 @@ class NeedsTable
                 // Fiche besoin imprimable : analyse du besoin exprimé par
                 // l'entreprise. Archivée au passage sur l'offre ET comme preuve
                 // de l'indicateur Qualiopi n°4.
+                //
+                // Une fenêtre de complétion s'ouvre d'abord : le commercial y
+                // renseigne ce que l'entreprise a pu laisser en blanc (formation,
+                // maître d'apprentissage, compétences) avant d'imprimer. Ce qu'il
+                // saisit est ENREGISTRÉ sur l'offre, pas seulement sur le PDF.
                 Action::make('ficheBesoin')
                     ->label('Fiche besoin (PDF)')
                     ->icon('heroicon-o-document-arrow-down')
                     ->color('gray')
-                    ->action(function (Need $record): StreamedResponse {
+                    ->modalHeading('Fiche besoin — compléter puis générer')
+                    ->modalDescription(fn (Need $record): string => $record->ficheBesoinEstComplete()
+                        ? 'Vérifiez les informations puis générez la fiche.'
+                        : 'Certaines informations manquent : complétez-les avant de générer la fiche.')
+                    ->modalSubmitActionLabel('Générer la fiche')
+                    ->fillForm(fn (Need $record): array => [
+                        'formation_id' => $record->formation_id,
+                        'tuteur_id' => $record->tuteur_id,
+                        'competences_attendues' => $record->competences_attendues,
+                    ])
+                    ->schema([
+                        Select::make('formation_id')
+                            ->label('Formation visée')
+                            ->options(fn (): array => Formation::query()->orderBy('libelle')->pluck('libelle', 'id')->all())
+                            ->searchable()
+                            ->preload()
+                            ->placeholder('À préciser')
+                            ->helperText('Détermine la certification (RNCP) et le référentiel de la fiche.'),
+                        Select::make('tuteur_id')
+                            ->label('Maître d\'apprentissage')
+                            ->options(fn (Need $record): array => self::contactsDe($record->company_id))
+                            ->getOptionLabelUsing(fn ($value): ?string => optional(CompanyContact::find($value))->nom_complet)
+                            ->searchable()
+                            ->preload()
+                            ->placeholder('À désigner')
+                            ->createOptionForm([
+                                TextInput::make('nom')->label('Nom')->required(),
+                                TextInput::make('prenom')->label('Prénom'),
+                                TextInput::make('fonction')->label('Fonction')->placeholder('ex : Gérant, chef d\'atelier'),
+                            ])
+                            ->createOptionUsing(fn (array $data, Need $record): int => CompanyContact::create([
+                                ...$data,
+                                'company_id' => $record->company_id,
+                                'is_tuteur' => true,
+                            ])->getKey()),
+                        Textarea::make('competences_attendues')
+                            ->label('Compétences recherchées')
+                            ->placeholder('Une compétence par ligne')
+                            ->helperText('Saisies par l\'entreprise ; complétez-les si besoin.')
+                            ->rows(4),
+                    ])
+                    ->action(function (Need $record, array $data): StreamedResponse {
+                        // On enregistre les compléments sur l'offre : la fiche
+                        // reflète des données pérennes, pas un PDF de circonstance.
+                        $record->update([
+                            'formation_id' => $data['formation_id'] ?? null,
+                            'tuteur_id' => $data['tuteur_id'] ?? null,
+                            'competences_attendues' => $data['competences_attendues'] ?? null,
+                        ]);
+
                         $service = app(FicheBesoinService::class);
-                        $service->archiver($record);
+                        $service->archiver($record->refresh());
 
                         Notification::make()
                             ->success()
@@ -290,6 +348,20 @@ class NeedsTable
             array_map(fn (NeedStatut $s): string => $s->value, Need::STATUTS_CLOS),
             true,
         );
+    }
+
+    /** Contacts de l'entreprise (clé => nom complet), pour le sélecteur de tuteur. */
+    private static function contactsDe(mixed $companyId): array
+    {
+        if (blank($companyId)) {
+            return [];
+        }
+
+        return CompanyContact::query()
+            ->where('company_id', $companyId)
+            ->get()
+            ->mapWithKeys(fn (CompanyContact $c): array => [$c->id => $c->nom_complet])
+            ->all();
     }
 
     /** Scope rapide courant lu sur la page (null hors ListNeeds). */

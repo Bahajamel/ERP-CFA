@@ -199,8 +199,10 @@ class EntrepriseFormController extends Controller
         }
 
         // Assainissement des champs texte (même défense en profondeur qu'à l'étape 1).
+        // strip_tags préserve les sauts de ligne des champs multi-lignes (prérequis,
+        // compétences) : seul l'habillage extérieur est retiré.
         $request->merge(
-            collect($request->only(['intitule_poste', 'rythme', 'localisation', 'prerequis']))
+            collect($request->only(['intitule_poste', 'rythme', 'localisation', 'prerequis', 'competences_attendues']))
                 ->map(function ($valeur) {
                     if (! is_string($valeur)) {
                         return null;
@@ -221,6 +223,7 @@ class EntrepriseFormController extends Controller
             'rythme' => ['nullable', 'string', 'max:255'],
             'localisation' => ['nullable', 'string', 'max:255'],
             'prerequis' => ['nullable', 'string', 'max:5000'],
+            'competences_attendues' => ['nullable', 'string', 'max:2000'],
         ], [
             'intitule_poste.required' => 'Indiquez l\'intitulé du poste recherché.',
             'date_demarrage.after_or_equal' => 'La date de démarrage ne peut pas être dans le passé.',
@@ -239,6 +242,7 @@ class EntrepriseFormController extends Controller
             'rythme' => $data['rythme'] ?? null,
             'localisation' => $data['localisation'] ?? $company->adresse,
             'prerequis' => $data['prerequis'] ?? null,
+            'competences_attendues' => $data['competences_attendues'] ?? null,
             'statut' => NeedStatut::Cree,
             // Déposée par l'entreprise : reste hors des offres actives tant qu'un
             // commercial ne l'a pas relue (cf. Need::scopeOuverts).

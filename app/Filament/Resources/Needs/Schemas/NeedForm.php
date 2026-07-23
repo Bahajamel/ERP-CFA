@@ -164,6 +164,12 @@ class NeedForm
                                 ->label('Prérequis')
                                 ->placeholder('ex : Niveau CAP, permis B, expérience en vente appréciée')
                                 ->columnSpanFull(),
+                            Textarea::make('competences_attendues')
+                                ->label('Compétences recherchées')
+                                ->placeholder("Une compétence par ligne\nex : Relation client\nOrganisation et planification")
+                                ->helperText('Reprises sur la fiche besoin. Saisies par l\'entreprise sur le formulaire public, complétables ici.')
+                                ->rows(4)
+                                ->columnSpanFull(),
                         ]),
                     Section::make('Interlocuteurs entreprise')
                         ->icon('heroicon-o-user-circle')

@@ -97,6 +97,15 @@
                     <p class="mt-1 text-xs text-slate-500">Plus c'est précis, plus les profils proposés seront pertinents.</p>
                     @error('prerequis')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
                 </div>
+
+                <div class="sm:col-span-2">
+                    <label for="competences_attendues" class="block text-sm font-medium text-slate-700">Compétences recherchées</label>
+                    <textarea id="competences_attendues" name="competences_attendues" rows="4"
+                        placeholder="Une compétence par ligne&#10;ex : Relation client&#10;Organisation et planification&#10;Suivi administratif"
+                        class="mt-1 w-full rounded-lg border px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500 @error('competences_attendues') border-rose-400 @else border-slate-300 @enderror">{{ old('competences_attendues') }}</textarea>
+                    <p class="mt-1 text-xs text-slate-500">Une compétence par ligne. Elles figureront sur la fiche besoin transmise en interne.</p>
+                    @error('competences_attendues')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
+                </div>
             </div>
         </fieldset>
 
