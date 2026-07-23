@@ -15,7 +15,7 @@ use Illuminate\Console\Command;
  */
 class FicheBesoinApercu extends Command
 {
-    protected $signature = 'fiche-besoin:apercu {offre : Identifiant de l\'offre} {--sortie= : Chemin du PDF à écrire}';
+    protected $signature = 'fiche-besoin:apercu {offre : Identifiant de l\'offre} {--sortie= : Chemin du PDF à écrire} {--texte : Affiche la prose sans générer le PDF}';
 
     protected $description = 'Génère la fiche besoin d\'une offre dans un fichier PDF';
 
@@ -27,6 +27,27 @@ class FicheBesoinApercu extends Command
             $this->error('Offre introuvable.');
 
             return self::FAILURE;
+        }
+
+        // Aperçu texte : lit la prose générée sans passer par dompdf (instantané).
+        if ($this->option('texte')) {
+            $d = $generateur->donnees($need);
+            $this->info('Fiche besoin '.$generateur->reference($need));
+            foreach ([
+                '1. Entreprise' => ($d['entreprise'] ?? '—').' — SIRET '.($d['entreprise_siret'] ?? '—'),
+                '   Formation' => ($d['formation'] ?? '—').' ('.($d['code_rncp'] ?? '—').')',
+                '   Maître app.' => $d['maitre_apprentissage'] ?? '(à désigner)',
+                '2. Contexte' => $d['contexte'],
+                '3. Besoin' => $d['besoin'],
+                '4. Compétences' => implode(' · ', $d['competences']),
+                '5. Justification' => $d['justification'],
+                '6. Conclusion' => $d['conclusion'],
+            ] as $titre => $valeur) {
+                $this->line("\n<comment>{$titre}</comment>");
+                $this->line('  '.wordwrap((string) $valeur, 100, "\n  "));
+            }
+
+            return self::SUCCESS;
         }
 
         $pdf = $generateur->pour($need);

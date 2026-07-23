@@ -98,69 +98,114 @@ it('numérote la fiche à partir de l\'offre', function () {
 
 // ── Les données portées par la fiche ──────────────────────────────────────────
 
-it('reprend l\'entreprise, le contact et le poste', function () {
-    $d = app(FicheBesoin::class)->donnees(offreDeposee());
-
-    expect($d['entreprise'])->toBe('Boulangerie Lecoq')
-        // SIRET formaté par groupes, comme sur la convention.
-        ->and($d['entreprise_siret'])->toBe('900 000 001 00011')
-        ->and($d['contact_identite'])->toBe('Sylvie Lecoq (Gérante)')
-        ->and($d['contact_email'])->toBe('sylvie.lecoq@example.test')
-        ->and($d['poste'])->toBe('Apprenti boulanger')
-        ->and($d['nb_postes'])->toBe(2)
-        ->and($d['origine'])->toBe('Déposée par l\'entreprise')
-        ->and($d['attend_validation'])->toBeTrue();
-});
-
-it('porte la certification visée, pivot de l\'indicateur 4', function () {
+it('remplit le tableau « Informations générales »', function () {
     $formation = Formation::factory()->create([
         'libelle' => 'TP Développeur Web',
         'code_rncp' => 'RNCP37674',
-        'niveau' => 'Bac+2',
     ]);
 
     $d = app(FicheBesoin::class)->donnees(offreDeposee(['formation_id' => $formation->id]));
 
-    expect($d['certification'])->toBe('TP Développeur Web')
-        ->and($d['certification_rncp'])->toBe('RNCP37674')
-        ->and($d['certification_niveau'])->toBe('Bac+2');
+    expect($d['entreprise'])->toBe('Boulangerie Lecoq')
+        // SIRET formaté par groupes, comme sur la convention.
+        ->and($d['entreprise_siret'])->toBe('900 000 001 00011')
+        ->and($d['formation'])->toBe('TP Développeur Web')
+        ->and($d['code_rncp'])->toBe('RNCP37674')
+        ->and($d['poste'])->toBe('Apprenti boulanger')
+        // Date de la fiche = mois + année en toutes lettres, capitalisés.
+        ->and($d['date_fiche'])->toMatch('/^[A-ZÀ-Ý][a-zà-ÿ]+ \d{4}$/u');
 });
 
-it('n\'invente rien quand l\'entreprise a laissé des champs vides', function () {
-    $need = offreDeposee([
-        'formation_id' => null,
-        'rythme' => null,
-        'date_demarrage' => null,
-        'prerequis' => null,
+it('rédige le contexte à partir du secteur et de l\'adresse', function () {
+    $d = app(FicheBesoin::class)->donnees(offreDeposee([], [
+        'secteur' => 'Boulangerie-pâtisserie',
+        'adresse' => '12 rue du Four',
+        'code_postal' => '69003',
+        'ville' => 'Lyon',
+    ]));
+
+    expect($d['contexte'])
+        ->toContain('Boulangerie Lecoq')
+        ->toContain('Boulangerie-pâtisserie')
+        ->toContain('12 rue du Four, 69003 Lyon');
+});
+
+it('reprend les missions écrites par l\'entreprise en § besoin opérationnel', function () {
+    $d = app(FicheBesoin::class)->donnees(offreDeposee([
+        'prerequis' => 'Suivi des commandes et relation client.',
+    ]));
+
+    expect($d['besoin'])->toBe('Suivi des commandes et relation client.');
+});
+
+it('liste les compétences depuis le référentiel de la formation', function () {
+    $formation = Formation::factory()->create([
+        'matieres' => ['Gestion de projet', 'Relation client', 'Comptabilité'],
     ]);
+
+    $d = app(FicheBesoin::class)->donnees(offreDeposee(['formation_id' => $formation->id]));
+
+    expect($d['competences'])->toBe(['Gestion de projet', 'Relation client', 'Comptabilité']);
+});
+
+it('génère la fiche même quand l\'entreprise a laissé des champs vides', function () {
+    // L'entreprise pressée : ni formation, ni rythme, ni missions détaillées.
+    $need = offreDeposee(['formation_id' => null, 'rythme' => null, 'prerequis' => null]);
 
     $d = app(FicheBesoin::class)->donnees($need);
 
+    // On ne bloque pas, et on n'invente pas : le besoin est décrit sobrement…
     expect($d['formation'])->toBeNull()
-        ->and($d['rythme'])->toBeNull()
-        ->and($d['date_demarrage'])->toBeNull()
-        ->and($d['prerequis'])->toBeNull();
+        ->and($d['besoin'])->toContain('Apprenti boulanger')
+        // …et les compétences renvoient au référentiel « à préciser ».
+        ->and($d['competences'][0])->toContain('à préciser');
 
-    // Et le PDF se génère quand même : c'est le cas de l'entreprise pressée.
+    // Le PDF se génère quand même.
     expect(substr(app(FicheBesoin::class)->pour($need), 0, 5))->toBe('%PDF-');
 });
 
-it('imprime des pointillés à compléter, pas des valeurs inventées', function () {
-    $need = offreDeposee(['formation_id' => null, 'rythme' => null, 'prerequis' => null]);
+it('reste au conditionnel tant que le besoin n\'est pas validé', function () {
+    $enAttente = app(FicheBesoin::class)->donnees(offreDeposee(['validee_at' => null]));
+    $valide = app(FicheBesoin::class)->donnees(
+        offreDeposee(['validee_at' => now()], ['siret' => '90000000900019']),
+    );
 
-    $html = view('pdf.fiche-besoin', ['d' => app(FicheBesoin::class)->donnees($need)])->render();
+    // Non validé : on n'affirme pas une adéquation que personne n'a relue.
+    expect($enAttente['conclusion'])->toContain('Sous réserve')
+        ->and($enAttente['conclusion'])->not->toContain('constate une cohérence');
+
+    // Validé : le CFA constate.
+    expect($valide['conclusion'])->toContain('constate une cohérence')
+        // Le nom du CFA n'est jamais doublé (« le CFA CFA … »).
+        ->and($valide['conclusion'])->not->toContain('CFA CFA');
+});
+
+it('n\'affirme jamais la compatibilité d\'un besoin rejeté', function () {
+    // Un besoin passé en « Annulé » ne doit pas conclure « compatible » :
+    // il reste au conditionnel, il n'a pas été endossé.
+    $d = app(FicheBesoin::class)->donnees(offreDeposee(['statut' => NeedStatut::Annule]));
+
+    expect($d['conclusion'])->toContain('Sous réserve')
+        ->and($d['conclusion'])->not->toContain('constate une cohérence');
+});
+
+it('suit le format ACTION CBM (6 sections, sans logo, sans bas de page)', function () {
+    $html = view('pdf.fiche-besoin', [
+        'd' => app(FicheBesoin::class)->donnees(offreDeposee()),
+    ])->render();
 
     expect($html)
-        // Les données réellement saisies sont là…
-        ->toContain('Boulangerie Lecoq')
-        ->toContain('Apprenti boulanger')
-        // …le cadre Qualiopi aussi, avec l'intitulé exact de l'indicateur…
-        ->toContain('indicateur n°4')
-        ->toContain('Adéquation des missions confiées à la certification visée')
-        ->toContain('en amont de la contractualisation')
-        // …et les champs vides deviennent des pointillés, jamais du texte inventé.
-        ->toContain('class="fill"')
-        ->toContain('à recueillir lors de la qualification');
+        ->toContain('FICHE BESOIN — ALTERNANCE / APPRENTISSAGE')
+        ->toContain('Document préparatoire')
+        ->toContain('1. Informations générales')
+        ->toContain('2. Contexte de l\'entreprise')
+        ->toContain('3. Besoin opérationnel')
+        ->toContain('4. Compétences attendues')
+        ->toContain('5. Justification du choix de la formation')
+        ->toContain('6. Conclusion')
+        // Sans logo (aucune balise image) ni bloc légal de bas de page.
+        ->not->toContain('<img')
+        ->not->toContain('Déclaration d\'activité');
 });
 
 // ── Archivage ─────────────────────────────────────────────────────────────────
