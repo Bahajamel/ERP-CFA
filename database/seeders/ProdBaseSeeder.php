@@ -34,6 +34,7 @@ class ProdBaseSeeder extends Seeder
             OrganisationSeeder::class,
             RolePermissionSeeder::class,
             AdminUserSeeder::class,
+            EditeurUserSeeder::class,
             QualiopiIndicatorSeeder::class,
             CfaMissionSeeder::class,
             OpcoSeeder::class,

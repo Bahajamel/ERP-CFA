@@ -42,6 +42,35 @@ class OrganisationsTable
                     ->formatStateUsing(fn (bool $state): string => $state ? 'Actif' : 'Suspendu')
                     ->color(fn (bool $state): string => $state ? 'success' : 'danger'),
 
+                // Échéance d'essai : rappelée avec une couleur d'alerte à
+                // l'approche du terme. Vide pour un CFA client hors essai.
+                TextColumn::make('date_fin_essai')
+                    ->label('Essai')
+                    ->placeholder('—')
+                    ->formatStateUsing(function ($state, Organisation $record): string {
+                        $restants = $record->joursEssaiRestants();
+
+                        if ($restants === null) {
+                            return '—';
+                        }
+
+                        return $restants < 0
+                            ? 'Expiré le '.$record->date_fin_essai->format('d/m/Y')
+                            : 'J-'.$restants.' ('.$record->date_fin_essai->format('d/m/Y').')';
+                    })
+                    ->badge()
+                    ->color(function (Organisation $record): string {
+                        $restants = $record->joursEssaiRestants();
+
+                        return match (true) {
+                            $restants === null => 'gray',
+                            $restants < 0 => 'danger',
+                            $restants <= 7 => 'warning',
+                            default => 'info',
+                        };
+                    })
+                    ->sortable(),
+
                 TextColumn::make('created_at')
                     ->label('Client depuis')
                     ->date('d/m/Y')
