@@ -99,8 +99,10 @@ class FicheBesoin
             // ---- 3 · Besoin opérationnel (prose : les mots de l'entreprise, sinon repli) ----
             'besoin' => $this->besoinOperationnel($need->prerequis, $need->intitule_poste, $need->nb_postes),
 
-            // ---- 4 · Compétences attendues (référentiel de la formation) ----
-            'competences' => $this->competences($formation?->matieres, $need->intitule_poste),
+            // ---- 4 · Compétences attendues ----
+            // Priorité aux compétences exprimées par l'entreprise (formulaire
+            // public), sinon le référentiel de la formation, sinon une ligne générique.
+            'competences' => $this->competences($need->competences_attendues, $formation?->matieres, $need->intitule_poste),
 
             // ---- 5 · Justification du choix de la formation (prose générée) ----
             'justification' => $this->justification($co?->raison_sociale, $need->intitule_poste, $formationLibelle, $formation?->code_rncp),
@@ -166,17 +168,33 @@ class FicheBesoin
     }
 
     /**
-     * § 4 — Compétences attendues : le référentiel de la formation visée.
-     * À défaut de référentiel connu, une seule ligne renvoyant au poste.
+     * § 4 — Compétences attendues, par ordre de préférence :
+     *   1. celles exprimées par l'entreprise (formulaire public, une par ligne) ;
+     *   2. à défaut, le référentiel de la formation visée (ses matières) ;
+     *   3. à défaut, une seule ligne renvoyant au poste.
      *
      * @return list<string>
      */
-    private function competences(mixed $matieres, ?string $poste): array
+    private function competences(?string $exprimees, mixed $matieres, ?string $poste): array
     {
+        // 1. Compétences saisies par l'entreprise : une par ligne, vides ignorées.
+        if (filled($exprimees)) {
+            $lignes = array_values(array_filter(
+                array_map('trim', preg_split('/\r\n|\r|\n/', $exprimees) ?: []),
+                'strlen',
+            ));
+
+            if ($lignes !== []) {
+                return $lignes;
+            }
+        }
+
+        // 2. Référentiel de la formation.
         if (is_array($matieres) && $matieres !== []) {
             return array_values(array_filter(array_map('trim', $matieres), 'strlen'));
         }
 
+        // 3. Repli générique.
         $intitule = filled($poste) ? " au poste de {$poste}" : '';
 
         return ["Compétences liées{$intitule} et au référentiel de la formation visée (à préciser)."];

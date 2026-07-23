@@ -315,6 +315,18 @@ class Need extends Model
     }
 
     /**
+     * La fiche besoin dispose-t-elle de tout ce qui la rend exploitable ?
+     * Sert à alerter le commercial avant génération : formation (donc RNCP et
+     * référentiel), maître d'apprentissage, et compétences recherchées.
+     */
+    public function ficheBesoinEstComplete(): bool
+    {
+        return $this->formation_id !== null
+            && $this->tuteur_id !== null
+            && filled($this->competences_attendues);
+    }
+
+    /**
      * Candidats compatibles avec ce besoin, classés par score décroissant.
      * Exclut les candidats déjà proposés et les ruptures. Chaque élément :
      * ['candidate' => Candidate, 'score' => int, 'explication' => string].

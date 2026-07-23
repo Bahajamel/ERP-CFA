@@ -77,6 +77,7 @@ it('crée l\'offre depuis la fiche besoin, rattachée à l\'entreprise et à son
         'date_demarrage' => now()->addMonth()->toDateString(),
         'rythme' => '2 j CFA / 3 j entreprise',
         'prerequis' => 'Ponctualité, goût du travail en équipe.',
+        'competences_attendues' => "Pétrissage\nCuisson\nHygiène HACCP",
     ])->assertRedirect(route('entreprise.merci'));
 
     $need = Need::firstOrFail();
@@ -85,6 +86,8 @@ it('crée l\'offre depuis la fiche besoin, rattachée à l\'entreprise et à son
         ->and($need->company_id)->toBe($company->id)
         ->and($need->formation_id)->toBe($formation->id)
         ->and($need->nb_postes)->toBe(2)
+        // Les compétences saisies par l'entreprise sont conservées telles quelles.
+        ->and($need->competences_attendues)->toBe("Pétrissage\nCuisson\nHygiène HACCP")
         ->and($need->contact_id)->toBe($company->contactPrincipal->first()->id)
         // Lieu non saisi → l'adresse de l'entreprise sert de repli.
         ->and($need->localisation)->toBe('1 rue de la Paix, 75001 Paris')

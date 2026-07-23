@@ -138,12 +138,30 @@ it('reprend les missions écrites par l\'entreprise en § besoin opérationnel',
     expect($d['besoin'])->toBe('Suivi des commandes et relation client.');
 });
 
-it('liste les compétences depuis le référentiel de la formation', function () {
+it('liste en priorité les compétences exprimées par l\'entreprise', function () {
+    // Même si la formation a un référentiel, ce que l'entreprise a écrit prime.
+    $formation = Formation::factory()->create([
+        'matieres' => ['Référentiel A', 'Référentiel B'],
+    ]);
+
+    $d = app(FicheBesoin::class)->donnees(offreDeposee([
+        'formation_id' => $formation->id,
+        'competences_attendues' => "Relation client\nOrganisation\n\nSuivi administratif",
+    ]));
+
+    // Une compétence par ligne, lignes vides ignorées.
+    expect($d['competences'])->toBe(['Relation client', 'Organisation', 'Suivi administratif']);
+});
+
+it('retombe sur le référentiel de la formation quand l\'entreprise n\'a rien exprimé', function () {
     $formation = Formation::factory()->create([
         'matieres' => ['Gestion de projet', 'Relation client', 'Comptabilité'],
     ]);
 
-    $d = app(FicheBesoin::class)->donnees(offreDeposee(['formation_id' => $formation->id]));
+    $d = app(FicheBesoin::class)->donnees(offreDeposee([
+        'formation_id' => $formation->id,
+        'competences_attendues' => null,
+    ]));
 
     expect($d['competences'])->toBe(['Gestion de projet', 'Relation client', 'Comptabilité']);
 });
@@ -269,7 +287,7 @@ it('génère la fiche même sans référentiel Qualiopi initialisé', function (
 
 // ── Depuis l'ERP ──────────────────────────────────────────────────────────────
 
-it('télécharge la fiche depuis la liste des offres', function () {
+it('complète l\'offre depuis la fenêtre puis génère la fiche', function () {
     $this->seed(RolePermissionSeeder::class);
     Filament::setCurrentPanel(Filament::getPanel('admin'));
 
@@ -277,11 +295,20 @@ it('télécharge la fiche depuis la liste des offres', function () {
     $user->syncRoles('Commercial');
     $this->actingAs($user);
 
-    $need = offreDeposee();
+    $formation = Formation::factory()->create();
+    // Offre déposée sans formation ni compétences : le cas que la fenêtre corrige.
+    $need = offreDeposee(['formation_id' => null, 'competences_attendues' => null]);
 
     Livewire::test(ListNeeds::class)
-        ->callTableAction('ficheBesoin', $need)
+        ->callTableAction('ficheBesoin', $need, data: [
+            'formation_id' => $formation->id,
+            'competences_attendues' => "Relation client\nOrganisation",
+        ])
         ->assertNotified();
 
-    expect($need->documents()->where('type', DocumentType::FicheBesoin->value)->exists())->toBeTrue();
+    // Les compléments sont enregistrés sur l'offre, pas seulement dans le PDF.
+    $need->refresh();
+    expect($need->formation_id)->toBe($formation->id)
+        ->and($need->competences_attendues)->toBe("Relation client\nOrganisation")
+        ->and($need->documents()->where('type', DocumentType::FicheBesoin->value)->exists())->toBeTrue();
 });

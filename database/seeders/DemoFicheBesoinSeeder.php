@@ -47,6 +47,7 @@ class DemoFicheBesoinSeeder extends Seeder
             'demarrage' => '+2 months',
             'rythme' => '1 semaine CFA / 3 semaines entreprise',
             'prerequis' => 'Lever tôt (prise de poste 5h), goût du travail en équipe. Aucune expérience exigée : nous formons sur place.',
+            'competences' => "Pétrissage et façonnage des pâtes\nConduite de la cuisson\nRespect des règles d'hygiène (HACCP)\nTravail en équipe",
         ],
         [
             'siret' => '90000000200012',
@@ -60,6 +61,7 @@ class DemoFicheBesoinSeeder extends Seeder
             'demarrage' => '+3 months',
             'rythme' => '2 j CFA / 3 j entreprise',
             'prerequis' => 'Bases en PHP et JavaScript. Git apprécié. Travail sur une application métier interne, en binôme avec un développeur confirmé.',
+            'competences' => "Développement web (PHP, JavaScript)\nVersionnage avec Git\nBases de données relationnelles\nAutonomie et rigueur",
         ],
         [
             'siret' => '90000000300013',
@@ -73,6 +75,7 @@ class DemoFicheBesoinSeeder extends Seeder
             'demarrage' => '+1 month',
             'rythme' => '2 j CFA / 3 j entreprise',
             'prerequis' => 'Rigueur et discrétion. Saisie, rapprochements bancaires, préparation des déclarations de TVA.',
+            'competences' => "Saisie comptable\nRapprochements bancaires\nDéclarations de TVA\nRigueur et discrétion",
         ],
         [
             'siret' => '90000000400014',
@@ -86,6 +89,7 @@ class DemoFicheBesoinSeeder extends Seeder
             'demarrage' => '+2 months',
             'rythme' => '1 j CFA / 4 j entreprise',
             'prerequis' => 'Présentation soignée, aisance à l\'oral. Travail le samedi. Formation assurée sur nos produits.',
+            'competences' => "Accueil et conseil client\nTechniques de vente\nTenue de caisse\nMise en valeur des produits",
         ],
         [
             // Volontairement minimal : reproduit une entreprise pressée qui remplit
@@ -153,6 +157,7 @@ class DemoFicheBesoinSeeder extends Seeder
                     'rythme' => $dossier['rythme'],
                     'localisation' => $dossier['adresse'],
                     'prerequis' => $dossier['prerequis'],
+                    'competences_attendues' => $dossier['competences'] ?? null,
                     'statut' => NeedStatut::Cree,
                     // Le cœur du jeu d'essai : déposés par l'entreprise, non relus.
                     'origine' => NeedOrigine::Entreprise,
