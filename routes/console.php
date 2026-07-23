@@ -16,3 +16,6 @@ Schedule::command('app:generer-alertes')->dailyAt('06:15');
 
 // Corbeille candidats : purge définitive après 30 jours de rétention.
 Schedule::command('candidats:purger-corbeille')->dailyAt('03:00');
+
+// Essais gratuits : suspension des CFA dont l'essai est arrivé à échéance.
+Schedule::command('essai:suspendre-expires')->dailyAt('02:00');

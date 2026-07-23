@@ -25,6 +25,7 @@ class DatabaseSeeder extends Seeder
 
             RolePermissionSeeder::class,
             AdminUserSeeder::class,
+            EditeurUserSeeder::class,
             QualiopiIndicatorSeeder::class,
             CfaMissionSeeder::class,
             OpcoSeeder::class,

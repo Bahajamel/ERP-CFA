@@ -12,9 +12,10 @@ class EditDemoRequest extends EditRecord
 
     protected function getHeaderActions(): array
     {
-        // Une demande traitée peut être supprimée (nettoyage RGPD des prospects
-        // qui n'ont pas donné suite).
         return [
+            DemoRequestResource::convertirAction(),
+            // Une demande traitée peut être supprimée (nettoyage RGPD des prospects
+            // qui n'ont pas donné suite).
             DeleteAction::make()->label('Supprimer la demande'),
         ];
     }

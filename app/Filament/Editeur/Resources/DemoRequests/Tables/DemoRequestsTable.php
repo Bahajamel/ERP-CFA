@@ -3,6 +3,7 @@
 namespace App\Filament\Editeur\Resources\DemoRequests\Tables;
 
 use App\Enums\DemoRequestStatut;
+use App\Filament\Editeur\Resources\DemoRequests\DemoRequestResource;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -53,6 +54,7 @@ class DemoRequestsTable
                     ->options(DemoRequestStatut::class),
             ])
             ->recordActions([
+                DemoRequestResource::convertirAction(),
                 EditAction::make()->label('Traiter'),
             ])
             ->defaultSort('created_at', 'desc')

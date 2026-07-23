@@ -37,7 +37,28 @@ class Organisation extends Model implements HasMedia, HasName
         return [
             'actif' => 'boolean',
             'verifier_rncp' => 'boolean',
+            'date_fin_essai' => 'datetime',
         ];
+    }
+
+    /** Le CFA est-il en période d'essai gratuit (une échéance est fixée) ? */
+    public function estEnEssai(): bool
+    {
+        return $this->date_fin_essai !== null;
+    }
+
+    /** L'essai est-il arrivé à échéance ? (faux si le CFA n'est pas en essai) */
+    public function essaiExpire(): bool
+    {
+        return $this->date_fin_essai !== null && $this->date_fin_essai->isPast();
+    }
+
+    /** Jours restants avant la fin de l'essai (négatif si dépassé, null hors essai). */
+    public function joursEssaiRestants(): ?int
+    {
+        return $this->date_fin_essai === null
+            ? null
+            : (int) ceil(now()->floatDiffInDays($this->date_fin_essai, false));
     }
 
     public function registerMediaCollections(): void
