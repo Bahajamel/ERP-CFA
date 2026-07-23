@@ -6,12 +6,45 @@ use App\Http\Controllers\InscriptionController;
 use App\Http\Controllers\PublicCustomTableController;
 use App\Http\Controllers\SecureMediaController;
 use App\Http\Controllers\SignatureWebhookController;
+use App\Http\Controllers\VitrineController;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
-// La racine renvoie directement vers le panneau d'administration (l'application).
-Route::redirect('/', '/admin');
+// Site vitrine public de Meridian CFA (page commerciale). La racine ne redirige
+// plus vers l'ERP : « Se connecter » y mène explicitement. Aucune donnée
+// sensible ici — ce sont des pages publiques.
+Route::get('/', [VitrineController::class, 'accueil'])->name('vitrine.accueil');
+Route::get('/mentions-legales', [VitrineController::class, 'mentions'])->name('vitrine.mentions');
+Route::get('/politique-confidentialite', [VitrineController::class, 'confidentialite'])->name('vitrine.confidentialite');
+
+// Bases SEO. On expose la vitrine, on tient les crawlers hors des espaces
+// authentifiés (admin, editeur) et des formulaires publics tokenisés.
+Route::get('/robots.txt', function () {
+    $lignes = [
+        'User-agent: *',
+        'Allow: /$',
+        'Allow: /mentions-legales',
+        'Allow: /politique-confidentialite',
+        'Disallow: /admin',
+        'Disallow: /editeur',
+        'Disallow: /candidature',
+        'Disallow: /entreprise',
+        'Disallow: /inscription',
+        'Disallow: /tableau',
+        'Sitemap: '.route('vitrine.sitemap'),
+    ];
+
+    return response(implode("\n", $lignes)."\n", 200, ['Content-Type' => 'text/plain']);
+})->name('vitrine.robots');
+
+Route::get('/sitemap.xml', function () {
+    $urls = [route('vitrine.accueil'), route('vitrine.mentions'), route('vitrine.confidentialite')];
+
+    return response()
+        ->view('vitrine.sitemap', ['urls' => $urls])
+        ->header('Content-Type', 'application/xml');
+})->name('vitrine.sitemap');
 
 // Accès aux pièces sensibles (données personnelles / NIR) stockées sur disque
 // privé : jamais d'URL publique. Double verrou — session ERP (`auth`) ET lien
