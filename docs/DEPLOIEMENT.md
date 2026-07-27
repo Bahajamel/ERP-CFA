@@ -108,6 +108,7 @@ Tâches pilotées par le planificateur (`routes/console.php`) :
 | `app:generer-alertes` | 06:15 | alertes transverses (dossiers, signatures, échéances) |
 | `candidats:purger-corbeille` | 03:00 | purge RGPD après 30 j |
 | `essai:suspendre-expires` | 02:00 | **suspend les CFA dont l'essai gratuit est échu** |
+| `backup:clean` / `backup:run` | 01:30 / 01:45 | **sauvegarde base + fichiers** (disque `BACKUP_DISK`) |
 
 ---
 
@@ -119,8 +120,10 @@ Tâches pilotées par le planificateur (`routes/console.php`) :
 - [ ] Cron `schedule:run` **en place** (§3.2)
 - [ ] Mots de passe des comptes seedés changés (admin + éditeur)
 - [ ] E-mail (`MAIL_*`) configuré et testé
-- [ ] **Sauvegardes** base + fichiers en place *(non fournies par l'app —
-      à mettre en place, ex. `spatie/laravel-backup` ou dump PostgreSQL planifié)*
+- [ ] **Sauvegardes** : `BACKUP_DISK` pointé vers un stockage **hors serveur**
+      (ex. `s3`) et `pg_dump` présent dans le PATH. Vérifier avec
+      `php artisan backup:run` puis `php artisan backup:list`. *(Le planificateur
+      lance `backup:run`/`backup:clean` chaque nuit — cf. §3.2.)*
 - [ ] Identité juridique renseignée sur les mentions légales de la vitrine
       (placeholders `[à compléter]`)
 
@@ -128,8 +131,8 @@ Tâches pilotées par le planificateur (`routes/console.php`) :
 
 ## 5. Points connus restant à traiter
 
-- **Content-Security-Policy** stricte non posée (casserait Filament/Livewire) —
-  chantier dédié.
-- **Sauvegardes automatisées** non intégrées à l'app.
+- **Content-Security-Policy** : seul `frame-ancestors 'self'` est posé (sûr,
+  anti-clickjacking). La CSP complète (`script-src`/`style-src`) reste à
+  construire, testée écran par écran — elle casserait Filament/Livewire sinon.
 - Voir l'audit des manques pour le reste (connecteurs OPCO/DECA, reporting
   réglementaire, etc.).

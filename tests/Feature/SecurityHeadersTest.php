@@ -10,6 +10,7 @@ it('pose les en-têtes de sécurité sur les réponses web', function () {
     $response->assertOk()
         ->assertHeader('X-Content-Type-Options', 'nosniff')
         ->assertHeader('X-Frame-Options', 'SAMEORIGIN')
+        ->assertHeader('Content-Security-Policy', "frame-ancestors 'self'")
         ->assertHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
 });
 
