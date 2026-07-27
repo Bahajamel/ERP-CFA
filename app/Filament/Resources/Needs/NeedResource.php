@@ -1,0 +1,85 @@
+<?php
+
+namespace App\Filament\Resources\Needs;
+
+use App\Filament\Resources\Needs\Pages\CreateNeed;
+use App\Filament\Resources\Needs\Pages\EditNeed;
+use App\Filament\Resources\Needs\Pages\ListNeeds;
+use App\Filament\Resources\Needs\Pages\NeedsKanban;
+use App\Filament\Resources\Needs\RelationManagers\MatchingsRelationManager;
+use App\Filament\Resources\Needs\Schemas\NeedForm;
+use App\Filament\Resources\Needs\Tables\NeedsTable;
+use App\Models\Need;
+use App\Models\User;
+use BackedEnum;
+use Filament\Resources\Resource;
+use Filament\Schemas\Schema;
+use Filament\Support\Icons\Heroicon;
+use Filament\Tables\Table;
+use Illuminate\Support\Facades\Auth;
+
+class NeedResource extends Resource
+{
+    protected static ?string $model = Need::class;
+
+    public static function canAccess(): bool
+    {
+        $user = Auth::user();
+
+        return $user instanceof User && $user->can('access_needs');
+    }
+
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBriefcase;
+
+    protected static string|\UnitEnum|null $navigationGroup = 'Commercial';
+
+    protected static ?int $navigationSort = 3;
+
+    protected static ?string $navigationLabel = 'Les offres proposées';
+
+    protected static ?string $modelLabel = 'offre';
+
+    protected static ?string $pluralModelLabel = 'offres proposées';
+
+    protected static ?string $recordTitleAttribute = 'intitule_poste';
+
+    public static function getGloballySearchableAttributes(): array
+    {
+        return ['intitule_poste', 'company.raison_sociale'];
+    }
+
+    public static function getGlobalSearchResultDetails($record): array
+    {
+        return [
+            'Entreprise' => $record->company?->raison_sociale ?? '—',
+            'Statut' => $record->statut->getLabel(),
+        ];
+    }
+
+    public static function form(Schema $schema): Schema
+    {
+        return NeedForm::configure($schema);
+    }
+
+    public static function table(Table $table): Table
+    {
+        return NeedsTable::configure($table);
+    }
+
+    public static function getRelations(): array
+    {
+        return [
+            MatchingsRelationManager::class,
+        ];
+    }
+
+    public static function getPages(): array
+    {
+        return [
+            'index' => ListNeeds::route('/'),
+            'kanban' => NeedsKanban::route('/pipeline'),
+            'create' => CreateNeed::route('/create'),
+            'edit' => EditNeed::route('/{record}/edit'),
+        ];
+    }
+}

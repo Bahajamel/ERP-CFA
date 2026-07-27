@@ -1,0 +1,100 @@
+<?php
+
+namespace App\Filament\Resources\OpcoFiles;
+
+use App\Enums\OpcoStatut;
+use App\Filament\Resources\OpcoFiles\Pages\CreateOpcoFile;
+use App\Filament\Resources\OpcoFiles\Pages\EditOpcoFile;
+use App\Filament\Resources\OpcoFiles\Pages\ListOpcoFiles;
+use App\Filament\Resources\OpcoFiles\Schemas\OpcoFileForm;
+use App\Filament\Resources\OpcoFiles\Tables\OpcoFilesTable;
+use App\Models\OpcoFile;
+use BackedEnum;
+use Filament\Resources\Resource;
+use Filament\Schemas\Schema;
+use Filament\Support\Icons\Heroicon;
+use Filament\Tables\Table;
+
+class OpcoFileResource extends Resource
+{
+    protected static ?string $model = OpcoFile::class;
+
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->can('access_opco') ?? false;
+    }
+
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBanknotes;
+
+    protected static string|\UnitEnum|null $navigationGroup = 'Contrats & OPCO';
+
+    protected static ?int $navigationSort = 2;
+
+    protected static ?string $navigationLabel = 'Dossiers OPCO';
+
+    protected static ?string $modelLabel = 'dossier OPCO';
+
+    protected static ?string $pluralModelLabel = 'dossiers OPCO';
+
+    /** Badge de navigation : dossiers bloqués (rejetés / en correction). */
+    public static function getNavigationBadge(): ?string
+    {
+        $n = OpcoFile::query()->whereIn('statut', OpcoStatut::bloques())->count();
+
+        return $n > 0 ? (string) $n : null;
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'danger';
+    }
+
+    public static function getNavigationBadgeTooltip(): ?string
+    {
+        return 'Dossiers bloqués — financement en attente';
+    }
+
+    public static function getGloballySearchableAttributes(): array
+    {
+        return ['contract.candidate.nom', 'contract.candidate.prenom', 'opco.nom'];
+    }
+
+    public static function getGlobalSearchResultTitle($record): string
+    {
+        return 'Dossier OPCO — '.($record->contract?->candidate?->nom_complet ?? '#'.$record->id);
+    }
+
+    public static function getGlobalSearchResultDetails($record): array
+    {
+        return [
+            'OPCO' => $record->opco?->nom ?? '—',
+            'Statut' => $record->statut->getLabel(),
+        ];
+    }
+
+    public static function form(Schema $schema): Schema
+    {
+        return OpcoFileForm::configure($schema);
+    }
+
+    public static function table(Table $table): Table
+    {
+        return OpcoFilesTable::configure($table);
+    }
+
+    public static function getRelations(): array
+    {
+        return [
+            RelationManagers\PaymentsRelationManager::class,
+        ];
+    }
+
+    public static function getPages(): array
+    {
+        return [
+            'index' => ListOpcoFiles::route('/'),
+            'create' => CreateOpcoFile::route('/create'),
+            'edit' => EditOpcoFile::route('/{record}/edit'),
+        ];
+    }
+}

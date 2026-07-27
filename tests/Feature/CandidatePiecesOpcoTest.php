@@ -1,0 +1,258 @@
+<?php
+
+use App\Filament\Resources\Candidates\Pages\CreateCandidate;
+use App\Models\Candidate;
+use App\Models\Opco;
+use App\Models\User;
+use App\Support\EntrepriseAnnuaire;
+use App\Support\OpcoDetector;
+use Database\Seeders\OpcoSeeder;
+use Database\Seeders\RolePermissionSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
+use Livewire\Livewire;
+
+uses(RefreshDatabase::class);
+
+function piecesUser(): User
+{
+    $u = User::factory()->create(['is_active' => true]);
+    $u->syncRoles(['Administrateur']);
+
+    return $u;
+}
+
+/*
+|--------------------------------------------------------------------------
+| Pièces justificatives candidat
+|--------------------------------------------------------------------------
+*/
+
+it('attache et détecte les pièces justificatives du candidat', function () {
+    Storage::fake('public');
+    $candidate = Candidate::factory()->create();
+
+    $candidate->addMediaFromString("%PDF-1.4\n%%EOF")->usingFileName('cni.pdf')->toMediaCollection('piece_identite');
+    $candidate->addMediaFromString("%PDF-1.4\n%%EOF")->usingFileName('vitale.pdf')->toMediaCollection('carte_vitale');
+    $candidate->addMediaFromString("%PDF-1.4\n%%EOF")->usingFileName('projet.pdf')->toMediaCollection('attestation_projet');
+
+    $fresh = $candidate->fresh();
+
+    expect($fresh->getFirstMedia('piece_identite'))->not->toBeNull()
+        ->and($fresh->getFirstMedia('carte_vitale'))->not->toBeNull()
+        ->and($fresh->getFirstMedia('attestation_projet'))->not->toBeNull()
+        // Chaque pièce vit dans sa collection : le CV reste indépendant.
+        ->and($fresh->hasCv())->toBeFalse();
+});
+
+it('calcule la règle des 30 ans ou plus depuis la date de naissance', function () {
+    expect(Candidate::dateNaissancePlusDe30Ans(now()->subYears(31)->format('Y-m-d')))->toBeTrue()
+        // 30 ans révolus le jour même : la dérogation s'applique déjà.
+        ->and(Candidate::dateNaissancePlusDe30Ans(now()->subYears(30)->format('Y-m-d')))->toBeTrue()
+        ->and(Candidate::dateNaissancePlusDe30Ans(now()->subYears(29)->format('Y-m-d')))->toBeFalse()
+        ->and(Candidate::dateNaissancePlusDe30Ans(now()->subYears(25)->format('Y-m-d')))->toBeFalse()
+        ->and(Candidate::dateNaissancePlusDe30Ans(null))->toBeFalse()
+        ->and(Candidate::dateNaissancePlusDe30Ans('pas-une-date'))->toBeFalse();
+});
+
+it('exige l\'attestation de création de projet dès 30 ans révolus', function () {
+    $this->seed(RolePermissionSeeder::class);
+    $this->actingAs(piecesUser());
+    Storage::fake('public');
+
+    Livewire::test(CreateCandidate::class)
+        ->fillForm([
+            'nom' => 'Trentenaire',
+            'prenom' => 'Jour',
+            'email' => 'trente.pile@exemple.fr',
+            'date_naissance' => now()->subYears(30)->format('Y-m-d'),
+        ])
+        ->call('create')
+        ->assertHasFormErrors(['attestation_projet']);
+});
+
+it('exige l\'attestation de création de projet pour un candidat de plus de 30 ans', function () {
+    $this->seed(RolePermissionSeeder::class);
+    $this->actingAs(piecesUser());
+    Storage::fake('public');
+
+    Livewire::test(CreateCandidate::class)
+        ->fillForm([
+            'nom' => 'Durand',
+            'prenom' => 'Paul',
+            'email' => 'paul.durand@exemple.fr',
+            'date_naissance' => now()->subYears(35)->format('Y-m-d'),
+        ])
+        ->call('create')
+        ->assertHasFormErrors(['attestation_projet']);
+
+    expect(Candidate::query()->where('email', 'paul.durand@exemple.fr')->exists())->toBeFalse();
+});
+
+it('crée un candidat de 30 ans ou moins sans attestation de projet', function () {
+    $this->seed(RolePermissionSeeder::class);
+    $this->actingAs(piecesUser());
+    Storage::fake('public');
+
+    Livewire::test(CreateCandidate::class)
+        ->fillForm([
+            'nom' => 'Petit',
+            'prenom' => 'Léa',
+            'email' => 'lea.petit@exemple.fr',
+            'date_naissance' => now()->subYears(22)->format('Y-m-d'),
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    expect(Candidate::query()->where('email', 'lea.petit@exemple.fr')->exists())->toBeTrue();
+});
+
+/*
+|--------------------------------------------------------------------------
+| Détection OPCO par SIRET (API France Compétences — SIRO)
+|--------------------------------------------------------------------------
+*/
+
+it('normalise et valide le SIRET', function () {
+    expect(OpcoDetector::normaliserSiret('123 456 789 00012'))->toBe('12345678900012')
+        ->and(OpcoDetector::siretValide('123 456 789 00012'))->toBeTrue()
+        ->and(OpcoDetector::siretValide('12345'))->toBeFalse()
+        ->and(OpcoDetector::siretValide(null))->toBeFalse();
+});
+
+it('détecte l\'OPCO via France Compétences et le rattache au référentiel existant', function () {
+    Opco::query()->create(['nom' => 'AKTO']);
+
+    Http::fake([
+        'api.francecompetences.fr/*' => Http::response(['etat' => 'DSN', 'opcoDsn' => ['code' => '07', 'nom' => 'Akto'], 'opcoGestion' => ['code' => 'N/C', 'nom' => 'N/C']]),
+    ]);
+
+    $resultat = app(OpcoDetector::class)->detecter('123 456 789 00012');
+
+    expect($resultat['statut'])->toBe('ok')
+        ->and($resultat['opco']->nom)->toBe('AKTO')
+        // Correspondance insensible à la casse : pas de doublon créé.
+        ->and(Opco::query()->count())->toBe(1);
+});
+
+it('seede le référentiel officiel des 11 OPCO', function () {
+    $this->seed(OpcoSeeder::class);
+
+    expect(Opco::query()->count())->toBe(11)
+        ->and(Opco::query()->where('nom', 'OPCO Mobilités')->exists())->toBeTrue();
+
+    // Idempotent : relancer ne crée pas de doublon.
+    $this->seed(OpcoSeeder::class);
+    expect(Opco::query()->count())->toBe(11);
+});
+
+it('rattache les libellés longs de France Compétences à l\'OPCO canonique', function () {
+    $this->seed(OpcoSeeder::class);
+
+    Http::fake([
+        'api.francecompetences.fr/*' => Http::response([
+            'etat' => 'DSN',
+            'opcoDsn' => ['code' => '07', 'nom' => 'Opco entreprises et salariés des services à forte intensité de main-d\'œuvre'],
+            'opcoGestion' => ['code' => 'N/C', 'nom' => 'N/C'],
+        ]),
+    ]);
+
+    $resultat = app(OpcoDetector::class)->detecter('12345678900012');
+
+    expect($resultat['statut'])->toBe('ok')
+        ->and($resultat['opco']->nom)->toBe('AKTO')
+        // Rattaché au référentiel : aucun doublon créé.
+        ->and(Opco::query()->count())->toBe(11);
+});
+
+it('rattache « Uniformation, l\'Opco de la Cohésion sociale » au canonique', function () {
+    $this->seed(OpcoSeeder::class);
+
+    Http::fake([
+        'api.francecompetences.fr/*' => Http::response([
+            'etat' => 'DSN',
+            'opcoDsn' => ['code' => '10', 'nom' => 'Uniformation, l\'Opco de la Cohésion sociale'],
+            'opcoGestion' => ['code' => 'N/C', 'nom' => 'N/C'],
+        ]),
+    ]);
+
+    expect(app(OpcoDetector::class)->detecter('12345678900012')['opco']->nom)->toBe('Uniformation');
+});
+
+it('crée l\'OPCO au référentiel s\'il est totalement inconnu', function () {
+    Http::fake([
+        'api.francecompetences.fr/*' => Http::response(['etat' => 'DSN', 'opcoDsn' => ['code' => '99', 'nom' => 'Opérateur Fictif XYZ'], 'opcoGestion' => ['code' => 'N/C', 'nom' => 'N/C']]),
+    ]);
+
+    $resultat = app(OpcoDetector::class)->detecter('12345678900012');
+
+    expect($resultat['statut'])->toBe('ok')
+        ->and(Opco::query()->where('nom', 'Opérateur Fictif XYZ')->exists())->toBeTrue();
+});
+
+it('signale un OPCO introuvable sans bloquer', function () {
+    Http::fake([
+        'api.francecompetences.fr/*' => Http::response(['etat' => 'INCONNU', 'opcoDsn' => ['code' => 'N/C', 'nom' => 'N/C'], 'opcoGestion' => ['code' => 'N/C', 'nom' => 'N/C']]),
+    ]);
+
+    expect(app(OpcoDetector::class)->detecter('12345678900012')['statut'])->toBe('introuvable');
+});
+
+/*
+|--------------------------------------------------------------------------
+| Recherche d'entreprise par raison sociale (Annuaire des Entreprises)
+|--------------------------------------------------------------------------
+*/
+
+it('recherche une entreprise par nom et encode sa fiche complète', function () {
+    Http::fake([
+        'recherche-entreprises.api.gouv.fr/*' => Http::response([
+            'results' => [[
+                'nom_raison_sociale' => 'MIVA',
+                'nom_complet' => 'MIVA',
+                'activite_principale' => '56.10C',
+                'section_activite_principale' => 'I',
+                'siege' => [
+                    'siret' => '48953331500011',
+                    'numero_voie' => '43',
+                    'type_voie' => 'AVENUE',
+                    'libelle_voie' => 'GABRIELLE',
+                    'adresse' => 'RONCE LES BAINS 43 AVENUE GABRIELLE 17390 LA TREMBLADE',
+                    'code_postal' => '17390',
+                    'libelle_commune' => 'LA TREMBLADE',
+                    'latitude' => '45.798502815',
+                    'longitude' => '-1.163885491',
+                ],
+            ]],
+        ]),
+    ]);
+
+    $options = app(EntrepriseAnnuaire::class)->options('MIVA');
+    expect($options)->toHaveCount(1);
+
+    $fiche = EntrepriseAnnuaire::decode(array_key_first($options));
+
+    expect($fiche['raison_sociale'])->toBe('MIVA')
+        ->and($fiche['siret'])->toBe('48953331500011')
+        // Secteur = libellé de la section NAF de l'activité principale.
+        ->and($fiche['secteur'])->toBe('Hébergement et restauration')
+        ->and($fiche['adresse'])->toBe('43 AVENUE GABRIELLE')
+        ->and($fiche['code_postal'])->toBe('17390')
+        ->and($fiche['ville'])->toBe('LA TREMBLADE')
+        ->and($fiche['latitude'])->toBe(45.798502815);
+});
+
+it('renvoie une liste vide pour une recherche d\'entreprise trop courte', function () {
+    expect(app(EntrepriseAnnuaire::class)->options('ab'))->toBe([])
+        ->and(EntrepriseAnnuaire::decode(null))->toBeNull();
+});
+
+it('ne lance pas de détection sur un SIRET invalide', function () {
+    Http::fake();
+
+    $resultat = app(OpcoDetector::class)->detecter('123');
+
+    expect($resultat['statut'])->toBe('introuvable');
+    Http::assertNothingSent();
+});

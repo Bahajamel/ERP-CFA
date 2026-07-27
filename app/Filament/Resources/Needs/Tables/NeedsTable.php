@@ -1,0 +1,403 @@
+<?php
+
+namespace App\Filament\Resources\Needs\Tables;
+
+use App\Enums\NeedStatut;
+use App\Models\CompanyContact;
+use App\Models\Formation;
+use App\Models\Need;
+use App\Services\FicheBesoinService;
+use App\StateMachine\InvalidTransitionException;
+use App\Support\CustomFields;
+use Filament\Actions\Action;
+use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteBulkAction;
+use Filament\Actions\EditAction;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Columns\ViewColumn;
+use Filament\Tables\Enums\FiltersLayout;
+use Filament\Tables\Filters\Filter;
+use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Table;
+use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Builder;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+
+class NeedsTable
+{
+    /** Colonnes natives renommables par CFA (clé de colonne => libellé d'origine). */
+    public const COLONNES_PERSONNALISABLES = [
+        'identite' => 'Offre',
+        'formation.libelle' => 'Formation',
+        'localisation' => 'Lieu',
+        'matchings_count' => 'Candidats proposés',
+        'date_demarrage' => 'Démarrage',
+    ];
+
+    public static function configure(Table $table): Table
+    {
+        return $table
+            ->modifyQueryUsing(function (Builder $query, $livewire): void {
+                $query->with(['company', 'formation'])->withCount('matchings');
+
+                $scope = self::scopeDe($livewire);
+                self::appliquerScopeRapide($query, $scope);
+
+                // Vue par défaut = ce qui est en cours. Une offre annulée ou
+                // pourvue n'a plus rien à y faire : elle encombre la liste sans
+                // appeler d'action. Elle reste accessible par le bloc « offres
+                // clôturées » et par le filtre « Statut ».
+                if (self::doitMasquerLesCloturees($livewire, $scope)) {
+                    $query->whereNotIn(
+                        'statut',
+                        array_map(fn (NeedStatut $s): string => $s->value, Need::STATUTS_CLOS),
+                    );
+                }
+            })
+            ->columns(CustomFields::appliquerReglages([
+                ViewColumn::make('identite')
+                    ->label('Offre')
+                    ->view('filament.needs.col-identite')
+                    ->searchable(['intitule_poste'])
+                    ->sortable(['intitule_poste']),
+                TextColumn::make('formation.libelle')
+                    ->label('Formation')
+                    ->badge()
+                    ->color('gray')
+                    ->placeholder('—')
+                    ->toggleable(),
+                TextColumn::make('localisation')
+                    ->label('Lieu')
+                    ->placeholder('—')
+                    ->toggleable(),
+                TextColumn::make('matchings_count')
+                    ->label('Candidats proposés')
+                    ->badge()
+                    ->color(fn (int $state): string => $state === 0 ? 'gray' : 'info')
+                    ->formatStateUsing(fn (int $state): string => $state.' candidat'.($state > 1 ? 's' : ''))
+                    ->alignCenter()
+                    ->sortable()
+                    ->tooltip('Nombre de candidats proposés sur cette offre (plusieurs candidats possibles par offre)'),
+                ViewColumn::make('recrutement')
+                    ->label('Recrutement')
+                    ->view('filament.needs.recrutement'),
+                TextColumn::make('date_demarrage')
+                    ->label('Démarrage')
+                    ->date('d/m/Y')
+                    ->placeholder('—')
+                    ->sortable(),
+                TextColumn::make('date_cloture')
+                    ->label('Clôturé le')
+                    ->date('d/m/Y')
+                    ->placeholder('—')
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+                // Colonnes personnalisées du CFA (masquables), s'il en a défini.
+                ...CustomFields::tableColumns('need'),
+            ], 'need'))
+            // Clic sur une ligne = ouvre le panneau « Focus offre » (la page de
+            // modification reste accessible via « Aperçu » → « Ouvrir/modifier »
+            // ou le menu d'actions).
+            ->recordAction('focus')
+            ->recordUrl(null)
+            ->filters([
+                Filter::make('ouverts')
+                    ->label('Besoins ouverts uniquement')
+                    ->query(fn (Builder $query): Builder => $query->ouverts()),
+                SelectFilter::make('statut')
+                    ->label('Statut')
+                    ->options(NeedStatut::class),
+                SelectFilter::make('company_id')
+                    ->label('Entreprise')
+                    ->relationship('company', 'raison_sociale')
+                    ->searchable()
+                    ->preload(),
+            ])
+            // Listes déroulantes toujours visibles en barre au-dessus du tableau.
+            // Filtres instantanés (sans bouton « Appliquer ») pour une barre compacte.
+            ->filtersLayout(FiltersLayout::AboveContent)
+            ->deferFilters(false)
+            ->filtersFormColumns([
+                'sm' => 2,
+                'lg' => 3,
+            ])
+            ->recordActions([
+                // Sélectionne l'offre dans le panneau « Focus offre » (clic sur la
+                // ligne = même action, sans navigation).
+                Action::make('focus')
+                    ->label('Aperçu')
+                    ->icon('heroicon-o-eye')
+                    ->color('gray')
+                    ->action(fn (Need $record, $livewire) => $livewire->focusId = $record->getKey()),
+                // Fiche besoin imprimable : analyse du besoin exprimé par
+                // l'entreprise. Archivée au passage sur l'offre ET comme preuve
+                // de l'indicateur Qualiopi n°4.
+                //
+                // Une fenêtre de complétion s'ouvre d'abord : le commercial y
+                // renseigne ce que l'entreprise a pu laisser en blanc (formation,
+                // maître d'apprentissage, compétences) avant d'imprimer. Ce qu'il
+                // saisit est ENREGISTRÉ sur l'offre, pas seulement sur le PDF.
+                Action::make('ficheBesoin')
+                    ->label('Fiche besoin (PDF)')
+                    ->icon('heroicon-o-document-arrow-down')
+                    ->color('gray')
+                    ->modalHeading('Fiche besoin — compléter puis générer')
+                    ->modalDescription(fn (Need $record): string => $record->ficheBesoinEstComplete()
+                        ? 'Vérifiez les informations puis générez la fiche.'
+                        : 'Certaines informations manquent : complétez-les avant de générer la fiche.')
+                    ->modalSubmitActionLabel('Générer la fiche')
+                    ->fillForm(fn (Need $record): array => [
+                        'formation_id' => $record->formation_id,
+                        'tuteur_id' => $record->tuteur_id,
+                        'competences_attendues' => $record->competences_attendues,
+                    ])
+                    ->schema([
+                        Select::make('formation_id')
+                            ->label('Formation visée')
+                            ->options(fn (): array => Formation::query()->orderBy('libelle')->pluck('libelle', 'id')->all())
+                            ->searchable()
+                            ->preload()
+                            ->placeholder('À préciser')
+                            ->helperText('Détermine la certification (RNCP) et le référentiel de la fiche.'),
+                        Select::make('tuteur_id')
+                            ->label('Maître d\'apprentissage')
+                            ->options(fn (Need $record): array => self::contactsDe($record->company_id))
+                            ->getOptionLabelUsing(fn ($value): ?string => optional(CompanyContact::find($value))->nom_complet)
+                            ->searchable()
+                            ->preload()
+                            ->placeholder('À désigner')
+                            ->createOptionForm([
+                                TextInput::make('nom')->label('Nom')->required(),
+                                TextInput::make('prenom')->label('Prénom'),
+                                TextInput::make('fonction')->label('Fonction')->placeholder('ex : Gérant, chef d\'atelier'),
+                            ])
+                            ->createOptionUsing(fn (array $data, Need $record): int => CompanyContact::create([
+                                ...$data,
+                                'company_id' => $record->company_id,
+                                'is_tuteur' => true,
+                            ])->getKey()),
+                        Textarea::make('competences_attendues')
+                            ->label('Compétences recherchées')
+                            ->placeholder('Une compétence par ligne')
+                            ->helperText('Saisies par l\'entreprise ; complétez-les si besoin.')
+                            ->rows(4),
+                    ])
+                    ->action(function (Need $record, array $data): StreamedResponse {
+                        // On enregistre les compléments sur l'offre : la fiche
+                        // reflète des données pérennes, pas un PDF de circonstance.
+                        $record->update([
+                            'formation_id' => $data['formation_id'] ?? null,
+                            'tuteur_id' => $data['tuteur_id'] ?? null,
+                            'competences_attendues' => $data['competences_attendues'] ?? null,
+                        ]);
+
+                        $service = app(FicheBesoinService::class);
+                        $service->archiver($record->refresh());
+
+                        Notification::make()
+                            ->success()
+                            ->title('Fiche besoin générée')
+                            ->body('Archivée sur l\'offre et rattachée à l\'indicateur Qualiopi n°4.')
+                            ->send();
+
+                        return response()->streamDownload(
+                            fn () => print ($service->pdf($record)),
+                            $service->nomFichier($record),
+                            ['Content-Type' => 'application/pdf'],
+                        );
+                    }),
+                // Besoin déposé par une entreprise via la fiche besoin publique :
+                // un commercial le relit avant qu'il entre dans le recrutement.
+                Action::make('validerDepot')
+                    ->label('Valider le besoin')
+                    ->icon('heroicon-o-check-circle')
+                    ->color('success')
+                    ->visible(fn (Need $record): bool => $record->attendValidation())
+                    ->requiresConfirmation()
+                    ->modalHeading(fn (Need $record): string => "Valider le besoin « {$record->intitule_poste} » ?")
+                    ->modalDescription('L\'offre rejoindra les offres actives : elle entrera dans le pipeline et pourra recevoir des propositions de candidats.')
+                    ->modalSubmitActionLabel('Valider')
+                    ->action(function (Need $record, $livewire): void {
+                        $record->validerDepotEntreprise();
+                        $livewire->resetTable();
+
+                        Notification::make()
+                            ->success()
+                            ->title('Besoin validé')
+                            ->body('L\'offre est désormais active et visible dans le pipeline.')
+                            ->send();
+                    }),
+                Action::make('rejeterDepot')
+                    ->label('Rejeter le besoin')
+                    ->icon('heroicon-o-x-mark')
+                    ->color('danger')
+                    ->visible(fn (Need $record): bool => $record->attendValidation())
+                    ->requiresConfirmation()
+                    ->modalHeading(fn (Need $record): string => "Rejeter le besoin « {$record->intitule_poste} » ?")
+                    ->modalDescription('L\'offre passera en « Annulé » et n\'entrera pas dans le recrutement. Cette action ne se défait pas.')
+                    ->schema([
+                        Textarea::make('comment')
+                            ->label('Motif du rejet')
+                            ->placeholder('ex : demande incomplète, doublon, hors périmètre du CFA')
+                            ->required(),
+                    ])
+                    ->action(function (Need $record, array $data, $livewire): void {
+                        try {
+                            $record->transitionTo(NeedStatut::Annule, $data['comment']);
+                            $livewire->resetTable();
+                            Notification::make()
+                                ->success()
+                                ->title('Besoin rejeté')
+                                ->body('Il quitte la liste et rejoint les offres clôturées.')
+                                ->send();
+                        } catch (InvalidTransitionException $e) {
+                            Notification::make()->danger()->title('Rejet refusé')->body($e->getMessage())->send();
+                        }
+                    }),
+                // Le statut suit désormais l'activité des candidats (cf.
+                // Need::synchroniserDepuisMatchings) : plus de sélecteur de statut.
+                // Reste le seul cas qu'aucune automatisation ne peut deviner —
+                // l'entreprise retire son offre.
+                Action::make('annuler')
+                    ->label('Annuler l\'offre')
+                    ->icon('heroicon-o-x-circle')
+                    ->color('danger')
+                    ->visible(fn (Need $record): bool => in_array(
+                        NeedStatut::Annule,
+                        $record->currentState()->transitions(),
+                        true,
+                    ))
+                    ->requiresConfirmation()
+                    ->modalHeading(fn (Need $record): string => "Annuler l'offre « {$record->intitule_poste} » ?")
+                    ->modalDescription('L\'offre sortira des offres ouvertes et les candidats encore en lice seront à repositionner. Cette action ne se défait pas.')
+                    ->schema([
+                        Textarea::make('comment')
+                            ->label('Motif de l\'annulation')
+                            ->placeholder('ex : l\'entreprise a gelé son recrutement')
+                            ->required(),
+                    ])
+                    ->action(function (Need $record, array $data, $livewire): void {
+                        try {
+                            $record->transitionTo(NeedStatut::Annule, $data['comment']);
+                            $livewire->resetTable();
+
+                            Notification::make()
+                                ->success()
+                                ->title('Offre annulée')
+                                ->body('Elle quitte la liste et rejoint les offres clôturées.')
+                                ->send();
+                        } catch (InvalidTransitionException $e) {
+                            Notification::make()->danger()->title('Annulation refusée')->body($e->getMessage())->send();
+                        }
+                    }),
+                // Formulaire « Proposer des candidats » : modale riche (composant Livewire dédié)
+                // — sélection multiple, score, canal, relance, message, tâche de relance.
+                Action::make('proposerCandidats')
+                    ->label('Proposer des candidats')
+                    ->icon('heroicon-o-sparkles')
+                    ->color('success')
+                    ->modalHeading('Proposer des candidats')
+                    ->modalDescription('Sélectionnez les profils à proposer à l\'entreprise et préparez le suivi commercial.')
+                    ->modalWidth('7xl')
+                    ->modalContent(fn (Need $record): View => view('filament.matching.proposer-host', ['need' => $record]))
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Fermer'),
+                // Pas de ViewAction : « Aperçu » ci-dessus remplit déjà ce rôle
+                // (panneau Focus offre), sans quitter la liste.
+                EditAction::make(),
+            ])
+            ->toolbarActions([
+                BulkActionGroup::make([
+                    DeleteBulkAction::make(),
+                ]),
+            ])
+            ->defaultSort('created_at', 'desc')
+            ->emptyStateIcon('heroicon-o-briefcase')
+            ->emptyStateHeading('Aucune offre proposée')
+            ->emptyStateDescription('Enregistrez la première offre d\'une entreprise (poste à pourvoir) : le matching pourra ensuite proposer des candidats compatibles.');
+    }
+
+    /**
+     * Faut-il masquer les offres clôturées (pourvues, annulées, archivées) ?
+     *
+     * Oui par défaut — mais jamais quand l'utilisateur les a explicitement
+     * demandées, sinon la liste mentirait :
+     *   - bloc « offres clôturées » : c'est précisément ce qu'il montre ;
+     *   - filtre « Statut » réglé sur un statut clos : choix explicite.
+     */
+    private static function doitMasquerLesCloturees($livewire, ?string $scope): bool
+    {
+        if ($scope === 'cloturees') {
+            return false;
+        }
+
+        $statut = (is_object($livewire) && property_exists($livewire, 'tableFilters'))
+            ? ($livewire->tableFilters['statut']['value'] ?? null)
+            : null;
+
+        if (blank($statut)) {
+            return true;
+        }
+
+        return ! in_array(
+            $statut,
+            array_map(fn (NeedStatut $s): string => $s->value, Need::STATUTS_CLOS),
+            true,
+        );
+    }
+
+    /** Contacts de l'entreprise (clé => nom complet), pour le sélecteur de tuteur. */
+    private static function contactsDe(mixed $companyId): array
+    {
+        if (blank($companyId)) {
+            return [];
+        }
+
+        return CompanyContact::query()
+            ->where('company_id', $companyId)
+            ->get()
+            ->mapWithKeys(fn (CompanyContact $c): array => [$c->id => $c->nom_complet])
+            ->all();
+    }
+
+    /** Scope rapide courant lu sur la page (null hors ListNeeds). */
+    private static function scopeDe($livewire): ?string
+    {
+        return (is_object($livewire) && property_exists($livewire, 'quickScope'))
+            ? $livewire->quickScope
+            : null;
+    }
+
+    /**
+     * Applique un filtre rapide « orienté action » à la requête du tableau.
+     * Réutilisé par les compteurs des blocs (ListNeeds) pour rester cohérent.
+     *
+     *  - a_pourvoir : offres ouvertes (postes encore en recrutement) ;
+     *  - sans_candidat : offres ouvertes sans aucun candidat proposé ;
+     *  - en_matching : offres ouvertes ayant au moins un candidat proposé.
+     */
+    public static function appliquerScopeRapide(Builder $query, ?string $scope): void
+    {
+        match ($scope) {
+            'a_pourvoir' => $query->ouverts(),
+            'sans_candidat' => $query->ouverts()->whereDoesntHave('matchings'),
+            'en_matching' => $query->ouverts()->whereHas('matchings'),
+            // Les trois filtres ci-dessus ne montrent que des offres ouvertes :
+            // sans celui-ci, rien ne permettait de retrouver les offres terminées.
+            // Regroupe les vraies fins (pourvue, annulée) plutôt que le seul
+            // statut « Archivé », qui ne survient jamais (cf. NeedStatut::Archive).
+            'cloturees' => $query->whereIn(
+                'statut',
+                array_map(fn (NeedStatut $s): string => $s->value, Need::STATUTS_CLOS),
+            ),
+            // Besoins déposés par les entreprises via la fiche besoin publique,
+            // en attente de relecture commerciale.
+            'a_valider' => $query->enAttenteDeValidation(),
+            default => null,
+        };
+    }
+}

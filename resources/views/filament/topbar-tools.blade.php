@@ -1,0 +1,41 @@
+{{-- Outils de topbar : badge d'environnement + création rapide (gated par permissions). --}}
+@php
+    $user = auth()->user();
+    $liens = collect([
+        ['label' => 'Nouveau candidat', 'permission' => 'access_candidates', 'url' => \App\Filament\Resources\Candidates\CandidateResource::getUrl('create'), 'icon' => 'heroicon-m-user-plus'],
+        ['label' => 'Nouvelle entreprise', 'permission' => 'access_companies', 'url' => \App\Filament\Resources\Companies\CompanyResource::getUrl('create'), 'icon' => 'heroicon-m-building-office-2'],
+        ['label' => 'Nouveau besoin', 'permission' => 'access_needs', 'url' => \App\Filament\Resources\Needs\NeedResource::getUrl('create'), 'icon' => 'heroicon-m-briefcase'],
+        ['label' => 'Nouvelle proposition', 'permission' => 'access_matching', 'url' => \App\Filament\Resources\Matchings\MatchingResource::getUrl('create'), 'icon' => 'heroicon-m-arrows-right-left'],
+        ['label' => 'Nouveau contrat', 'permission' => 'access_contracts', 'url' => \App\Filament\Resources\Contracts\ContractResource::getUrl('create'), 'icon' => 'heroicon-m-document-text'],
+    ])->filter(fn (array $l): bool => $user?->can($l['permission']) ?? false);
+@endphp
+
+<div class="cfa-topbar-tools">
+    @unless (app()->isProduction())
+        <span class="cfa-env-badge" title="Environnement de démonstration">Démo</span>
+    @endunless
+
+    @if ($liens->isNotEmpty())
+        <x-filament::dropdown placement="bottom-end">
+            <x-slot name="trigger">
+                <button type="button" class="cfa-create-btn">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                        <path d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z" />
+                    </svg>
+                    Nouvelle action
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" class="cfa-create-caret">
+                        <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.168l3.71-3.938a.75.75 0 1 1 1.08 1.04l-4.25 4.5a.75.75 0 0 1-1.08 0l-4.25-4.5a.75.75 0 0 1 .02-1.06Z" clip-rule="evenodd" />
+                    </svg>
+                </button>
+            </x-slot>
+
+            <x-filament::dropdown.list>
+                @foreach ($liens as $lien)
+                    <x-filament::dropdown.list.item :href="$lien['url']" :icon="$lien['icon']" tag="a">
+                        {{ $lien['label'] }}
+                    </x-filament::dropdown.list.item>
+                @endforeach
+            </x-filament::dropdown.list>
+        </x-filament::dropdown>
+    @endif
+</div>
