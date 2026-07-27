@@ -7,6 +7,7 @@ use App\Filament\Editeur\Resources\DemoRequests\Pages\EditDemoRequest;
 use App\Filament\Editeur\Resources\DemoRequests\Pages\ListDemoRequests;
 use App\Filament\Editeur\Resources\DemoRequests\Schemas\DemoRequestForm;
 use App\Filament\Editeur\Resources\DemoRequests\Tables\DemoRequestsTable;
+use App\Mail\BienvenueEssaiCfa;
 use App\Models\DemoRequest;
 use App\Models\Organisation;
 use App\Models\User;
@@ -14,11 +15,14 @@ use App\Provisioning\ProvisionnerCfaEssai;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\HtmlString;
 
 /**
@@ -100,6 +104,7 @@ class DemoRequestResource extends Resource
                 'email_admin' => $record->email,
                 'nom_admin' => $record->nomComplet(),
                 'jours_essai' => ProvisionnerCfaEssai::JOURS_ESSAI_DEFAUT,
+                'envoyer_email' => true,
             ])
             ->schema([
                 TextInput::make('nom_cfa')
@@ -120,6 +125,10 @@ class DemoRequestResource extends Resource
                     ->minValue(1)
                     ->maxValue(365)
                     ->required(),
+                Toggle::make('envoyer_email')
+                    ->label('Envoyer les accès par e-mail au prospect')
+                    ->helperText('L\'e-mail contient l\'adresse, l\'identifiant et le mot de passe temporaire. Les accès restent aussi affichés ici.')
+                    ->default(true),
             ])
             ->action(function (DemoRequest $record, array $data): void {
                 $resultat = app(ProvisionnerCfaEssai::class)->creer(
@@ -131,8 +140,44 @@ class DemoRequestResource extends Resource
 
                 $record->update(['status' => DemoRequestStatut::Converti]);
 
-                self::notifierIdentifiants($resultat);
+                $emailEnvoye = ($data['envoyer_email'] ?? true)
+                    ? self::envoyerAccesAuProspect($resultat)
+                    : null;
+
+                self::notifierIdentifiants($resultat, $emailEnvoye);
             });
+    }
+
+    /**
+     * Transmet automatiquement ses accès au prospect par e-mail. L'échec d'envoi
+     * (SMTP indisponible…) ne doit PAS casser la conversion déjà validée : on le
+     * journalise et on le remonte à l'éditeur, qui garde les accès à l'écran.
+     *
+     * @param  array{organisation: Organisation, admin: User, mot_de_passe: ?string, compte_existant: bool}  $resultat
+     * @return bool Vrai si l'e-mail est parti, faux en cas d'échec.
+     */
+    private static function envoyerAccesAuProspect(array $resultat): bool
+    {
+        $organisation = $resultat['organisation'];
+
+        try {
+            Mail::to($resultat['admin']->email)->send(new BienvenueEssaiCfa(
+                nomCfa: $organisation->nom,
+                url: url('/admin/'.$organisation->slug),
+                email: $resultat['admin']->email,
+                motDePasse: $resultat['mot_de_passe'],
+                dateFinEssai: $organisation->date_fin_essai?->format('d/m/Y'),
+            ));
+
+            return true;
+        } catch (\Throwable $e) {
+            Log::warning('Échec de l\'envoi de l\'e-mail de bienvenue essai', [
+                'organisation' => $organisation->slug,
+                'erreur' => $e->getMessage(),
+            ]);
+
+            return false;
+        }
     }
 
     /**
@@ -140,8 +185,9 @@ class DemoRequestResource extends Resource
      * jamais stockée : le mot de passe temporaire n'est pas conservé).
      *
      * @param  array{organisation: Organisation, admin: User, mot_de_passe: ?string, compte_existant: bool}  $resultat
+     * @param  bool|null  $emailEnvoye  true/false selon l'envoi de l'e-mail au prospect, null si non demandé.
      */
-    private static function notifierIdentifiants(array $resultat): void
+    private static function notifierIdentifiants(array $resultat, ?bool $emailEnvoye = null): void
     {
         $organisation = $resultat['organisation'];
         $url = url('/admin/'.$organisation->slug);
@@ -160,6 +206,12 @@ class DemoRequestResource extends Resource
         }
 
         $lignes[] = '<strong>Essai jusqu\'au :</strong> '.e($fin);
+
+        if ($emailEnvoye === true) {
+            $lignes[] = '✅ Accès envoyés par e-mail à '.e($resultat['admin']->email).'.';
+        } elseif ($emailEnvoye === false) {
+            $lignes[] = '⚠️ L\'e-mail n\'a pas pu être envoyé — transmettez ces accès manuellement.';
+        }
 
         Notification::make()
             ->title('Essai gratuit ouvert')

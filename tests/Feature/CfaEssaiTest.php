@@ -2,6 +2,8 @@
 
 use App\Enums\DemoRequestStatut;
 use App\Filament\Editeur\Resources\DemoRequests\Pages\ListDemoRequests;
+use App\Filament\Editeur\Resources\Organisations\Pages\ListOrganisations;
+use App\Mail\BienvenueEssaiCfa;
 use App\Models\DemoRequest;
 use App\Models\Organisation;
 use App\Models\User;
@@ -9,6 +11,7 @@ use App\Provisioning\ProvisionnerCfaEssai;
 use Database\Seeders\RolePermissionSeeder;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
@@ -137,4 +140,105 @@ it('convertit une demande de démo en essai gratuit depuis l\'espace éditeur', 
     expect($admin)->not->toBeNull()
         ->and($admin->hasRole('Administrateur'))->toBeTrue()
         ->and($admin->organisations()->whereKey($organisation->id)->exists())->toBeTrue();
+});
+
+// ── E-mail de bienvenue au prospect ───────────────────────────────────────────
+
+/** Prépare un éditeur connecté sur son panneau + une demande de démo à convertir. */
+function convertir(string $email, string $nomCfa, array $data): void
+{
+    Filament::setCurrentPanel(Filament::getPanel('editeur'));
+    $editeur = User::factory()->create(['is_active' => true]);
+    $editeur->syncRoles('Éditeur');
+    test()->actingAs($editeur);
+
+    $demande = DemoRequest::create([
+        'first_name' => 'Léa',
+        'last_name' => 'Durand',
+        'organization_name' => $nomCfa,
+        'email' => $email,
+        'status' => DemoRequestStatut::Nouveau,
+        'consent_at' => now(),
+    ]);
+
+    Livewire::test(ListDemoRequests::class)
+        ->callTableAction('convertirEnEssai', $demande, data: array_merge([
+            'nom_cfa' => $nomCfa,
+            'email_admin' => $email,
+            'nom_admin' => 'Léa Durand',
+            'jours_essai' => 30,
+        ], $data));
+}
+
+it('envoie les accès par e-mail au prospect lors de la conversion', function () {
+    Mail::fake();
+
+    convertir('lea@cfa-alpes.test', 'CFA des Alpes', ['envoyer_email' => true]);
+
+    Mail::assertSent(BienvenueEssaiCfa::class, function (BienvenueEssaiCfa $mail): bool {
+        return $mail->hasTo('lea@cfa-alpes.test')
+            && $mail->nomCfa === 'CFA des Alpes'
+            && $mail->motDePasse !== null;           // compte neuf → mot de passe transmis
+    });
+});
+
+it('n\'envoie pas d\'e-mail quand l\'éditeur désactive l\'option', function () {
+    Mail::fake();
+
+    convertir('tom@cfa-test.test', 'CFA Test', ['envoyer_email' => false]);
+
+    Mail::assertNothingSent();
+});
+
+it('transmet un e-mail sans mot de passe pour un compte déjà existant', function () {
+    Mail::fake();
+    User::factory()->create(['email' => 'connu@cfa.test']);
+
+    convertir('connu@cfa.test', 'CFA Connu', ['envoyer_email' => true]);
+
+    Mail::assertSent(BienvenueEssaiCfa::class, fn (BienvenueEssaiCfa $mail): bool => $mail->motDePasse === null);
+});
+
+// ── Conversion en client payant ───────────────────────────────────────────────
+
+it('convertit un CFA en client payant en levant l\'échéance d\'essai', function () {
+    Filament::setCurrentPanel(Filament::getPanel('editeur'));
+    $editeur = User::factory()->create(['is_active' => true]);
+    $editeur->syncRoles('Éditeur');
+    $this->actingAs($editeur);
+
+    $cfa = Organisation::factory()->create(['actif' => true, 'date_fin_essai' => now()->addDays(5)]);
+
+    Livewire::test(ListOrganisations::class)
+        ->callTableAction('convertirEnClient', $cfa);
+
+    expect($cfa->fresh()->date_fin_essai)->toBeNull()
+        ->and($cfa->fresh()->estEnEssai())->toBeFalse();
+
+    // N'est plus suspendu par la commande d'échéance (plus d'essai en cours).
+    $this->artisan('essai:suspendre-expires')->assertSuccessful();
+    expect($cfa->fresh()->actif)->toBeTrue();
+});
+
+// ── Bandeau d'échéance côté CFA ────────────────────────────────────────────────
+
+it('affiche le bandeau d\'essai pour un CFA en essai', function () {
+    Filament::setCurrentPanel(Filament::getPanel('admin'));
+    $this->actingAs(User::factory()->create(['is_active' => true]));
+    $cfa = Organisation::factory()->create(['date_fin_essai' => now()->addDays(5)]);
+    Filament::setTenant($cfa);
+
+    $html = view('filament.essai-banner')->render();
+
+    expect($html)->toContain('essai gratuit')
+        ->and($html)->toContain('🎁');
+});
+
+it('n\'affiche aucun bandeau pour un CFA hors essai', function () {
+    Filament::setCurrentPanel(Filament::getPanel('admin'));
+    $this->actingAs(User::factory()->create(['is_active' => true]));
+    $cfa = Organisation::factory()->create(['date_fin_essai' => null]);
+    Filament::setTenant($cfa);
+
+    expect(trim(view('filament.essai-banner')->render()))->toBe('');
 });

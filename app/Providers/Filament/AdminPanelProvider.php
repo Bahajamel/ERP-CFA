@@ -120,6 +120,13 @@ class AdminPanelProvider extends PanelProvider
                 PanelsRenderHook::USER_MENU_BEFORE,
                 fn (): string => auth()->check() ? view('filament.user-identity')->render() : '',
             )
+            // Bandeau d'essai gratuit : rappelle l'échéance au CFA en essai, avec
+            // une urgence colorée à l'approche du terme. Rendu conditionnel DANS la
+            // vue (n'apparaît que pour un tenant en essai — cf. estEnEssai()).
+            ->renderHook(
+                PanelsRenderHook::CONTENT_START,
+                fn (): string => auth()->check() ? view('filament.essai-banner')->render() : '',
+            )
             // Sélecteur de tables « façon Monday » : bascule entre Base Candidats et
             // les tableaux personnalisés du CFA. Rendu conditionnel DANS la vue
             // (BoardNavigation::doitAfficher) — visible sur la Base Candidats et les

@@ -83,6 +83,28 @@ class OrganisationsTable
             ->recordActions([
                 EditAction::make(),
 
+                // Conversion en client payant : lève l'échéance d'essai (date_fin_essai
+                // à null) — le CFA n'est donc plus auto-suspendu par la commande
+                // essai:suspendre-expires. Visible uniquement pendant l'essai.
+                Action::make('convertirEnClient')
+                    ->label('Passer en client payant')
+                    ->icon('heroicon-m-check-badge')
+                    ->color('success')
+                    ->visible(fn (Organisation $record): bool => $record->estEnEssai())
+                    ->requiresConfirmation()
+                    ->modalHeading(fn (Organisation $record): string => "Convertir {$record->nom} en client payant ?")
+                    ->modalDescription('L\'échéance d\'essai sera levée : le CFA garde son espace sans limite de date et ne sera plus suspendu automatiquement. La facturation reste gérée hors de l\'outil.')
+                    ->modalSubmitActionLabel('Convertir en client')
+                    ->action(function (Organisation $record): void {
+                        $record->update(['actif' => true, 'date_fin_essai' => null]);
+
+                        Notification::make()
+                            ->title("{$record->nom} est maintenant client payant")
+                            ->body('L\'échéance d\'essai a été levée.')
+                            ->success()
+                            ->send();
+                    }),
+
                 // Suspension réversible : on ne supprime jamais un CFA depuis l'UI
                 // (ses données — dont des pièces à NIR — partiraient avec lui).
                 Action::make('basculerActivation')
