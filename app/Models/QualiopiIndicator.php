@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\QualiopiStatut;
+use App\Models\Concerns\BelongsToOrganisation;
 use App\Support\QualiopiCriteres;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -16,9 +17,14 @@ use Spatie\Activitylog\Traits\LogsActivity;
  * Indicateur du Référentiel National Qualité (Qualiopi) et son état de
  * conformité pour l'organisme, avec ses preuves rattachées via la GED.
  * L'historique des modifications est journalisé — utile en audit.
+ *
+ * Cloisonné par CFA (BelongsToOrganisation) : le texte de l'indicateur est
+ * national, mais son état de conformité est propre à chaque organisation, donc
+ * chaque CFA possède ses 32 lignes (cf. ReferentielQualiopi::provisionner).
  */
 class QualiopiIndicator extends Model
 {
+    use BelongsToOrganisation;
     use HasFactory;
     use LogsActivity;
 
