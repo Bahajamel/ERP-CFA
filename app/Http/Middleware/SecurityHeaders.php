@@ -27,6 +27,12 @@ class SecurityHeaders
         // d'un autre site. (SAMEORIGIN : les iframes internes restent permises.)
         $response->headers->set('X-Frame-Options', 'SAMEORIGIN');
 
+        // Équivalent moderne de X-Frame-Options (mieux respecté par les
+        // navigateurs récents). Volontairement LIMITÉ à frame-ancestors : une
+        // CSP complète (script-src/style-src) casserait Filament/Livewire/Alpine
+        // et fera l'objet d'un chantier dédié, testé écran par écran.
+        $response->headers->set('Content-Security-Policy', "frame-ancestors 'self'");
+
         // Ne fuite pas l'URL complète (souvent porteuse d'identifiants/tokens)
         // vers les sites tiers.
         $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
