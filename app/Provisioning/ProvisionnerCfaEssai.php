@@ -4,6 +4,7 @@ namespace App\Provisioning;
 
 use App\Models\Organisation;
 use App\Models\User;
+use App\Qualiopi\ReferentielQualiopi;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -48,6 +49,10 @@ class ProvisionnerCfaEssai
                 'actif' => true,
                 'date_fin_essai' => now()->addDays($joursEssai),
             ]);
+
+            // Référentiel Qualiopi propre au CFA (32 indicateurs, état vierge) :
+            // sans lui, le module Qualité du nouvel espace serait vide.
+            ReferentielQualiopi::provisionner($organisation->id);
 
             [$admin, $motDePasse, $compteExistant] = $this->administrateur($emailAdmin, $nomAdmin);
 

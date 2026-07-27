@@ -37,6 +37,13 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // En production, toutes les URL générées sont en HTTPS : évite qu'un
+        // asset ou une redirection ne repasse en http (contenu mixte, cookie de
+        // session non « secure » transmis en clair). Sans effet en local (http).
+        if ($this->app->isProduction()) {
+            URL::forceScheme('https');
+        }
+
         // Politique de mot de passe forte (appliquée partout où Password::default()
         // est utilisé : formulaire utilisateur, page profil Filament) : 12 caractères
         // minimum, casse mixte, chiffre + symbole, et refus des mots de passe connus
