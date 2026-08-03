@@ -3,7 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Enums\PresenceStatut;
-use App\Filament\Actions\FicheEmargementPdfAction;
+use App\Filament\Actions\FeuilleEmargementAction;
 use App\Filament\Actions\SignaturesEnLigneAction;
 use App\Filament\Resources\Seances\SeanceResource;
 use App\Models\Seance;
@@ -66,7 +66,7 @@ class CockpitSeance extends Page
     protected function getHeaderActions(): array
     {
         return [
-            FicheEmargementPdfAction::make()->record(fn (): Seance => $this->seance()),
+            FeuilleEmargementAction::make()->record(fn (): Seance => $this->seance()),
             SignaturesEnLigneAction::make()->record(fn (): Seance => $this->seance()),
             Action::make('retour')
                 ->label('Fiche de la séance')

@@ -6,7 +6,6 @@ use App\Enums\DocumentType;
 use App\Enums\PresenceStatut;
 use App\Enums\SeanceStatut;
 use App\Filament\Actions\FeuilleEmargementAction;
-use App\Filament\Actions\FicheEmargementPdfAction;
 use App\Filament\Actions\SignaturesEnLigneAction;
 use App\Filament\Pages\CockpitSeance;
 use App\Filament\Resources\Seances\SeanceResource;
@@ -207,7 +206,6 @@ class SeancesTable
                     ->url(fn (Seance $record): string => CockpitSeance::getUrl(['seance' => $record->getKey()])),
 
                 ActionGroup::make([
-                    FicheEmargementPdfAction::make(),
                     SignaturesEnLigneAction::make(),
                     FeuilleEmargementAction::make(),
                     EditAction::make(),

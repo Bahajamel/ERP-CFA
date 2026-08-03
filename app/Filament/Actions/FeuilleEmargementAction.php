@@ -22,11 +22,12 @@ class FeuilleEmargementAction
     {
         return Action::make('feuilleEmargement')
             ->label("Feuille d'émargement")
-            ->icon('heroicon-o-paper-clip')
+            ->icon('heroicon-o-document-text')
             ->color(fn (Seance $record): string => $record->feuilleEmargement() ? 'success' : 'gray')
             ->modalHeading(fn (Seance $record): string => "Feuille d'émargement — "
                 .($record->libelle ?? 'Séance')
                 .' du '.$record->date->format('d/m/Y'))
+            ->modalDescription('Téléchargez la fiche à imprimer et faire signer, ou déposez le scan de la feuille signée.')
             ->modalContent(fn (Seance $record) => view('filament.feuille-emargement', [
                 'feuilles' => $record->documents()
                     ->where('type', DocumentType::FeuilleEmargement)
@@ -34,6 +35,10 @@ class FeuilleEmargementAction
                     ->orderByDesc('id')
                     ->get(),
             ]))
+            // Génération du PDF proposée dans le MÊME modal (plus de bouton séparé).
+            ->extraModalFooterActions(fn (Seance $record): array => [
+                FicheEmargementPdfAction::make()->record($record),
+            ])
             ->schema([
                 FileUpload::make('fichier')
                     ->label('Déposer le scan de la feuille signée')
