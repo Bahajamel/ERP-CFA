@@ -133,4 +133,61 @@ class Seance extends Model
 
         return (int) round($presents / $total * 100);
     }
+
+    /** Toutes les présences sont-elles renseignées (séance prête à valider) ? */
+    public function estComplete(): bool
+    {
+        return $this->presences()->exists() && ! $this->aDesPresencesNonRenseignees();
+    }
+
+    /**
+     * Statut d'affichage (dérivé) pour l'UI : au-delà des 3 statuts stockés
+     * (planifiée/validée/annulée), on distingue « En cours » (aujourd'hui),
+     * « À compléter » (présences manquantes) et « À valider » (complète). Ne
+     * modifie PAS l'enum SeanceStatut.
+     *
+     * @return array{label: string, color: string}
+     */
+    public function statutAffiche(): array
+    {
+        return match ($this->statut) {
+            SeanceStatut::Annulee => ['label' => 'Annulée', 'color' => 'danger'],
+            SeanceStatut::Validee => ['label' => 'Validée', 'color' => 'success'],
+            default => match (true) {
+                $this->date->isFuture() => ['label' => 'Planifiée', 'color' => 'gray'],
+                $this->date->isToday() => ['label' => 'En cours', 'color' => 'info'],
+                $this->aDesPresencesNonRenseignees() => ['label' => 'À compléter', 'color' => 'warning'],
+                default => ['label' => 'À valider', 'color' => 'info'],
+            },
+        };
+    }
+
+    /**
+     * État de l'émargement (feuille / signatures) pour l'UI.
+     *
+     * @return array{label: string, color: string}
+     */
+    public function etatEmargement(): array
+    {
+        if ($this->feuilleEmargement() !== null) {
+            return ['label' => 'Scan déposé', 'color' => 'success'];
+        }
+
+        $total = $this->presences()->count();
+        $signes = $this->presences()->whereNotNull('signed_at')->count();
+
+        if ($signes > 0) {
+            return ['label' => "Signé {$signes}/{$total}", 'color' => $signes >= $total && $total > 0 ? 'success' : 'info'];
+        }
+
+        if ($this->presences()->whereNotNull('signature_token')->exists()) {
+            return ['label' => 'Signatures ouvertes', 'color' => 'info'];
+        }
+
+        if ($this->date->isPast() && ! $this->date->isToday()) {
+            return ['label' => 'Aucune feuille', 'color' => 'warning'];
+        }
+
+        return ['label' => 'À ouvrir', 'color' => 'gray'];
+    }
 }

@@ -108,10 +108,15 @@ class EmploiDuTemps extends Page
             ->modalSubmitAction(false)
             ->modalCancelActionLabel('Fermer')
             ->extraModalFooterActions(fn (array $arguments): array => [
-                Action::make('ouvrirSeance')
-                    ->label('Ouvrir la séance (émargement, feuille…)')
-                    ->icon('heroicon-o-arrow-top-right-on-square')
+                Action::make('emargementDirect')
+                    ->label('Émargement en direct')
+                    ->icon('heroicon-o-bolt')
                     ->color('primary')
+                    ->url(CockpitSeance::getUrl(['seance' => $arguments['seance']])),
+                Action::make('ouvrirSeance')
+                    ->label('Ouvrir la séance (feuille…)')
+                    ->icon('heroicon-o-arrow-top-right-on-square')
+                    ->color('gray')
                     ->url(SeanceResource::getUrl('edit', ['record' => $arguments['seance']])),
             ])
             ->modalWidth('2xl');
