@@ -35,13 +35,17 @@ class FeuilleEmargementAction
                     ->orderByDesc('id')
                     ->get(),
             ]))
-            // Génération du PDF proposée dans le MÊME modal (plus de bouton séparé).
+            // Étape 1 « Générer » proposée dans le MÊME modal (plus de bouton séparé).
             ->extraModalFooterActions(fn (Seance $record): array => [
-                FicheEmargementPdfAction::make()->record($record),
+                FicheEmargementPdfAction::make()
+                    ->record($record)
+                    ->label('Télécharger la fiche (PDF)')
+                    ->icon('heroicon-o-arrow-down-tray')
+                    ->color('gray'),
             ])
             ->schema([
                 FileUpload::make('fichier')
-                    ->label('Déposer le scan de la feuille signée')
+                    ->label('Scan de la feuille signée')
                     ->helperText('PDF ou photo (JPG, PNG) — max 10 Mo. Un nouveau dépôt crée une nouvelle version, sans effacer la précédente.')
                     ->acceptedFileTypes(['application/pdf', 'image/jpeg', 'image/png'])
                     ->maxSize(10240)
@@ -76,7 +80,7 @@ class FeuilleEmargementAction
                     ->body('Version '.$document->version.' enregistrée dans la GED.')
                     ->send();
             })
-            ->modalSubmitActionLabel('Enregistrer')
+            ->modalSubmitActionLabel('Déposer le scan')
             ->modalCancelActionLabel('Fermer')
             ->modalWidth('lg');
     }
