@@ -16,6 +16,7 @@ use App\Http\Middleware\AuthenticateCfaPanel;
 use App\Models\Organisation;
 use Filament\Auth\MultiFactor\App\AppAuthentication;
 use Filament\Enums\ThemeMode;
+use Filament\Facades\Filament;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -32,6 +33,7 @@ use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\HtmlString;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 class AdminPanelProvider extends PanelProvider
@@ -52,8 +54,28 @@ class AdminPanelProvider extends PanelProvider
             // /editeur — on ne s'inscrit pas soi-même comme CFA client.
             ->tenantProfile(ProfilCfa::class)
             ->viteTheme('resources/css/filament/admin/theme.css')
-            ->brandName('ERP CFA')
-            ->brandLogo(fn () => view('filament.brand'))
+            // White-label : nom et logo du CFA courant (à défaut, la marque ERP CFA).
+            ->brandName(fn (): string => ($t = Filament::getTenant()) instanceof Organisation ? $t->designation() : 'ERP CFA')
+            ->brandLogo(function () {
+                $tenant = Filament::getTenant();
+                $logo = $tenant instanceof Organisation ? $this->logoDataUri($tenant) : null;
+
+                // Logo servi en base64 inline : la collection « logo » vit sur le
+                // disque privé (pas d'URL publique) — comme pour les PDF, on lit le
+                // fichier côté serveur plutôt que de pointer une URL cassée.
+                return $logo !== null
+                    ? new HtmlString('<img src="'.$logo.'" alt="'.e($tenant->designation()).'" style="height:2.25rem;width:auto;object-fit:contain">')
+                    : view('filament.brand');
+            })
+            ->brandLogoHeight('2.25rem')
+            // White-label : couleur du CFA courant injectée en fin de <head>, donc
+            // APRÈS les variables de couleur de Filament — elle les surcharge par
+            // cascade CSS. On ne touche que « primary » (accents) ; gris et statuts
+            // sémantiques restent inchangés.
+            ->renderHook(
+                PanelsRenderHook::HEAD_END,
+                fn (): string => $this->couleurPrimaireStyle(),
+            )
             ->font('Instrument Sans')
             // Identité « cockpit premium » : dark mode par défaut (le switch
             // clair/sombre reste dans le menu utilisateur, préférence mémorisée).
@@ -189,5 +211,55 @@ class AdminPanelProvider extends PanelProvider
             ->authMiddleware([
                 AuthenticateCfaPanel::class,
             ]);
+    }
+
+    /**
+     * <style> surchargeant les nuances « --primary-* » de Filament avec la couleur
+     * du CFA courant. Injecté en fin de <head> pour gagner par cascade. Vide si le
+     * CFA n'a pas choisi de couleur (thème indigo par défaut).
+     */
+    private function couleurPrimaireStyle(): string
+    {
+        $tenant = Filament::getTenant();
+
+        if (! $tenant instanceof Organisation || blank($tenant->couleur_primaire)) {
+            return '';
+        }
+
+        $vars = '';
+        foreach (Color::hex($tenant->couleur_primaire) as $nuance => $valeur) {
+            $vars .= "--primary-{$nuance}:{$valeur};";
+        }
+
+        // 1) Nuances « primary » (accents : boutons, liens, focus…).
+        // 2) Barre latérale teintée + item actif + bouton « + » de la topbar, qui
+        //    utilisaient des variables fixes (--cfa-sidebar / --cfa-grad) et ne
+        //    suivaient donc pas la couleur du CFA. On les rebranche sur --primary.
+        $css = ":root{{$vars}}"
+            .'.fi-sidebar{background-color:var(--primary-950)!important;}'
+            .'.fi-sidebar-item.fi-active>.fi-sidebar-item-btn,'
+            .'.fi-sidebar-item.fi-sidebar-item-has-active-child-items>.fi-sidebar-item-btn'
+            .'{background:color-mix(in oklab,var(--primary-500) 24%,transparent)!important;'
+            .'box-shadow:inset 3px 0 0 0 var(--primary-500)!important;}'
+            .'.fi-sidebar-item.fi-active .fi-sidebar-item-icon{color:var(--primary-300)!important;}'
+            .'.cfa-create-btn{background-image:linear-gradient(135deg,var(--primary-500),var(--primary-700))!important;'
+            .'box-shadow:0 4px 14px -6px var(--primary-600)!important;}';
+
+        return '<style>'.$css.'</style>';
+    }
+
+    /**
+     * Logo du CFA en data-URI base64 (la collection « logo » vit sur le disque
+     * privé — pas d'URL publique). Null si aucun logo lisible.
+     */
+    private function logoDataUri(Organisation $tenant): ?string
+    {
+        $media = $tenant->getFirstMedia('logo');
+
+        if ($media === null || ! is_file($media->getPath())) {
+            return null;
+        }
+
+        return 'data:'.$media->mime_type.';base64,'.base64_encode(file_get_contents($media->getPath()));
     }
 }
