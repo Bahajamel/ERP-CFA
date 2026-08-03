@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Seances\Pages;
 
 use App\Filament\Resources\Seances\SeanceResource;
+use App\Filament\Widgets\SeancesStatsOverview;
 use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ListRecords;
 
@@ -10,11 +11,12 @@ class ListSeances extends ListRecords
 {
     protected static string $resource = SeanceResource::class;
 
-    public function getSubheading(): ?string
+    /** Cartes KPI en tête de page. */
+    protected function getHeaderWidgets(): array
     {
-        return 'Les séances de formation et l\'assiduité : créez une séance, saisissez présences, '
-            .'absences et retards. Ces données alimentent la conformité Qualiopi — une absence '
-            .'injustifiée déclenche une alerte.';
+        return [
+            SeancesStatsOverview::class,
+        ];
     }
 
     protected function getHeaderActions(): array

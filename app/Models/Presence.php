@@ -26,6 +26,7 @@ class Presence extends Model implements HasMedia
     {
         return [
             'statut' => PresenceStatut::class,
+            'signed_at' => 'datetime',
         ];
     }
 
@@ -44,6 +45,10 @@ class Presence extends Model implements HasMedia
         // Justificatif d'absence (peut contenir une donnée personnelle/médicale) :
         // disque privé, accès via lien sécurisé signé.
         $this->addMediaCollection('justificatif')->useDisk(config('documents.disque_prive'))->singleFile();
+
+        // Signature électronique de l'apprenant (V2, émargement dématérialisé) :
+        // donnée personnelle → disque privé, servie via lien sécurisé signé.
+        $this->addMediaCollection('signature')->useDisk(config('documents.disque_prive'))->singleFile();
     }
 
     public function cleAlerteAbsence(): string
@@ -90,5 +95,26 @@ class Presence extends Model implements HasMedia
     public function aJustificatif(): bool
     {
         return $this->getFirstMedia('justificatif') !== null;
+    }
+
+    /** L'apprenant a-t-il signé électroniquement cette séance ? */
+    public function aSigne(): bool
+    {
+        return $this->signed_at !== null;
+    }
+
+    /**
+     * Image de la signature en data-URI base64 (pour l'inclure dans le PDF —
+     * dompdf ne suit pas les URL, et la signature est sur disque privé).
+     */
+    public function signatureDataUri(): ?string
+    {
+        $media = $this->getFirstMedia('signature');
+
+        if ($media === null || ! is_file($media->getPath())) {
+            return null;
+        }
+
+        return 'data:'.$media->mime_type.';base64,'.base64_encode(file_get_contents($media->getPath()));
     }
 }

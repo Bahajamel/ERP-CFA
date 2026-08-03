@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\CandidatureController;
+use App\Http\Controllers\EmargementSignatureController;
 use App\Http\Controllers\EntrepriseFormController;
 use App\Http\Controllers\InscriptionController;
 use App\Http\Controllers\PublicCustomTableController;
@@ -77,6 +78,16 @@ Route::view('/inscription/merci', 'inscription.merci')->name('inscription.merci'
 Route::get('/inscription/{token}', [InscriptionController::class, 'show'])->name('inscription.matieres');
 Route::post('/inscription/{token}', [InscriptionController::class, 'store'])
     ->middleware('throttle:10,1')->name('inscription.matieres.store');
+
+// Signature publique de l'émargement (sans accès ERP) : l'apprenant signe sa
+// présence à une séance via un lien tokenisé personnel, depuis son appareil.
+// « confirmation » est déclaré AVANT « {token} » pour ne pas être capté comme un jeton.
+Route::view('/emargement/confirmation', 'emargement.merci')->name('emargement.merci');
+// QR unique de séance : la classe choisit son nom puis signe.
+Route::get('/emargement/seance/{token}', [EmargementSignatureController::class, 'seance'])->name('emargement.seance');
+Route::get('/emargement/{token}', [EmargementSignatureController::class, 'show'])->name('emargement.signer');
+Route::post('/emargement/{token}', [EmargementSignatureController::class, 'store'])
+    ->middleware('throttle:10,1')->name('emargement.signer.store');
 
 // Formulaire public « entreprise partenaire » (sans accès ERP) : auto-rempli
 // depuis le SIRET (identité + OPCO), crée une entreprise « Prospect » + contact.
