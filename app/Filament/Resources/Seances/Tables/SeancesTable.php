@@ -4,6 +4,8 @@ namespace App\Filament\Resources\Seances\Tables;
 
 use App\Enums\SeanceStatut;
 use App\Filament\Actions\FeuilleEmargementAction;
+use App\Filament\Actions\FicheEmargementPdfAction;
+use App\Filament\Actions\SignaturesEnLigneAction;
 use App\Models\Formation;
 use App\Models\Promotion;
 use App\Models\Seance;
@@ -104,6 +106,8 @@ class SeancesTable
                 'lg' => 4,
             ])
             ->recordActions([
+                FicheEmargementPdfAction::make(),
+                SignaturesEnLigneAction::make(),
                 FeuilleEmargementAction::make(),
                 EditAction::make(),
             ])
