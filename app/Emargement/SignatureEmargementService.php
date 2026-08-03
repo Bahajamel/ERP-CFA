@@ -5,6 +5,8 @@ namespace App\Emargement;
 use App\Enums\PresenceStatut;
 use App\Enums\SeanceStatut;
 use App\Models\Presence;
+use App\Models\Seance;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
 /**
@@ -34,6 +36,25 @@ class SignatureEmargementService
     public function parToken(string $token): ?Presence
     {
         return Presence::query()->where('signature_token', $token)->first();
+    }
+
+    /**
+     * Jeton de signature de la SÉANCE (un seul QR pour toute la classe) : réutilise
+     * celui déjà émis, sinon en génère un. Idempotent.
+     */
+    public function jetonSeance(Seance $seance): string
+    {
+        if (blank($seance->signature_token)) {
+            $seance->forceFill(['signature_token' => $this->jetonUnique(Seance::class)])->save();
+        }
+
+        return $seance->signature_token;
+    }
+
+    /** Retrouve la séance par son jeton de signature, ou null. */
+    public function seanceParToken(string $token): ?Seance
+    {
+        return Seance::query()->where('signature_token', $token)->first();
     }
 
     /**
@@ -92,11 +113,17 @@ class SignatureEmargementService
         return $binaire;
     }
 
-    private function jetonUnique(): string
+    /**
+     * Jeton aléatoire garanti unique sur la colonne signature_token du modèle
+     * (Presence par défaut, ou Seance pour le QR de classe).
+     *
+     * @param  class-string<Model>  $modelClass
+     */
+    private function jetonUnique(string $modelClass = Presence::class): string
     {
         do {
             $token = Str::random(48);
-        } while (Presence::query()->where('signature_token', $token)->exists());
+        } while ($modelClass::query()->where('signature_token', $token)->exists());
 
         return $token;
     }

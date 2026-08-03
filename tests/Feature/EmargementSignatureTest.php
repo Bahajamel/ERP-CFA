@@ -3,6 +3,7 @@
 use App\Documents\FicheEmargement;
 use App\Emargement\SignatureEmargementService;
 use App\Enums\PresenceStatut;
+use App\Enums\SeanceStatut;
 use App\Models\Candidate;
 use App\Models\Formation;
 use App\Models\Promotion;
@@ -160,4 +161,62 @@ it('génère un QR code SVG en data-URI pour le lien de signature', function () 
 
     $svg = base64_decode(substr($uri, strlen('data:image/svg+xml;base64,')));
     expect($svg)->toContain('<svg');
+});
+
+// ── QR unique de séance (la classe choisit son nom) ──────────────────────────
+
+it('génère un jeton de séance idempotent', function () {
+    $seance = seanceComplete(2);
+    $service = app(SignatureEmargementService::class);
+
+    $t1 = $service->jetonSeance($seance);
+    $t2 = $service->jetonSeance($seance->fresh());
+
+    expect($t1)->toBe($t2)->and(strlen($t1))->toBe(48);
+});
+
+it('liste les apprenants non signés depuis le QR de séance', function () {
+    $seance = seanceComplete(2);
+    $token = app(SignatureEmargementService::class)->jetonSeance($seance);
+    $apprenti = $seance->presences()->with('candidate')->first()->candidate;
+
+    $this->get(route('emargement.seance', $token))
+        ->assertOk()
+        ->assertSee('Choisissez votre nom', false)
+        ->assertSee($apprenti->nom_complet);
+});
+
+it('retire un apprenant de la liste une fois qu\'il a signé', function () {
+    $seance = seanceComplete(2);
+    $service = app(SignatureEmargementService::class);
+    $token = $service->jetonSeance($seance);
+
+    $presence = $seance->presences()->with('candidate')->first();
+    $nom = $presence->candidate->nom_complet;
+    $service->enregistrer($presence, PNG_TEST, '127.0.0.1');
+
+    $this->get(route('emargement.seance', $token))
+        ->assertOk()
+        ->assertDontSee($nom);
+});
+
+it('affiche « tout le monde a signé » quand la séance est complète', function () {
+    $seance = seanceComplete(1);
+    $service = app(SignatureEmargementService::class);
+    $token = $service->jetonSeance($seance);
+    $service->enregistrer($seance->presences()->first(), PNG_TEST, '127.0.0.1');
+
+    $this->get(route('emargement.seance', $token))
+        ->assertOk()
+        ->assertSee('Tout le monde a signé', false);
+});
+
+it('rejette le QR d\'une séance annulée', function () {
+    $seance = seanceComplete(1);
+    $seance->update(['statut' => SeanceStatut::Annulee->value]);
+    $token = app(SignatureEmargementService::class)->jetonSeance($seance);
+
+    $this->get(route('emargement.seance', $token))
+        ->assertOk()
+        ->assertSee('invalide', false);
 });

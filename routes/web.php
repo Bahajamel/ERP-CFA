@@ -83,6 +83,8 @@ Route::post('/inscription/{token}', [InscriptionController::class, 'store'])
 // présence à une séance via un lien tokenisé personnel, depuis son appareil.
 // « confirmation » est déclaré AVANT « {token} » pour ne pas être capté comme un jeton.
 Route::view('/emargement/confirmation', 'emargement.merci')->name('emargement.merci');
+// QR unique de séance : la classe choisit son nom puis signe.
+Route::get('/emargement/seance/{token}', [EmargementSignatureController::class, 'seance'])->name('emargement.seance');
 Route::get('/emargement/{token}', [EmargementSignatureController::class, 'show'])->name('emargement.signer');
 Route::post('/emargement/{token}', [EmargementSignatureController::class, 'store'])
     ->middleware('throttle:10,1')->name('emargement.signer.store');

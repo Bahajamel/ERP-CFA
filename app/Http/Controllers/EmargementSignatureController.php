@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Emargement\SignatureEmargementService;
+use App\Enums\SeanceStatut;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -15,6 +16,41 @@ use Illuminate\View\View;
 class EmargementSignatureController extends Controller
 {
     public function __construct(private readonly SignatureEmargementService $service) {}
+
+    /**
+     * QR unique de séance : liste les apprenants qui n'ont pas encore signé.
+     * Chacun choisit son nom puis signe via son propre pavé (lien tokenisé).
+     */
+    public function seance(string $token): View
+    {
+        $seance = $this->service->seanceParToken($token);
+
+        if ($seance === null || $seance->statut === SeanceStatut::Annulee) {
+            return view('emargement.invalide');
+        }
+
+        $seance->load('promotion.formation', 'formateur');
+
+        $nonSignes = $seance->presences()
+            ->with('candidate')
+            ->whereNull('signed_at')
+            ->get()
+            ->sortBy(fn ($p) => $p->candidate?->nom.' '.$p->candidate?->prenom)
+            ->map(fn ($p): array => [
+                'nom' => $p->candidate?->nom_complet ?? '—',
+                'lien' => route('emargement.signer', $this->service->jetonPour($p)),
+            ])
+            ->values();
+
+        $total = $seance->presences()->count();
+
+        return view('emargement.seance', [
+            'seance' => $seance,
+            'nonSignes' => $nonSignes,
+            'total' => $total,
+            'signes' => $total - $nonSignes->count(),
+        ]);
+    }
 
     /** Affiche le pavé de signature (ou un état déjà signé / lien invalide). */
     public function show(string $token): View
