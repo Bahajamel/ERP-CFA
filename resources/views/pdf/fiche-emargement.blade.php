@@ -120,7 +120,11 @@
                     <td class="sign-cell">
                         @if ($l['signature'])
                             <img src="{{ $l['signature'] }}" style="max-height:32px;max-width:150px;display:block;margin:0 auto;">
-                            @if ($l['signe_a'])<div style="text-align:center;color:#9ca3af;font-size:7.5px;margin-top:1px;">signé le {{ $l['signe_a']->format('d/m/Y H:i') }}</div>@endif
+                            @if ($l['signe_a'])
+                                <div style="text-align:center;color:#9ca3af;font-size:7.5px;margin-top:1px;">
+                                    signé le {{ $l['signe_a']->format('d/m/Y à H:i') }}@if ($l['signe_ip']) · IP {{ $l['signe_ip'] }}@endif
+                                </div>
+                            @endif
                         @endif
                     </td>
                 </tr>
@@ -131,6 +135,13 @@
             @endforelse
         </tbody>
     </table>
+
+    @if ($d['lignes']->contains(fn ($l) => $l['signe_a'] !== null))
+        <div style="font-size:8px;color:#6b7280;margin-top:5px;">
+            Signatures électroniques recueillies à distance : chacune est horodatée et associée à l'adresse IP du
+            signataire, conservées à titre de preuve (exigence des OPCO / financeurs).
+        </div>
+    @endif
 
     {{-- Observations + signature formateur --}}
     <table class="zone">

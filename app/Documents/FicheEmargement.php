@@ -58,6 +58,9 @@ class FicheEmargement
                 'commentaire' => $p->commentaire,
                 'signature' => $p->signatureDataUri(),
                 'signe_a' => $p->signed_at,
+                // Adresse IP du signataire : preuve exigée par les OPCO pour une
+                // signature électronique (avec l'horodatage). Captée à la signature.
+                'signe_ip' => $p->signed_ip,
             ];
         });
 

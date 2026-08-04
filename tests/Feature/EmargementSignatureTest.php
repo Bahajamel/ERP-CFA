@@ -142,6 +142,17 @@ it('génère un PDF de fiche d\'émargement, signature comprise', function () {
         ->and($presence->fresh()->signatureDataUri())->not->toBeNull();
 });
 
+it('porte l\'adresse IP du signataire sur la fiche (preuve OPCO)', function () {
+    $seance = seanceComplete(1);
+    $presence = $seance->presences()->first();
+    app(SignatureEmargementService::class)->enregistrer($presence, PNG_TEST, '203.0.113.7');
+
+    $ligne = app(FicheEmargement::class)->donnees($seance->fresh())['lignes']
+        ->firstWhere('signe_a', '!=', null);
+
+    expect($ligne['signe_ip'])->toBe('203.0.113.7');
+});
+
 it('génère la fiche même pour une séance sans apprenant', function () {
     $formation = Formation::factory()->create();
     $promotion = Promotion::factory()->create(['formation_id' => $formation->id]);
