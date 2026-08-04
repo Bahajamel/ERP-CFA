@@ -6,6 +6,7 @@ use App\Livret\LivretRsClient;
 use App\Livret\LivretRsException;
 use App\Models\User;
 use Filament\Actions\Action;
+use Filament\Forms\Components\ColorPicker;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
@@ -165,10 +166,14 @@ class ProfilCfa extends EditTenantProfile
                         TextInput::make('dpo_prenom')->label('Prénom'),
                     ]),
 
-                Section::make('Logo, signature et cachet')
-                    ->description('Appliqués aux documents et livrables générés.')
+                Section::make('Identité visuelle')
+                    ->description('Votre logo, votre couleur et vos éléments de signature — appliqués à votre espace et à vos documents.')
                     ->columns(3)
                     ->schema([
+                        ColorPicker::make('couleur_primaire')
+                            ->label('Couleur principale')
+                            ->helperText('Teinte de votre espace : boutons, liens et accents. Laissez vide pour le thème par défaut.')
+                            ->columnSpanFull(),
                         SpatieMediaLibraryFileUpload::make('logo')
                             ->label('Logo')
                             ->collection('logo')

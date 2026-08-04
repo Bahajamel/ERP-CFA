@@ -80,8 +80,9 @@ it('installe les cinq assistants avec leur identité et leur contenu', function 
     $bots = FaqBot::query()->orderBy('sort')->get();
 
     expect($bots->pluck('module')->all())->toBe(['commercial', 'contrats', 'finance', 'scolarite', 'pilotage'])
-        // Chacun a une couleur distincte et de quoi proposer des suggestions.
-        ->and($bots->pluck('color')->unique())->toHaveCount(5)
+        // Tous les assistants portent la couleur de marque du site (indigo),
+        // et chacun a de quoi proposer des suggestions.
+        ->and($bots->pluck('color')->unique()->all())->toBe(['#4f46e5'])
         ->and($bots->every(fn (FaqBot $b): bool => $b->entrees()->count() >= 5))->toBeTrue();
 });
 

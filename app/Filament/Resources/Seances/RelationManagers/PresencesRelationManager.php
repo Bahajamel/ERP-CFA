@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Seances\RelationManagers;
 
 use App\Enums\PresenceStatut;
 use App\Filament\Actions\FeuilleEmargementAction;
+use App\Filament\Actions\SignaturesEnLigneAction;
 use App\Models\Candidate;
 use App\Models\Seance;
 use Filament\Actions\Action;
@@ -135,6 +136,8 @@ class PresencesRelationManager extends RelationManager
                         Notification::make()->success()->title('Participants mis à jour')->send();
                     })
                     ->modalSubmitActionLabel('Enregistrer'),
+                SignaturesEnLigneAction::make()
+                    ->record(fn (self $livewire): Seance => $livewire->getOwnerRecord()),
                 FeuilleEmargementAction::make()
                     ->record(fn (self $livewire): Seance => $livewire->getOwnerRecord()),
             ])

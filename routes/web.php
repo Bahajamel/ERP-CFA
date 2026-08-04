@@ -1,8 +1,11 @@
 <?php
 
 use App\Http\Controllers\CandidatureController;
+use App\Http\Controllers\EmargementSignatureController;
 use App\Http\Controllers\EntrepriseFormController;
 use App\Http\Controllers\InscriptionController;
+use App\Http\Controllers\Portail\PortailApprenantController;
+use App\Http\Controllers\Portail\PortailEntrepriseController;
 use App\Http\Controllers\PublicCustomTableController;
 use App\Http\Controllers\SecureMediaController;
 use App\Http\Controllers\SignatureWebhookController;
@@ -31,6 +34,8 @@ Route::get('/robots.txt', function () {
         'Disallow: /candidature',
         'Disallow: /entreprise',
         'Disallow: /inscription',
+        'Disallow: /mon-espace',
+        'Disallow: /espace-entreprise',
         'Disallow: /tableau',
         'Sitemap: '.route('vitrine.sitemap'),
     ];
@@ -77,6 +82,35 @@ Route::view('/inscription/merci', 'inscription.merci')->name('inscription.merci'
 Route::get('/inscription/{token}', [InscriptionController::class, 'show'])->name('inscription.matieres');
 Route::post('/inscription/{token}', [InscriptionController::class, 'store'])
     ->middleware('throttle:10,1')->name('inscription.matieres.store');
+
+// Signature publique de l'émargement (sans accès ERP) : l'apprenant signe sa
+// présence à une séance via un lien tokenisé personnel, depuis son appareil.
+// « confirmation » est déclaré AVANT « {token} » pour ne pas être capté comme un jeton.
+Route::view('/emargement/confirmation', 'emargement.merci')->name('emargement.merci');
+// QR unique de séance : la classe choisit son nom puis signe.
+Route::get('/emargement/seance/{token}', [EmargementSignatureController::class, 'seance'])->name('emargement.seance');
+Route::get('/emargement/{token}', [EmargementSignatureController::class, 'show'])->name('emargement.signer');
+Route::post('/emargement/{token}', [EmargementSignatureController::class, 'store'])
+    ->middleware('throttle:10,1')->name('emargement.signer.store');
+
+// Espace personnel de l'apprenant (portail sans mot de passe) : accès par un
+// jeton personnel porté par l'URL, sans session ERP — comme l'inscription et
+// l'émargement. Chaque page ne montre que les données de cet apprenant.
+Route::get('/mon-espace/{token}', [PortailApprenantController::class, 'accueil'])->name('portail.apprenant');
+Route::get('/mon-espace/{token}/planning', [PortailApprenantController::class, 'planning'])->name('portail.apprenant.planning');
+Route::get('/mon-espace/{token}/documents', [PortailApprenantController::class, 'documents'])->name('portail.apprenant.documents');
+Route::get('/mon-espace/{token}/document/{document}', [PortailApprenantController::class, 'document'])
+    ->middleware('throttle:30,1')->name('portail.apprenant.document');
+
+// Espace personnel de l'entreprise (portail sans mot de passe) : même principe
+// côté employeur — jeton personnel, sans session ERP. L'entreprise y suit ses
+// alternants, leur assiduité, ses documents et ses factures.
+Route::get('/espace-entreprise/{token}', [PortailEntrepriseController::class, 'accueil'])->name('portail.entreprise');
+Route::get('/espace-entreprise/{token}/alternants', [PortailEntrepriseController::class, 'alternantsPage'])->name('portail.entreprise.alternants');
+Route::get('/espace-entreprise/{token}/documents', [PortailEntrepriseController::class, 'documents'])->name('portail.entreprise.documents');
+Route::get('/espace-entreprise/{token}/factures', [PortailEntrepriseController::class, 'factures'])->name('portail.entreprise.factures');
+Route::get('/espace-entreprise/{token}/document/{document}', [PortailEntrepriseController::class, 'document'])
+    ->middleware('throttle:30,1')->name('portail.entreprise.document');
 
 // Formulaire public « entreprise partenaire » (sans accès ERP) : auto-rempli
 // depuis le SIRET (identité + OPCO), crée une entreprise « Prospect » + contact.

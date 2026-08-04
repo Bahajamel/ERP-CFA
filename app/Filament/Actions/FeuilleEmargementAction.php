@@ -22,11 +22,12 @@ class FeuilleEmargementAction
     {
         return Action::make('feuilleEmargement')
             ->label("Feuille d'émargement")
-            ->icon('heroicon-o-paper-clip')
+            ->icon('heroicon-o-document-text')
             ->color(fn (Seance $record): string => $record->feuilleEmargement() ? 'success' : 'gray')
             ->modalHeading(fn (Seance $record): string => "Feuille d'émargement — "
                 .($record->libelle ?? 'Séance')
                 .' du '.$record->date->format('d/m/Y'))
+            ->modalDescription('Téléchargez la fiche à imprimer et faire signer, ou déposez le scan de la feuille signée.')
             ->modalContent(fn (Seance $record) => view('filament.feuille-emargement', [
                 'feuilles' => $record->documents()
                     ->where('type', DocumentType::FeuilleEmargement)
@@ -34,9 +35,17 @@ class FeuilleEmargementAction
                     ->orderByDesc('id')
                     ->get(),
             ]))
+            // Étape 1 « Générer » proposée dans le MÊME modal (plus de bouton séparé).
+            ->extraModalFooterActions(fn (Seance $record): array => [
+                FicheEmargementPdfAction::make()
+                    ->record($record)
+                    ->label('Télécharger la fiche (PDF)')
+                    ->icon('heroicon-o-arrow-down-tray')
+                    ->color('gray'),
+            ])
             ->schema([
                 FileUpload::make('fichier')
-                    ->label('Déposer le scan de la feuille signée')
+                    ->label('Scan de la feuille signée')
                     ->helperText('PDF ou photo (JPG, PNG) — max 10 Mo. Un nouveau dépôt crée une nouvelle version, sans effacer la précédente.')
                     ->acceptedFileTypes(['application/pdf', 'image/jpeg', 'image/png'])
                     ->maxSize(10240)
@@ -71,7 +80,7 @@ class FeuilleEmargementAction
                     ->body('Version '.$document->version.' enregistrée dans la GED.')
                     ->send();
             })
-            ->modalSubmitActionLabel('Enregistrer')
+            ->modalSubmitActionLabel('Déposer le scan')
             ->modalCancelActionLabel('Fermer')
             ->modalWidth('lg');
     }
