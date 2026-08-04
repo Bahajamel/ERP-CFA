@@ -146,8 +146,11 @@ class Candidate extends Model implements HasMedia
         $this->addMediaCollection('attestation_projet')->useDisk($disquePrive)->singleFile()->acceptsMimeTypes(self::MIMES_JUSTIFICATIFS);
 
         // Photo de profil de l'apprenant (fiche apprenant, trombinoscope) :
-        // faible sensibilité, affichée en <img> inline → reste sur le disque public.
+        // faible sensibilité, affichée en <img> inline → disque public, web-exposé.
+        // Disque explicite : sinon le composant d'upload Filament retombe sur son
+        // disque par défaut (« local », privé) et l'image ne s'affiche pas.
         $this->addMediaCollection('photo')
+            ->useDisk('public')
             ->singleFile()
             ->acceptsMimeTypes(['image/jpeg', 'image/png', 'image/webp']);
     }

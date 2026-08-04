@@ -23,7 +23,7 @@
 
         /* En-tête */
         .fc-header { display: flex; flex-wrap: wrap; gap: 1.3rem; align-items: flex-start; padding: 1.3rem; }
-        .fc-avatar { width: 5rem; height: 5rem; border-radius: 1rem; display: grid; place-items: center; flex: none;
+        .fc-avatar { width: 5rem; height: 5rem; border-radius: 9999px; display: grid; place-items: center; flex: none; overflow: hidden;
             background: linear-gradient(135deg,#4f46e5,#7c3aed); color: #fff; font-size: 1.5rem; font-weight: 800; }
         .fc-avatar-img { object-fit: cover; background: none; }
         .fc-h-main { flex: 1; min-width: 260px; }
