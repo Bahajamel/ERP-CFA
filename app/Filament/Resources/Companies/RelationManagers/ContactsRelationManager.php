@@ -69,8 +69,12 @@ class ContactsRelationManager extends RelationManager
                     TextInput::make('telephone')
                         ->label('Téléphone')
                         ->tel()
-                        ->placeholder('ex : +33 6 12 34 56 78')
-                        ->helperText('Choisissez le pays puis saisissez le numéro.')
+                        ->placeholder('ex : 6 12 34 56 78')
+                        ->helperText('Choisissez le pays puis saisissez le numéro : l\'indicatif est ajouté automatiquement.')
+                        // Le numéro saisi est complété par l'indicatif du pays choisi
+                        // dès la sortie du champ (« 06… » ou « 6… » → « +33 6… »).
+                        ->live(onBlur: true)
+                        ->afterStateUpdated(fn ($state, Set $set, Get $get) => $set('telephone', Indicatifs::combiner($state, $get('indicatif_pays'))))
                         ->rule(new TelephoneInternational)
                         ->columnSpan(3),
                 ])->columns(5),

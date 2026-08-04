@@ -42,7 +42,7 @@ it('rejette les numéros sans indicatif pays ou mal formés', function () {
         ->and(telValide('06 12 <img src=x>'))->toBeFalse();
 });
 
-it('bloque un téléphone sans indicatif à la création d\'un candidat (en-app)', function () {
+it('accepte un numéro national à la création d\'un candidat, l\'indicatif du pays étant ajouté (en-app)', function () {
     $this->seed(RolePermissionSeeder::class);
     Filament::setCurrentPanel(Filament::getPanel('admin'));
     Storage::fake('public');
@@ -50,11 +50,23 @@ it('bloque un téléphone sans indicatif à la création d\'un candidat (en-app)
     $user->syncRoles('Administrateur');
     $this->actingAs($user);
 
+    // Numéro national « 06… » avec France (pays par défaut du sélecteur) :
+    // accepté, l'indicatif est ajouté automatiquement au numéro enregistré.
     Livewire::test(CreateCandidate::class)
-        ->fillForm(['nom' => 'Test', 'prenom' => 'Sans Indicatif', 'telephone' => '0612345678'])
+        ->fillForm(['nom' => 'Test', 'prenom' => 'National', 'telephone' => '0612345678'])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    expect(\App\Models\Candidate::where('prenom', 'National')->value('telephone'))
+        ->toBe('+33 612345678');
+
+    // Une saisie réellement invalide (lettres) reste rejetée, même après combinaison.
+    Livewire::test(CreateCandidate::class)
+        ->fillForm(['nom' => 'Test', 'prenom' => 'Invalide', 'telephone' => 'abc'])
         ->call('create')
         ->assertHasFormErrors(['telephone']);
 
+    // Un numéro déjà au format international passe aussi.
     Livewire::test(CreateCandidate::class)
         ->fillForm(['nom' => 'Test', 'prenom' => 'Avec Indicatif', 'telephone' => '+33612345678'])
         ->call('create')

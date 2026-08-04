@@ -36,6 +36,10 @@ class CandidateForm
                             SpatieMediaLibraryFileUpload::make('photo')
                                 ->label('Photo de profil')
                                 ->collection('photo')
+                                // Sans disque explicite, le composant Filament stocke sur son
+                                // disque par défaut (« local », privé) et l'image ne s'affiche
+                                // pas en <img>. La photo va sur le disque public, web-exposé.
+                                ->disk('public')
                                 ->avatar()
                                 ->imageEditor()
                                 ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
@@ -75,8 +79,12 @@ class CandidateForm
                                 TextInput::make('telephone')
                                     ->label('Téléphone')
                                     ->tel()
-                                    ->placeholder('ex : +33 6 12 34 56 78')
-                                    ->helperText('Choisissez le pays puis saisissez le numéro.')
+                                    ->placeholder('ex : 6 12 34 56 78')
+                                    ->helperText('Choisissez le pays puis saisissez le numéro : l\'indicatif est ajouté automatiquement.')
+                                    // Le numéro saisi est complété par l'indicatif du pays choisi
+                                    // dès la sortie du champ (« 06… » ou « 6… » → « +33 6… »).
+                                    ->live(onBlur: true)
+                                    ->afterStateUpdated(fn ($state, Set $set, Get $get) => $set('telephone', Indicatifs::combiner($state, $get('indicatif_pays'))))
                                     ->rule(new TelephoneInternational)
                                     ->requiredWithout('email')
                                     ->validationMessages(['required_without' => 'Renseignez au moins un email ou un téléphone.'])
