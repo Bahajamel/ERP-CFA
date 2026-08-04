@@ -57,6 +57,7 @@ class Candidate extends Model implements HasMedia
             'date_disponibilite' => 'date',
             'cv_consentement' => 'boolean',
             'cv_consentement_at' => 'datetime',
+            'portail_token_created_at' => 'datetime',
             'statut' => CandidateStatut::class,
             // Valeurs des colonnes personnalisées du CFA (couche « façon Monday »).
             'custom_fields' => 'array',

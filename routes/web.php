@@ -4,6 +4,7 @@ use App\Http\Controllers\CandidatureController;
 use App\Http\Controllers\EmargementSignatureController;
 use App\Http\Controllers\EntrepriseFormController;
 use App\Http\Controllers\InscriptionController;
+use App\Http\Controllers\Portail\PortailApprenantController;
 use App\Http\Controllers\PublicCustomTableController;
 use App\Http\Controllers\SecureMediaController;
 use App\Http\Controllers\SignatureWebhookController;
@@ -32,6 +33,7 @@ Route::get('/robots.txt', function () {
         'Disallow: /candidature',
         'Disallow: /entreprise',
         'Disallow: /inscription',
+        'Disallow: /mon-espace',
         'Disallow: /tableau',
         'Sitemap: '.route('vitrine.sitemap'),
     ];
@@ -88,6 +90,15 @@ Route::get('/emargement/seance/{token}', [EmargementSignatureController::class, 
 Route::get('/emargement/{token}', [EmargementSignatureController::class, 'show'])->name('emargement.signer');
 Route::post('/emargement/{token}', [EmargementSignatureController::class, 'store'])
     ->middleware('throttle:10,1')->name('emargement.signer.store');
+
+// Espace personnel de l'apprenant (portail sans mot de passe) : accès par un
+// jeton personnel porté par l'URL, sans session ERP — comme l'inscription et
+// l'émargement. Chaque page ne montre que les données de cet apprenant.
+Route::get('/mon-espace/{token}', [PortailApprenantController::class, 'accueil'])->name('portail.apprenant');
+Route::get('/mon-espace/{token}/planning', [PortailApprenantController::class, 'planning'])->name('portail.apprenant.planning');
+Route::get('/mon-espace/{token}/documents', [PortailApprenantController::class, 'documents'])->name('portail.apprenant.documents');
+Route::get('/mon-espace/{token}/document/{document}', [PortailApprenantController::class, 'document'])
+    ->middleware('throttle:30,1')->name('portail.apprenant.document');
 
 // Formulaire public « entreprise partenaire » (sans accès ERP) : auto-rempli
 // depuis le SIRET (identité + OPCO), crée une entreprise « Prospect » + contact.

@@ -8,13 +8,17 @@ use App\Enums\DocumentStatut;
 use App\Enums\DocumentType;
 use App\Enums\EntretienMode;
 use App\Enums\EntretienStatut;
+use App\Filament\Actions\EspaceApprenantAction;
 use App\Filament\Resources\Entretiens\EntretienResource;
 use App\Livret\LivrablesArchive;
+use App\Mail\AccesEspaceApprenant;
 use App\Models\Candidate;
 use App\Models\Matching;
 use App\Models\Need;
+use App\Models\Organisation;
 use App\Parcours\CycleApprenant;
 use App\Parcours\CycleBloqueException;
+use App\Portail\PortailApprenantService;
 use App\Rules\TelephoneInternational;
 use App\StateMachine\InvalidTransitionException;
 use App\Support\CustomFields;
@@ -45,6 +49,7 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -443,6 +448,10 @@ class CandidatesTable
 
                             return response()->download($zip, $nom)->deleteFileAfterSend();
                         }),
+                    // Ouvre le lien personnel de l'apprenant vers son espace
+                    // (portail sans mot de passe) : QR + lien + envoi par e-mail.
+                    EspaceApprenantAction::make()
+                        ->visible(fn (): bool => auth()->user()?->can('access_candidates') ?? false),
                     ViewAction::make(),
                     EditAction::make(),
                     // Suppression = archivage en corbeille, motif OBLIGATOIRE. Le
@@ -481,6 +490,50 @@ class CandidatesTable
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
+                    // Envoi groupé du lien d'accès à l'espace apprenant : un e-mail
+                    // par apprenant sélectionné ayant une adresse (les autres sont
+                    // ignorés). Même moteur que l'action unitaire (jeton + Mailable).
+                    BulkAction::make('envoyerEspace')
+                        ->label('Envoyer l\'accès à l\'espace')
+                        ->icon('heroicon-o-identification')
+                        ->color('info')
+                        ->visible(fn (): bool => auth()->user()?->can('access_candidates') ?? false)
+                        ->requiresConfirmation()
+                        ->modalHeading('Envoyer l\'accès à l\'espace apprenant')
+                        ->modalDescription('Chaque apprenant sélectionné ayant une adresse e-mail recevra son lien '
+                            .'personnel (planning, présences, documents). Les apprenants sans e-mail sont ignorés.')
+                        ->modalSubmitActionLabel('Envoyer les e-mails')
+                        ->action(function (Collection $records): void {
+                            $service = app(PortailApprenantService::class);
+                            $envoyes = 0;
+                            $ignores = 0;
+
+                            foreach ($records as $candidate) {
+                                if (blank($candidate->email)) {
+                                    $ignores++;
+
+                                    continue;
+                                }
+
+                                $cfa = $candidate->organisation ?? Organisation::defaut();
+
+                                Mail::to($candidate->email)->send(new AccesEspaceApprenant(
+                                    candidate: $candidate,
+                                    lien: $service->lienPour($candidate),
+                                    nomCfa: $cfa?->designation() ?? 'CFA',
+                                ));
+
+                                $envoyes++;
+                            }
+
+                            Notification::make()->success()
+                                ->title($envoyes.' e-mail(s) d\'accès envoyé(s)')
+                                ->body($ignores > 0
+                                    ? $ignores.' apprenant(s) ignoré(s) (aucune adresse e-mail au dossier).'
+                                    : 'Tous les apprenants sélectionnés ont reçu leur lien.')
+                                ->send();
+                        })
+                        ->deselectRecordsAfterCompletion(),
                     BulkAction::make('supprimerLot')
                         ->label('Supprimer')
                         ->icon('heroicon-o-trash')
