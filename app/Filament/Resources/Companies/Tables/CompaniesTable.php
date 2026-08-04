@@ -2,17 +2,23 @@
 
 namespace App\Filament\Resources\Companies\Tables;
 
+use App\Filament\Actions\EspaceEntrepriseAction;
+use App\Mail\AccesEspaceEntreprise;
 use App\Models\Company;
 use App\Models\Formation;
+use App\Models\Organisation;
+use App\Portail\PortailEntrepriseService;
 use App\Support\CustomFields;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
+use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ForceDeleteBulkAction;
 use Filament\Actions\RestoreBulkAction;
 use Filament\Actions\ViewAction;
+use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\ViewColumn;
 use Filament\Tables\Enums\FiltersLayout;
@@ -20,6 +26,8 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Mail;
 
 class CompaniesTable
 {
@@ -117,6 +125,10 @@ class CompaniesTable
                     ->color('gray')
                     ->action(fn (Company $record, $livewire) => $livewire->focusId = $record->getKey()),
                 ActionGroup::make([
+                    // Lien personnel de l'entreprise vers son espace (portail sans
+                    // mot de passe) : QR + lien + envoi par e-mail au contact.
+                    EspaceEntrepriseAction::make()
+                        ->visible(fn (): bool => auth()->user()?->can('access_companies') ?? false),
                     ViewAction::make(),
                     EditAction::make(),
                 ])
@@ -126,6 +138,51 @@ class CompaniesTable
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
+                    // Envoi groupé du lien d'accès à l'espace entreprise : un e-mail
+                    // par entreprise sélectionnée ayant un contact avec adresse.
+                    BulkAction::make('envoyerEspaceEntreprise')
+                        ->label('Envoyer l\'accès à l\'espace')
+                        ->icon('heroicon-o-building-office-2')
+                        ->color('info')
+                        ->visible(fn (): bool => auth()->user()?->can('access_companies') ?? false)
+                        ->requiresConfirmation()
+                        ->modalHeading('Envoyer l\'accès à l\'espace entreprise')
+                        ->modalDescription('Chaque entreprise sélectionnée disposant d\'un contact avec e-mail recevra '
+                            .'son lien personnel (alternants, assiduité, documents, factures). Les autres sont ignorées.')
+                        ->modalSubmitActionLabel('Envoyer les e-mails')
+                        ->action(function (Collection $records): void {
+                            $service = app(PortailEntrepriseService::class);
+                            $envoyes = 0;
+                            $ignores = 0;
+
+                            foreach ($records as $company) {
+                                $email = $service->emailDestinataire($company);
+
+                                if (blank($email)) {
+                                    $ignores++;
+
+                                    continue;
+                                }
+
+                                $cfa = $company->organisation ?? Organisation::defaut();
+
+                                Mail::to($email)->send(new AccesEspaceEntreprise(
+                                    company: $company,
+                                    lien: $service->lienPour($company),
+                                    nomCfa: $cfa?->designation() ?? 'CFA',
+                                ));
+
+                                $envoyes++;
+                            }
+
+                            Notification::make()->success()
+                                ->title($envoyes.' e-mail(s) d\'accès envoyé(s)')
+                                ->body($ignores > 0
+                                    ? $ignores.' entreprise(s) ignorée(s) (aucun contact avec e-mail).'
+                                    : 'Toutes les entreprises sélectionnées ont reçu leur lien.')
+                                ->send();
+                        })
+                        ->deselectRecordsAfterCompletion(),
                     DeleteBulkAction::make(),
                     ForceDeleteBulkAction::make(),
                     RestoreBulkAction::make(),

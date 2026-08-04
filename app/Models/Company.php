@@ -31,6 +31,7 @@ class Company extends Model
             'longitude' => 'float',
             'custom_fields' => 'array',
             'nombre_salaries' => 'integer',
+            'portail_token_created_at' => 'datetime',
         ];
     }
 

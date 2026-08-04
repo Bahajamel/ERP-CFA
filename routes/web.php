@@ -5,6 +5,7 @@ use App\Http\Controllers\EmargementSignatureController;
 use App\Http\Controllers\EntrepriseFormController;
 use App\Http\Controllers\InscriptionController;
 use App\Http\Controllers\Portail\PortailApprenantController;
+use App\Http\Controllers\Portail\PortailEntrepriseController;
 use App\Http\Controllers\PublicCustomTableController;
 use App\Http\Controllers\SecureMediaController;
 use App\Http\Controllers\SignatureWebhookController;
@@ -34,6 +35,7 @@ Route::get('/robots.txt', function () {
         'Disallow: /entreprise',
         'Disallow: /inscription',
         'Disallow: /mon-espace',
+        'Disallow: /espace-entreprise',
         'Disallow: /tableau',
         'Sitemap: '.route('vitrine.sitemap'),
     ];
@@ -99,6 +101,16 @@ Route::get('/mon-espace/{token}/planning', [PortailApprenantController::class, '
 Route::get('/mon-espace/{token}/documents', [PortailApprenantController::class, 'documents'])->name('portail.apprenant.documents');
 Route::get('/mon-espace/{token}/document/{document}', [PortailApprenantController::class, 'document'])
     ->middleware('throttle:30,1')->name('portail.apprenant.document');
+
+// Espace personnel de l'entreprise (portail sans mot de passe) : même principe
+// côté employeur — jeton personnel, sans session ERP. L'entreprise y suit ses
+// alternants, leur assiduité, ses documents et ses factures.
+Route::get('/espace-entreprise/{token}', [PortailEntrepriseController::class, 'accueil'])->name('portail.entreprise');
+Route::get('/espace-entreprise/{token}/alternants', [PortailEntrepriseController::class, 'alternantsPage'])->name('portail.entreprise.alternants');
+Route::get('/espace-entreprise/{token}/documents', [PortailEntrepriseController::class, 'documents'])->name('portail.entreprise.documents');
+Route::get('/espace-entreprise/{token}/factures', [PortailEntrepriseController::class, 'factures'])->name('portail.entreprise.factures');
+Route::get('/espace-entreprise/{token}/document/{document}', [PortailEntrepriseController::class, 'document'])
+    ->middleware('throttle:30,1')->name('portail.entreprise.document');
 
 // Formulaire public « entreprise partenaire » (sans accès ERP) : auto-rempli
 // depuis le SIRET (identité + OPCO), crée une entreprise « Prospect » + contact.
