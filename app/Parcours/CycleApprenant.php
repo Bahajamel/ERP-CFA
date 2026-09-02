@@ -674,7 +674,10 @@ class CycleApprenant
             'detail' => match (true) {
                 $refuse => 'Candidat refusé',
                 $matchingAccepte => 'Entreprise trouvée',
-                $contrat !== null => 'Entreprise trouvée',
+                // Contrat sans matching (créé directement via l'assistant) :
+                // l'entreprise est bien engagée, mais pas trouvée via le module
+                // Matching — on le dit honnêtement plutôt que « Entreprise trouvée ».
+                $contrat !== null => 'Entreprise contractualisée',
                 $matchingActif => 'Recherche en cours',
                 default => 'Non démarré',
             },

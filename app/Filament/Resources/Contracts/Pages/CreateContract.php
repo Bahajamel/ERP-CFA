@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Contracts\Pages;
 
+use App\Enums\CandidateStatut;
 use App\Enums\ContractStatut;
 use App\Filament\Resources\Contracts\ContractResource;
 use App\Filament\Resources\Contracts\Schemas\ContractWizard;
@@ -60,7 +61,7 @@ class CreateContract extends CreateRecord
 
             $this->rattacherContacts($company, $data);
 
-            return Contract::create([
+            $contrat = Contract::create([
                 'candidate_id' => $candidate->id,
                 'company_id' => $company->id,
                 'formation_id' => $data['formation_id'] ?? null,
@@ -79,6 +80,18 @@ class CreateContract extends CreateRecord
                 // Statut initial : « En cours » (dossier créé, en préparation).
                 'statut_contrat' => ContractStatut::EnCours->value,
             ]);
+
+            // Créer un dossier contrat vaut sélection du candidat : on aligne son
+            // statut sur « Accepté » pour que le parcours reste cohérent — jamais
+            // de contrat « en cours » sur un candidat resté au stade entretien.
+            // On force le statut (le flux direct saute l'entretien : le contrat
+            // vaut décision) ; on ne touche pas à une décision finale déjà prise.
+            // Un candidat tout juste créé ici a un statut encore nul.
+            if ($candidate->statut === null || ! $candidate->statut->estFinal()) {
+                $candidate->forceFill(['statut' => CandidateStatut::Accepte->value])->save();
+            }
+
+            return $contrat;
         });
     }
 
