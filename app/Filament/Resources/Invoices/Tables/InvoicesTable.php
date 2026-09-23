@@ -39,6 +39,9 @@ class InvoicesTable
                 TextColumn::make('montant')
                     ->label('Montant')
                     ->money('EUR')
+                    ->description(fn (Invoice $record): ?string => $record->montantPaye() > 0
+                        ? 'Encaissé : '.number_format($record->montantPaye(), 2, ',', ' ').' €'
+                        : null)
                     ->sortable(),
                 TextColumn::make('reste_a_payer')
                     ->label('Reste à payer')
@@ -71,6 +74,9 @@ class InvoicesTable
             ->filtersFormColumns(['sm' => 2, 'lg' => 2])
             ->recordActions([
                 InvoiceActions::emettre(),
+                InvoiceActions::encaisser(),
+                InvoiceActions::paiements(),
+                InvoiceActions::relancer(),
                 InvoiceActions::proforma(),
                 InvoiceActions::importer(),
                 InvoiceActions::annuler(),

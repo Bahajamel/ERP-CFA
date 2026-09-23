@@ -4,11 +4,13 @@ namespace App\Filament\Resources\Invoices;
 
 use App\Enums\InvoiceStatut;
 use App\Finance\InvoiceGenerator;
+use App\Models\FinancePayment;
 use App\Models\Invoice;
 use App\StateMachine\InvalidTransitionException;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
@@ -134,6 +136,137 @@ class InvoiceActions
                     ->send();
             })
             ->modalSubmitActionLabel('Importer');
+    }
+
+    /** Moyens de paiement proposés à la saisie d'un encaissement. */
+    private const MOYENS_PAIEMENT = [
+        'Virement' => 'Virement',
+        'Chèque' => 'Chèque',
+        'Prélèvement' => 'Prélèvement',
+        'Espèces' => 'Espèces',
+        'Carte bancaire' => 'Carte bancaire',
+    ];
+
+    /**
+     * Enregistrer un encaissement sur une facture émise (Phase B). Le montant
+     * par défaut est le reste à payer ; la facture bascule automatiquement en
+     * « Payée » dès qu'elle est soldée (règle portée par {@see FinancePayment}).
+     */
+    public static function encaisser(): Action
+    {
+        return Action::make('encaisser')
+            ->label('Encaisser')
+            ->icon('heroicon-o-banknotes')
+            ->color('success')
+            ->visible(fn (Invoice $record): bool => $record->statut === InvoiceStatut::Emise
+                && $record->resteAPayer() > 0)
+            ->modalHeading('Enregistrer un encaissement')
+            ->modalDescription(fn (Invoice $record): string => 'Reste à payer : '
+                .number_format($record->resteAPayer(), 2, ',', ' ').' € — '
+                .'la facture passera « Payée » une fois soldée.')
+            ->schema([
+                TextInput::make('montant')
+                    ->label('Montant encaissé')
+                    ->numeric()
+                    ->prefix('€')
+                    ->required()
+                    ->minValue(0.01)
+                    ->default(fn (Invoice $record): float => $record->resteAPayer())
+                    ->maxValue(fn (Invoice $record): float => $record->resteAPayer())
+                    ->helperText('Ne peut pas dépasser le reste à payer.'),
+                DatePicker::make('date_paiement')
+                    ->label('Date de l\'encaissement')
+                    ->required()
+                    ->default(now())
+                    ->maxDate(now()),
+                Select::make('moyen')
+                    ->label('Moyen de paiement')
+                    ->options(self::MOYENS_PAIEMENT)
+                    ->placeholder('Non précisé'),
+                TextInput::make('reference')
+                    ->label('Référence')
+                    ->helperText('N° de virement, de chèque, etc. (facultatif)')
+                    ->maxLength(255),
+            ])
+            ->action(function (Invoice $record, array $data): void {
+                FinancePayment::create([
+                    'invoice_id' => $record->id,
+                    'finance_line_id' => $record->finance_line_id,
+                    'montant' => $data['montant'],
+                    'date_paiement' => $data['date_paiement'],
+                    'moyen' => $data['moyen'] ?? null,
+                    'reference' => $data['reference'] ?? null,
+                    'created_by' => Auth::id(),
+                ]);
+
+                $record->refresh();
+
+                $solde = $record->statut === InvoiceStatut::Payee;
+
+                Notification::make()->success()
+                    ->title($solde ? 'Facture soldée' : 'Encaissement enregistré')
+                    ->body($solde
+                        ? 'La facture est intégralement payée.'
+                        : 'Reste à payer : '.number_format($record->resteAPayer(), 2, ',', ' ').' €.')
+                    ->send();
+            })
+            ->modalSubmitActionLabel('Enregistrer l\'encaissement');
+    }
+
+    /**
+     * Consulter l'historique des encaissements d'une facture (Phase B).
+     * Lecture seule : rappel des versements déjà saisis et du reste à payer.
+     */
+    public static function paiements(): Action
+    {
+        return Action::make('paiements')
+            ->label('Encaissements')
+            ->icon('heroicon-o-list-bullet')
+            ->color('gray')
+            ->modalHeading('Historique des encaissements')
+            ->visible(fn (Invoice $record): bool => $record->payments()->exists())
+            ->modalContent(fn (Invoice $record) => view(
+                'filament.resources.invoices.payments-history',
+                ['invoice' => $record],
+            ))
+            ->modalSubmitAction(false)
+            ->modalCancelActionLabel('Fermer');
+    }
+
+    /**
+     * Relancer une facture impayée échue (Phase C) : ouvre/actualise la tâche de
+     * relance (visible dans Tâches & Alertes) sans quitter l'écran Factures.
+     */
+    public static function relancer(): Action
+    {
+        return Action::make('relancer')
+            ->label('Relancer')
+            ->icon('heroicon-o-bell-alert')
+            ->color('danger')
+            ->requiresConfirmation()
+            ->modalHeading('Relancer l\'impayé')
+            ->modalDescription(fn (Invoice $record): string => 'Créer une tâche de relance pour cette facture échue depuis '
+                .$record->joursDeRetard().' jour(s) (reste '
+                .number_format($record->resteAPayer(), 2, ',', ' ').' €) ?')
+            ->modalSubmitActionLabel('Créer la relance')
+            ->visible(fn (Invoice $record): bool => $record->estEnRetard())
+            ->action(function (Invoice $record): void {
+                $tache = $record->ouvrirRelance(Auth::id());
+
+                if ($tache === null) {
+                    Notification::make()->warning()
+                        ->title('Aucune relance nécessaire')
+                        ->body('Cette facture n\'est plus en retard.')
+                        ->send();
+
+                    return;
+                }
+
+                Notification::make()->success()
+                    ->title('Relance ouverte')
+                    ->body('Tâche « '.$tache->titre.' » à traiter dans Tâches & Alertes.')
+                    ->send();
+            });
     }
 
     /** Annuler une facture (brouillon ou émise) : elle sort du suivi financier. */

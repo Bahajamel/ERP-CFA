@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\InvoiceStatut;
+use App\Enums\TaskPriorite;
 use App\Enums\TaskStatut;
 use App\Models\Concerns\BelongsToOrganisation;
 use App\StateMachine\ManagesState;
@@ -109,6 +110,63 @@ class Invoice extends Model
             && $this->date_echeance !== null
             && $this->date_echeance->isPast()
             && $this->resteAPayer() > 0;
+    }
+
+    /** Nombre de jours de retard (0 si la facture n'est pas en retard). */
+    public function joursDeRetard(): int
+    {
+        if (! $this->estEnRetard()) {
+            return 0;
+        }
+
+        return (int) $this->date_echeance->startOfDay()->diffInDays(now()->startOfDay());
+    }
+
+    /** Priorité de la relance, escaladée selon l'ancienneté du retard. */
+    public function prioriteRelance(): TaskPriorite
+    {
+        return match (true) {
+            $this->joursDeRetard() >= 30 => TaskPriorite::Urgente,
+            $this->joursDeRetard() >= 15 => TaskPriorite::Haute,
+            default => TaskPriorite::Normale,
+        };
+    }
+
+    /**
+     * Ouvre (ou met à jour) la tâche de relance d'impayé rattachée à cette
+     * facture. Idempotent : une seule tâche par facture (clé {@see cleRelance()}),
+     * ré-exécutable sans doublon — la priorité et l'échéance sont réactualisées à
+     * chaque passage. Retourne null si la facture n'est pas en retard.
+     *
+     * Le CFA (organisation_id) est repris de la facture : indispensable en
+     * contexte commande planifiée, où aucun tenant courant n'est défini.
+     */
+    public function ouvrirRelance(?int $userId = null): ?Task
+    {
+        if (! $this->estEnRetard()) {
+            return null;
+        }
+
+        $jours = $this->joursDeRetard();
+        $reste = number_format($this->resteAPayer(), 2, ',', ' ');
+        $apprenti = $this->financeLine?->contract?->candidate?->nom_complet;
+
+        return $this->tasks()->updateOrCreate(
+            ['cle' => $this->cleRelance()],
+            [
+                'titre' => 'Relancer l\'impayé — facture '.($this->numero ?? '#'.$this->id),
+                'description' => 'Facture'.($apprenti ? ' de '.$apprenti : '')
+                    .' échue depuis '.$jours.' jour(s) ('.$this->date_echeance->format('d/m/Y').')'
+                    .' — reste à payer '.$reste.' €'
+                    .($this->destinataire ? ' auprès de '.$this->destinataire : '').'.',
+                'due_date' => now()->toDateString(),
+                'priorite' => $this->prioriteRelance()->value,
+                'statut' => TaskStatut::AFaire->value,
+                'source' => 'auto',
+                'created_by' => $userId,
+                'organisation_id' => $this->organisation_id,
+            ],
+        );
     }
 
     /**
