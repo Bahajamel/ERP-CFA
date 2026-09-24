@@ -1117,12 +1117,21 @@ class CustomFields
                 $cle = $def->key;
                 $sans = 'Sans '.mb_strtolower($def->label);
 
+                $chemin = "{$prefixe}->{$cle}";
+
                 return Group::make($cle)
                     ->label($def->label)
                     ->collapsible()
                     ->getKeyFromRecordUsing(fn ($record): string => (string) (data_get($record->data, $cle) ?? ''))
                     ->getTitleFromRecordUsing(fn ($record): string => (string) (data_get($record->data, $cle) ?: $sans))
-                    ->orderQueryUsing(fn (Builder $query, string $direction): Builder => $query->orderBy("{$prefixe}->{$cle}", $direction));
+                    ->orderQueryUsing(fn (Builder $query, string $direction): Builder => $query->orderBy($chemin, $direction))
+                    // Filtrage des lignes d'un groupe via le chemin JSON (data->clé)
+                    // et non une colonne SQL « clé » inexistante : sinon PostgreSQL
+                    // lève « column "…" does not exist » (SQLite, lui, tolérait).
+                    // Le groupe « Sans … » regroupe les valeurs nulles ou vides.
+                    ->scopeQueryByKeyUsing(fn (Builder $query, ?string $key): Builder => blank($key)
+                        ? $query->where(fn (Builder $q) => $q->whereNull($chemin)->orWhere($chemin, ''))
+                        : $query->where($chemin, $key));
             })
             ->values()
             ->all();

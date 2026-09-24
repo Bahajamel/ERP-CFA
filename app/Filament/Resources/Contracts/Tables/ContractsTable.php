@@ -12,7 +12,6 @@ use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ForceDeleteBulkAction;
 use Filament\Actions\RestoreBulkAction;
-use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\SelectFilter;
@@ -73,8 +72,11 @@ class ContractsTable
             ->recordActions([
                 // Actions principales visibles ; le reste dans un menu « ⋮ »
                 // pour garder la ligne lisible (plus de débordement horizontal).
-                ViewAction::make(),
-                EditAction::make(),
+                // Pas de ViewAction : la ressource n'a pas de page « view » (le
+                // dossier = la page d'édition / tour de contrôle), donc un bouton
+                // « Voir » resterait inerte. « Modifier » et le clic sur la ligne
+                // ouvrent tous deux le dossier.
+                EditAction::make()->label('Ouvrir le dossier'),
                 ActionGroup::make([
                     ContractActions::envoyerDocumentsASigner(),
                     ContractActions::deposerDocumentsSignes(),

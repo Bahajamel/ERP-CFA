@@ -94,6 +94,11 @@ class DocumentsRelationManager extends RelationManager
                 BulkActionGroup::make([
                     DeleteBulkAction::make(),
                 ]),
-            ]);
+            ])
+            // État vide explicite : sans cela, un contrat sans document affiche
+            // une carte vide sans contexte (perçue comme un bug d'affichage).
+            ->emptyStateIcon(Heroicon::OutlinedDocumentText)
+            ->emptyStateHeading('Aucun document pour ce dossier')
+            ->emptyStateDescription('Générez le CERFA et la convention depuis le menu « Documents » en haut, ou ajoutez une pièce manuellement.');
     }
 }

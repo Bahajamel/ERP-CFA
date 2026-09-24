@@ -215,6 +215,10 @@ class AlerteService
             'priorite' => $priorite->value,
             'statut' => TaskStatut::AFaire->value,
             'source' => 'auto',
+            // Rattachement au CFA repris de l'objet source : en contexte planifié
+            // (CLI, sans tenant courant), sinon la tâche naîtrait avec
+            // organisation_id NULL et resterait invisible dans l'écran cloisonné.
+            'organisation_id' => $taskable->getAttribute('organisation_id'),
         ]);
 
         if ($assigneeId !== null && ($user = User::find($assigneeId)) !== null) {
