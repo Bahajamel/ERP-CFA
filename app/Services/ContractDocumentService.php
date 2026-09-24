@@ -194,24 +194,37 @@ class ContractDocumentService
     /** Message métier intelligent selon l'état des deux documents. */
     private function message(array $cerfa, array $convention): string
     {
+        $cerfaExiste = $cerfa['etat'] !== self::ETAT_A_GENERER;
+        $convExiste = $convention['etat'] !== self::ETAT_A_GENERER;
         $cerfaOk = $cerfa['etat'] === self::ETAT_GENERE;
         $convOk = $convention['etat'] === self::ETAT_GENERE;
+        $aRegenerer = $cerfa['etat'] === self::ETAT_A_REGENERER
+            || $convention['etat'] === self::ETAT_A_REGENERER;
 
+        // Tout est généré et à jour.
         if ($cerfaOk && $convOk) {
             return 'Les deux documents sont générés et à jour.';
         }
 
+        // Des documents existent mais le dossier a changé depuis leur génération :
+        // ils sont potentiellement obsolètes (à régénérer) — surtout PAS « aucun ».
+        if ($aRegenerer) {
+            return 'Le dossier a été modifié depuis la dernière génération : pensez à régénérer les documents concernés.';
+        }
+
+        // La convention est bloquée par des informations manquantes.
         if (filled($convention['manquants'])) {
             return 'La convention ne peut pas être complète : '
                 .count($convention['manquants']).' information(s) manquante(s).';
         }
 
-        if ($cerfaOk && ! $convOk) {
-            return 'Le CERFA est généré, mais la convention manque encore.';
+        // Un seul des deux documents est réellement produit.
+        if ($cerfaExiste && ! $convExiste) {
+            return 'Le CERFA est généré, mais la convention reste à produire.';
         }
 
-        if ($convOk && ! $cerfaOk) {
-            return 'La convention est générée, mais le CERFA manque encore.';
+        if ($convExiste && ! $cerfaExiste) {
+            return 'La convention est générée, mais le CERFA reste à produire.';
         }
 
         return 'Aucun document généré pour l\'instant : CERFA et convention restent à produire.';

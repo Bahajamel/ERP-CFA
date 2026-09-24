@@ -29,17 +29,31 @@ class FlagEcheancesOpco extends Command
         foreach ($enRetard as $payment) {
             $payment->update(['statut' => PaymentStatut::EnRetard->value]);
 
-            $payment->opcoFile?->tasks()->create([
-                'titre' => 'Relancer le versement OPCO en retard — '.$payment->libelle,
-                'description' => 'Échéance du '.$payment->date_prevue->format('d/m/Y')
-                    .' non versée ('.number_format((float) $payment->montant_prevu, 2, ',', ' ').' €).',
-                'assignee_id' => $payment->opcoFile?->responsable_correction_id,
-                'created_by' => null,
-                'due_date' => now(),
-                'priorite' => TaskPriorite::Haute->value,
-                'statut' => TaskStatut::AFaire->value,
-                'source' => 'auto',
-            ]);
+            $dossier = $payment->opcoFile;
+
+            if ($dossier === null) {
+                continue;
+            }
+
+            // Idempotent (clé par échéance) et rattaché au CFA du dossier : sans
+            // organisation_id explicite, la tâche naîtrait NULL en contexte
+            // planifié (aucun tenant courant) et resterait invisible dans l'écran
+            // Tâches & Alertes cloisonné par CFA.
+            $dossier->tasks()->updateOrCreate(
+                ['cle' => "opco:retard:{$payment->id}"],
+                [
+                    'titre' => 'Relancer le versement OPCO en retard — '.$payment->libelle,
+                    'description' => 'Échéance du '.$payment->date_prevue->format('d/m/Y')
+                        .' non versée ('.number_format((float) $payment->montant_prevu, 2, ',', ' ').' €).',
+                    'assignee_id' => $dossier->responsable_correction_id,
+                    'created_by' => null,
+                    'due_date' => now(),
+                    'priorite' => TaskPriorite::Haute->value,
+                    'statut' => TaskStatut::AFaire->value,
+                    'source' => 'auto',
+                    'organisation_id' => $dossier->organisation_id,
+                ],
+            );
         }
 
         $this->info($enRetard->count().' échéance(s) passée(s) en retard.');
