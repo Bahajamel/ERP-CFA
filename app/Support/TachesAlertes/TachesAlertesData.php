@@ -226,6 +226,7 @@ class TachesAlertesData
             ['prefixe' => 'finance:', 'label' => 'Facture en retard', 'icone' => 'heroicon-o-banknotes'],
             ['prefixe' => 'opco:sans_retour:', 'label' => 'Dossier OPCO sans retour', 'icone' => 'heroicon-o-arrow-path'],
             ['prefixe' => 'opco:echeance:', 'label' => 'Versement OPCO à venir', 'icone' => 'heroicon-o-calendar'],
+            ['prefixe' => 'opco:retard:', 'label' => 'Versement OPCO en retard', 'icone' => 'heroicon-o-exclamation-triangle'],
             ['prefixe' => 'qualiopi:', 'label' => 'Qualiopi non conforme', 'icone' => 'heroicon-o-shield-exclamation'],
             // TODO(métier) : « Absence injustifiée » et « Document obligatoire manquant »
             //  ne sont pas encore générées par AlerteService — à ajouter côté service.

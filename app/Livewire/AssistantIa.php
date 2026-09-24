@@ -6,6 +6,7 @@ use App\Models\FaqBot;
 use App\Models\FaqEntry;
 use App\Support\Assistant\AssistantContexte;
 use App\Support\Assistant\RechercheFaq;
+use Filament\Facades\Filament;
 use Illuminate\View\View;
 use Livewire\Component;
 
@@ -194,11 +195,32 @@ class AssistantIa extends Component
     {
         $lien = $entree->lien();
 
-        if ($lien === null || ! app('router')->has($lien['route'])) {
+        if ($lien === null) {
             return null;
         }
 
-        return ['url' => route($lien['route']), 'label' => $lien['label']];
+        $route = app('router')->getRoutes()->getByName($lien['route']);
+
+        // Route inexistante (ex. page renommée) : on masque le lien.
+        if ($route === null) {
+            return null;
+        }
+
+        try {
+            // En multi-tenant, les routes du panel sont préfixées par {tenant}.
+            // Sans ce paramètre, route() lève « Missing required parameter
+            // [tenant] », ce qui casserait toute la requête Livewire (chat muet).
+            $params = str_contains($route->uri(), '{tenant}') && Filament::getTenant()
+                ? ['tenant' => Filament::getTenant()]
+                : [];
+
+            $url = route($lien['route'], $params);
+        } catch (\Throwable) {
+            // Lien impossible à générer : on masque le lien, la réponse reste.
+            return null;
+        }
+
+        return ['url' => $url, 'label' => $lien['label']];
     }
 
     public function render(): View
